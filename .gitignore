@@ -1,0 +1,14 @@
+# Virtual Environments
+.virtualenvs/
+venv/
+ENV/
+Pipfile.lock
+
+# Django Specific
+db.sqlite3
+*.log
+__pycache__/
+*.pyc
+
+# Frontend / Node
+node_modules/

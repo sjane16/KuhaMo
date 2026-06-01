@@ -1,0 +1,132 @@
+{% load static tailwind_tags %}
+<!doctype html>
+<html lang="en" class="bg-gradient-to-br from-blue-50 to-blue-100">
+  <head>
+    {% tailwind_css %}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KuhaMo</title>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body
+    class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen text-gray-800 font-[Poppins]"
+  >
+    <!-- SLOGAN -->
+    <section class="text-center pt-12 pb-10 px-6">
+      <h1
+        class="text-4xl md:text-5xl font-bold text-blue-600 mt-16 leading-tight"
+      >
+        Your Campus, Cared For.
+      </h1>
+      <p class="mt-4 text-lg max-w-2xl mx-auto">
+        See something off? Snap it, send it, sorted. KuhaMo turns everyday
+        concerns into smart insights — so the people who fix things can act
+        before small issues become big headaches.
+      </p>
+    </section>
+
+    <!-- PILL SECTION -->
+    <section class="flex flex-wrap justify-center gap-4">
+      <div
+        class="flex items-center gap-2 border border-gray-200 bg-white rounded-full px-4 py-2 shadow-sm"
+      >
+        <img
+          src="{% static 'icons/camera.png' %}"
+          class="w-5 h-5"
+          alt="Camera"
+        />
+        <p class="text-sm font-medium">Report an Issue</p>
+      </div>
+
+      <div
+        class="flex items-center gap-2 border border-gray-200 bg-white rounded-full px-4 py-2 shadow-sm"
+      >
+        <img src="{% static 'icons/brain.png' %}" class="w-5 h-5" alt="Brain" />
+        <p class="text-sm font-medium">AI-Assisted Triage</p>
+      </div>
+
+      <div
+        class="flex items-center gap-2 border border-gray-200 bg-white rounded-full px-4 py-2 shadow-sm"
+      >
+        <img
+          src="{% static 'icons/check-mark.png' %}"
+          class="w-5 h-5"
+          alt="Check Mark"
+        />
+        <p class="text-sm font-medium">Track to resolved</p>
+      </div>
+    </section>
+
+    <p class="text-sm text-gray-500 mt-10 text-center">
+      Choose your role to continue
+    </p>
+
+    <!-- ROLE SELECTION -->
+    <section
+      class="flex flex-wrap justify-center gap-2 md:gap-2 lg:gap-10 mx-5 my-5"
+    >
+      <!-- USER ROLE -->
+      <div
+        class="bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl mt-10 w-full max-w-[560px] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+      >
+        <div class="grid grid-cols-2 gap-4">
+          <img
+            src="{% static 'images/UserImg.png' %}"
+            class="w-full h-full object-contain"
+            alt="Camera"
+          />
+          <div class="flex flex-col gap-2 justify-end px-4 py-4">
+            <h2 class="text-xl font-bold">User Dashboard</h2>
+            <p class="text-sm">
+              Report issues, track status, and get AI assistance.
+            </p>
+            <a
+              href="/report"
+              class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition"
+            >
+              Enter as User
+              <span class="transition-transform group-hover:translate-x-1"
+                >→</span
+              >
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN ROLE -->
+      <div
+        class="bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl mt-10 w-full max-w-[560px] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+      >
+        <div class="grid grid-cols-2 gap-4">
+          <img
+            src="{% static 'images/AdminImg.png' %}"
+            class="w-full h-full object-contain"
+            alt="Camera"
+          />
+          <div class="flex flex-col gap-2 justify-end px-4 py-4">
+            <h2 class="text-xl font-bold">Admin Dashboard</h2>
+            <p class="text-sm">
+              Monitor reports, analyze trends, and manage operations.
+            </p>
+            <a
+              href="/report"
+              class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition"
+            >
+              Enter as Admin
+              <span class="transition-transform group-hover:translate-x-1"
+                >→</span
+              >
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>

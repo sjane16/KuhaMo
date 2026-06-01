@@ -1,0 +1,37 @@
+{% load static tailwind_tags%} {% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}KuhaMo{% endblock %}</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+  </head>
+
+  <body class="bg-gray-50 font-[Poppins]">
+    <div class="flex min-h-screen">
+      <!-- DESKTOP SIDEBAR -->
+      {% include "user/components/sidebar.html" %}
+
+      <!-- MAIN WRAPPER -->
+      <div class="flex-1 lg:ml-64 flex flex-col">
+        <!-- MOBILE HEADER -->
+        {% include "user/components/mobile_header.html" %}
+
+        <!-- PAGE CONTENT -->
+        <main>
+          {% block content %} {% endblock %}
+        </main>
+      </div>
+
+      <!-- MOBILE BOTTOM NAV -->
+      {% include "user/components/mobile_nav.html" %}
+    </div>
+  </body>
+</html>

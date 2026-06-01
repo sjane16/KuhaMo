@@ -1,0 +1,297 @@
+{% extends "user/layouts/base.html" %}
+
+{% block content %}
+<main class="flex-1 px-5 pt-6 pb-40 lg:pb-10 max-w-4xl w-full lg:mx-auto">
+      <h1 class="text-lg font-bold text-gray-900 mb-6">Menu</h1>
+      <!-- Personal Information -->
+      <div
+        class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4"
+      >
+        <h2 class="text-black font-bold">Personal Information</h2>
+
+        <!-- FIXED LAYOUT -->
+        <div class="flex flex-col md:flex-row gap-6 mt-4 w-full">
+          <!-- LEFT: Photo Upload -->
+          <div
+            class="flex flex-col items-center gap-3 w-full md:w-1/3 lg:w-2/4 h-full"
+          >
+            <!-- Avatar -->
+            <svg
+              class="w-46 h-46 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="0.9"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+              />
+            </svg>
+
+            <!-- Spacer pushes buttons down -->
+            <div class="flex-1"></div>
+
+            <!-- Buttons -->
+            <div class="w-full flex flex-col gap-2 mt-auto">
+              <button
+                class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                Upload New Photo
+              </button>
+
+              <button
+                class="w-full text-sm font-semibold text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-md hover:bg-gray-50"
+              >
+                Remove Photo
+              </button>
+            </div>
+          </div>
+
+          <!-- RIGHT: Personal Details -->
+          <div class="flex flex-col gap-3 w-full md:w-2/3 lg:w-3/4">
+            <!-- Name -->
+            <div class="bg-gray-50 px-4 py-3 rounded-lg">
+              <span class="text-l font-semibold text-gray-800">
+                {{ user.get_full_name|default:"John Carlo Lacson" }}
+              </span>
+            </div>
+
+            <!-- Student ID -->
+            <div
+              class="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg"
+            >
+              <svg
+                class="w-5 h-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.75 4.5h16.5v15H3.75v-15ZM3.75 9h16.5"
+                />
+              </svg>
+              <span class="text-sm text-gray-700">
+                {{ user.profile.student_id|default:"23-22-006" }}
+              </span>
+            </div>
+
+            <!-- User Role -->
+            <div
+              class="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg"
+            >
+              <svg
+                class="w-5 h-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 14.25c3.727 0 6.75 1.678 6.75 3.75v.75H5.25v-.75c0-2.072 3.023-3.75 6.75-3.75ZM12 12a3.75 3.75 0 1 0 0-7.5A3.75 3.75 0 0 0 12 12Z"
+                />
+              </svg>
+              <span class="text-sm text-gray-700">
+                {{ user.profile.role|default:"Student" }}
+              </span>
+            </div>
+
+            <!-- Department -->
+            <div
+              class="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg"
+            >
+              <svg
+                class="w-5 h-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 21h18M4 18V5l8-3 8 3v13M9 21v-6h6v6"
+                />
+              </svg>
+              <span class="text-sm text-gray-700">
+                {{ user.profile.department|default:"CCS" }}
+              </span>
+            </div>
+
+            <!-- Email -->
+            <div
+              class="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg"
+            >
+              <svg
+                class="w-5 h-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15A2.25 2.25 0 0 1 2.25 17.25V6.75m19.5 0L12 13.5 2.25 6.75"
+                />
+              </svg>
+              <span class="text-sm text-gray-700">
+                {{ user.email|default:"jclacson@udm.edu.ph" }}
+              </span>
+            </div>
+
+            <!-- Phone Number -->
+            <div
+              class="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg"
+            >
+              <svg
+                class="w-5 h-5 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M2.25 6.75c0 7.18 5.82 13 13 13h1.5a2.25 2.25 0 0 0 2.25-2.25v-1.372a1.125 1.125 0 0 0-.845-1.09l-4.423-1.106a1.125 1.125 0 0 0-1.173.417l-.97 1.293a9.042 9.042 0 0 1-4.293-4.293l1.293-.97a1.125 1.125 0 0 0 .417-1.173L8.712 5.095a1.125 1.125 0 0 0-1.09-.845H6.25A2.25 2.25 0 0 0 4 6.5v.25Z"
+                />
+              </svg>
+              <span class="text-sm text-gray-700">
+                {{ user.profile.phone|default:"09123456789" }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Information Card -->
+      <div
+        class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4"
+      >
+        <h2 class="text-black font-bold mb-4">Edit Information</h2>
+
+        <!-- On desktop, show fields in a 2-col grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-4">
+          <div class="mb-3.5">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5"
+              >Full Name</label
+            >
+            <input
+              type="text"
+              value="Juan Dela Cruz"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+
+          <div class="mb-3.5">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5"
+              >Email Address</label
+            >
+            <input
+              type="email"
+              value="juandelacruz@gmail.com"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+
+          <div class="mb-3.5">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5"
+              >Department</label
+            >
+            <div class="relative">
+              <select
+                class="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary cursor-pointer pr-10"
+              >
+                <option>CCS Department</option>
+                <option>CAS Department</option>
+                <option>CBE Department</option>
+              </select>
+              <svg
+                class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6 9l6 6 6-6"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <div class="mb-3.5">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5"
+              >Contact Number</label
+            >
+            <input
+              type="tel"
+              placeholder="+63 900 000 0000"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+        </div>
+
+        <button
+          class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2 rounded-md hover:bg-blue-600"
+        >
+          Save Changes
+        </button>
+      </div>
+
+      <!-- Change Password Card -->
+      <div
+        class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4"
+      >
+        <h2 class="text-black font-bold mb-4">Change Password</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-4">
+          <div class="mb-3.5">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5"
+              >Current Password</label
+            >
+            <input
+              type="password"
+              placeholder="Enter current password"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+          <div class="mb-3.5">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5"
+              >New Password</label
+            >
+            <input
+              type="password"
+              placeholder="Enter new password"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+          <div class="mb-3.5">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5"
+              >Confirm Password</label
+            >
+            <input
+              type="password"
+              placeholder="Confirm new password"
+              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+        </div>
+
+        <button
+          class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2 rounded-md hover:bg-blue-600"
+        >
+          Update Password
+        </button>
+      </div>
+    </main>
+    {% endblock %}

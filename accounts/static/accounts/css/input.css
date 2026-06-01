@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --font-poppins: "Poppins", sans-serif;
+}
+
+/* Tell Tailwind explicitly to search only inside your project's app subdirectories */
+@source "../../../templates/**/*.html";
+@source "../../../../templates/**/*.html";
+@source "../../../../config/templates/**/*.html";
