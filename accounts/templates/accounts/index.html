@@ -37,29 +37,65 @@
       <div
         class="flex items-center gap-2 border border-gray-200 bg-white rounded-full px-4 py-2 shadow-sm"
       >
-        <img
-          src="{% static 'icons/camera.png' %}"
-          class="w-5 h-5"
-          alt="Camera"
-        />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-5 h-5 text-blue-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+          />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
         <p class="text-sm font-medium">Report an Issue</p>
       </div>
 
       <div
         class="flex items-center gap-2 border border-gray-200 bg-white rounded-full px-4 py-2 shadow-sm"
       >
-        <img src="{% static 'icons/brain.png' %}" class="w-5 h-5" alt="Brain" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-5 h-5 text-blue-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m1.636-6.364l.707.707M12 21v-1M6.343 17.657l.707-.707M17.657 17.657l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"
+          />
+        </svg>
         <p class="text-sm font-medium">AI-Assisted Triage</p>
       </div>
 
       <div
         class="flex items-center gap-2 border border-gray-200 bg-white rounded-full px-4 py-2 shadow-sm"
       >
-        <img
-          src="{% static 'icons/check-mark.png' %}"
-          class="w-5 h-5"
-          alt="Check Mark"
-        />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-5 h-5 text-blue-600"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
         <p class="text-sm font-medium">Track to resolved</p>
       </div>
     </section>
@@ -78,9 +114,9 @@
       >
         <div class="grid grid-cols-2 gap-4">
           <img
-            src="{% static 'images/UserImg.png' %}"
+            src="{% static 'accounts/images/UserImg.png' %}"
             class="w-full h-full object-contain"
-            alt="Camera"
+            alt="User dashboard illustration"
           />
           <div class="flex flex-col gap-2 justify-end px-4 py-4">
             <h2 class="text-xl font-bold">User Dashboard</h2>
@@ -106,9 +142,9 @@
       >
         <div class="grid grid-cols-2 gap-4">
           <img
-            src="{% static 'images/AdminImg.png' %}"
+            src="{% static 'accounts/images/AdminImg.png' %}"
             class="w-full h-full object-contain"
-            alt="Camera"
+            alt="Admin dashboard illustration"
           />
           <div class="flex flex-col gap-2 justify-end px-4 py-4">
             <h2 class="text-xl font-bold">Admin Dashboard</h2>
