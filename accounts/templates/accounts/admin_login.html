@@ -35,20 +35,14 @@
             {% if messages %}
                 <div class="mt-6 mb-6 ">
                     {% for message in messages %}
-                        <div class="flex items-center border p-3 rounded-xl text-sm {% if message.tags == 'error' %}bg-red-200 border-red-600 text-red-700{% else %}bg-green-200 border-green-600 text-green-700{% endif %} shadow-md animate-pulse">
-
-                            {% if message.tags == 'error' %}
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-red-700 mr-1">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                            </svg>
-
-                            {% else %}
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-green-700 mr-1">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
+                        {% if message.tags == 'error' %}
+                            <div class="flex items-center border p-3 rounded-xl text-sm bg-red-200 border-red-600 text-red-700 shadow-md animate-pulse">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-red-700 mr-1">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                                </svg>
+                                <span class="font-medium">{{message}}</span>
+                            </div>
                             {% endif %}
-                            <span class="font-medium">{{message}}</span>
-                        </div>
                     {% endfor %}
                 </div>
             {% endif %}
