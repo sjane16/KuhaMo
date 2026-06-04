@@ -88,7 +88,7 @@
               Report issues, track status, and get AI assistance.
             </p>
             <a
-              href="/report"
+              href="{% url 'student_login' %}"
               class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition"
             >
               Enter as User
@@ -116,7 +116,7 @@
               Monitor reports, analyze trends, and manage operations.
             </p>
             <a
-              href="/report"
+              href="{% url 'admin_login' %}"
               class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition"
             >
               Enter as Admin
