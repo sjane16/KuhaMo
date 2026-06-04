@@ -17,7 +17,6 @@ def student_login(request):
 
             if user is not None:
                 login(request, user)
-                messages.success(request,"Welcome back, student!")
                 return redirect('/student_dashboard')
             else:
                 storage = get_messages(request)
@@ -45,7 +44,6 @@ def admin_login(request):
 
                 if user.is_staff or user.is_superuser:
                     login(request, user)
-                    messages.success(request,"Welcome back, admin!")
                     return redirect('/admin_dashboard')
                 else:
                     storage = get_messages(request)
