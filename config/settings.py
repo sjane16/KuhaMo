@@ -105,7 +105,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 TAILWIND_APP_NAME = 'theme'
 
-NPM_BIN_PATH = r"D:\Node JS resources\npm.cmd"
+NPM_BIN_PATH = r"C:\Program Files\nodejs\npm.cmd"
 
 
 # Internationalization
