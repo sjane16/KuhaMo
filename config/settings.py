@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'theme',
     'accounts',
     'user',
+    'adm',
 ]
 
 MIDDLEWARE = [
