@@ -1,4 +1,6 @@
-{% load static tailwind_tags%} {% load static %}
+{% load static tailwind_tags %}
+{% load static %}
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -11,10 +13,13 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
-
   </head>
 
   <body class="bg-gray-50 font-[Poppins]">
+
+    <!-- REUSABLE TOAST / DIALOGUE BOX -->
+    {% include "user/components/toast.html" %}
+
     <div class="flex min-h-screen">
       <!-- DESKTOP SIDEBAR -->
       {% include "user/components/sidebar.html" %}
