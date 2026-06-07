@@ -14,8 +14,8 @@
   <!-- Nav Links -->
   <nav class="flex-1 px-4 py-6 flex flex-col gap-1">
     <a
-      href="{% url 'index' %}"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'index' %}bg-primary/10 text-primary{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors"
+      href="{% url 'userDashboard' %}"
+      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'userDashboard' %}bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors"
     >
       <svg
         class="w-5 h-5"
@@ -34,8 +34,8 @@
     </a>
 
     <a
-      href="{% url 'userDashboard' %}"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'reportConcern' %}bg-primary/10 text-primary{% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors"
+      href="{% url 'reportForm' %}"
+      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'reportForm' %}bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors"
     >
       <svg
         class="w-5 h-5"
@@ -54,8 +54,8 @@
     </a>
 
     <a
-      href="#"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+      href="{% url 'userReports' %}"
+      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'userReports' %}bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors"
     >
       <svg
         class="w-5 h-5"
@@ -94,40 +94,49 @@
     </a>
   </nav>
 
-          <!-- User + Logout -->
-        <div class="px-4 pb-6 border-t border-gray-100 pt-4">
-          <div class="flex items-center gap-3 mb-3">
-            <div
-              class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0"
-            >
-              <svg
-                class="w-5 h-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                />
-              </svg>
-            </div>
-            <div class="min-w-0">
-              <p class="text-sm text-gray-600 font-semibold truncate">Juan Dela Cruz</p>
-              <p class="text-xs text-gray-500 truncate">
-                23-22-006
-              </p>
-            </div>
-          </div>
-          <button
-            class="w-full text-sm font-semibold text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            Log out
-          </button>
-        </div>
-      </aside>
-      
-</aside>
+  <!-- User + Logout -->
+  <div class="px-4 pb-6 border-t border-gray-100 pt-4">
+    <div class="flex items-center gap-3 mb-3">
+      <div
+        class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0 overflow-hidden"
+      >
+        {% if user.profile.profile_photo %}
+        <img
+          src="{{ user.profile.profile_photo.url }}"
+          alt="Profile"
+          class="w-full h-full object-cover"
+        />
+        {% else %}
+        <svg
+          class="w-5 h-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+          />
+        </svg>
+        {% endif %}
+      </div>
 
+      <div class="min-w-0">
+        <p class="text-sm text-gray-600 font-semibold truncate">
+          {{ user.first_name }} {{ user.last_name }}
+        </p>
+        <p class="text-xs text-gray-500 truncate">{{ user.username }}</p>
+      </div>
+    </div>
+    <button
+      type="button"
+      onClick="openLogoutModal()"
+      data-open-logout
+      class="w-full text-sm font-semibold text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+    >
+      Log out
+    </button>
+  </div>
+</aside>

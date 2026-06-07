@@ -17,7 +17,7 @@ def student_login(request):
 
             if user is not None:
                 login(request, user)
-                return redirect('/student_dashboard')
+                return redirect('userDashboard')
             else:
                 storage = get_messages(request)
                 storage.used = True

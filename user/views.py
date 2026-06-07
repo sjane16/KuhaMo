@@ -1,13 +1,70 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-
-from .forms import ReportForm, get_location_choices
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
+from .forms import ReportForm, get_location_choices, UserForm, UserProfileForm, ProfilePhotoForm
 from .models import Report
 
 
+@login_required
 def menu(request):
+    profile = request.user.profile
+
+    user_form = UserForm(instance=request.user)
+    profile_form = UserProfileForm(instance=profile)
+    photo_form = ProfilePhotoForm(instance=profile)
+
+    if request.method == 'POST':
+        if 'save_info' in request.POST:
+            user_form = UserForm(request.POST, instance=request.user)
+            profile_form = UserProfileForm(request.POST, instance=profile)
+
+            if user_form.is_valid() and profile_form.is_valid():
+                user_form.save()
+                profile_form.save()
+                messages.success(request, "Profile Updated Successfully")
+                return redirect('menu')
+            else:
+                messages.error(request, f"Errors: {user_form.errors}| {profile_form.errors}")
+        
+        elif 'save_photo' in request.POST:
+            photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=profile)
+
+            if photo_form.is_valid():
+                photo_form.save()
+                messages.success(request, "Profile Photo Updated Successfully")
+                return redirect('menu')
+            else:
+                messages.error(request, "Please upload a valid photo.")
+
+        elif 'remove_photo' in request.POST:
+            profile.profile_photo.delete(save=True)
+            messages.success(request, "Profile Photo Removed Successfully")
+            return redirect('menu')
+
+        elif 'change_password' in request.POST:
+            old_password = request.POST.get('old_password')
+            new_password1 = request.POST.get('new_password1')
+            new_password2 = request.POST.get('new_password2')
+
+            if not request.user.check_password(old_password):
+                messages.error(request, "Old password is incorrect.")
+            elif new_password1 != new_password2:
+                messages.error(request, "New passwords do not match.")
+            elif len(new_password1) < 8:
+                messages.error(request, "New password must be at least 8 characters long.")
+            else:
+                request.user.set_password(new_password1)
+                request.user.save()
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "New password saved successfully!", extra_tags='password_changed')
+                return redirect('menu')
+            
     return render(request, 'user/menu.html', {
-        "active_page": "menu"
+        "active_page": "menu",
+        "user_form": user_form,
+        "profile_form": profile_form,
+        "photo_form": photo_form,
     })
 
 

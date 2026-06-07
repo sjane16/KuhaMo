@@ -1,4 +1,6 @@
 from django import forms
+from django.contrib.auth.models import User
+from .models import UserProfile
 from .models import Report
 
 def get_location_choices():
@@ -20,3 +22,20 @@ class ReportForm(forms.ModelForm):
     class Meta:
         model = Report
         fields = ['photo', 'category', 'location', 'description']
+
+
+class UserForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['department', 'phone']
+
+class ProfilePhotoForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['profile_photo']
+    
