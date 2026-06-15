@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'tailwind',
     'theme',
+    'axes',
     'accounts',
     'user',
     'adm',
@@ -52,7 +53,20 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 0.5
+AXES_LOCKOUT_BY_COMBINATION = True
+AXES_LOCKOUT_TEMPLATE = None
+AXES_RAISE_PERMISSION_DENIED = True
+AXES_RESET_ON_SUCCESS = True 
 
 ROOT_URLCONF = 'config.urls'
 
@@ -103,9 +117,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+
 TAILWIND_APP_NAME = 'theme'
 
-NPM_BIN_PATH = r"D:\Node JS resources\npm.cmd"
+NPM_BIN_PATH = r"C:\Program Files\nodejs\npm.cmd"
 
 
 # Internationalization
