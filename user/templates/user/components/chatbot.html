@@ -1,0 +1,157 @@
+{% load static tailwind_tags %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>KuhaMo Chatbot</title>
+        {% tailwind_css %}
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Modak&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    </head>
+    <body>
+    <button id="chatbot-toggle" class="flex fixed right-6 bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 transition-all focus:outline-none bottom-23 md:bottom-6 z-50">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+        </svg>
+    </button>
+
+    <div id="chat-window" class="hidden fixed right-6 w-96 bottom-44 md:bottom-24 h-[500px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-fade-in z-50">
+        
+        <div class="bg-blue-600 p-4 text-white flex justify-between items-center shadow-md">
+            <div class="flex items-center gap-2">
+                <div class="relative flex w-2.5 h-2.5">
+                    <span class="animate-ping inline-flex absolute rounded-full w-full h-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400"></span>
+                </div>
+                <div>
+                    <h1 class="font-semibold tracking-wide text-xs">KuhaMo AI Assistant</h1>
+                </div>
+            </div>
+            <button id="chat-btn-close" class="text-white hover:text-gray-200 text-lg font-bold focus:outline-none">&times;</button>
+        </div>
+
+        <div id="chat-box" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50 flex flex-col">
+            <div class="bg-blue-100 text-blue-900 text-xs p-3 rounded-xl max-w-[85%] self-start rounded-tl-none shadow-sm">
+                Hi! I'm Marie! How can I assist you today? 
+            </div>
+
+            <div id="quick-replies" class="flex flex-col gap-1.5 pt-2">
+                <button data-answer="how_to_report" class="quick-rep-btn text-left bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 rounded-lg text-[11px] py-2 px-3 shadow-sm font-medium transition-colors">
+                    ❓ How to report facility-concerns? 
+                </button>
+                <button data-answer="turnaround_time" class="quick-rep-btn text-left bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 rounded-lg text-[11px] py-2 px-3 shadow-sm font-medium transition-colors">
+                    ⏳ How long will it take for a report to be processed? 
+                </button>
+                <button data-answer="general_user" class="quick-rep-btn text-left bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 rounded-lg text-[11px] py-2 px-3 shadow-sm font-medium transition-colors">
+                    👤 Who can submit reports? 
+                </button>
+            </div>
+        </div> <form id="chat-form" class="p-3 border-t bg-white flex items-center gap-2">
+            {% csrf_token %}
+            <input type="text" id="chat-input" class="flex-1 text-xs border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 placeholder-gray-400" placeholder="Type your question here...">
+            
+            <button type="submit" class="bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700 transition-colors focus:outline-none shadow-sm flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const chatbotToggle = document.getElementById("chatbot-toggle");
+            const chatWindow = document.getElementById("chat-window");
+            const chatClose = document.getElementById("chat-btn-close");
+            const chatBox = document.getElementById("chat-box");
+            const chatForm = document.getElementById("chat-form");
+            const chatInput = document.getElementById("chat-input");
+            const quickReply = document.getElementById("quick-replies");
+
+            const localQues = {
+                "how_to_report": "To report, navigate to the 'Report Issue', capture an image of the facility-concern, and allow the system to clasify the concern before submitting.",
+                "turnaround_time": "The assessment and verification of concerns typically take 2-3 working days on the part of the UDM administration ofiicials.",
+                "general_user": "All legitimate and currently enrolled students of the Universidad de Manila (UDM) are authorized to submit reports through this system."
+            };
+
+            chatbotToggle.addEventListener("click", () => chatWindow.classList.toggle("hidden"));
+            chatClose.addEventListener("click", () => chatWindow.classList.add("hidden"));
+
+            function appendMessage(text, isUser){
+                const message = document.createElement("div");
+                message.className = isUser 
+                ? "bg-blue-600 text-white text-xs p-3 rounded-xl max-w-[85%] self-end rounded-tr-none shadow-sm transition-all"
+                : "bg-blue-100 text-blue-900 text-xs p-3 rounded-xl max-w-[85%] self-start rounded-tl-none shadow-sm transition-all";
+
+                message.textContent = text;
+
+                chatBox.insertBefore(message, quickReply);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            document.querySelectorAll(".quick-rep-btn").forEach(button => {
+                button.addEventListener("click", function(e) {
+                    const currentBtn = e.currentTarget;
+                    const key = currentBtn.getAttribute ("data-answer");
+                    const questionText = currentBtn.textContent.trim();
+                    appendMessage(questionText, true);
+
+                    const quickloader = document.createElement("div");
+                    quickloader.id = "typing-loader";
+                    quickloader.className = "bg-gray-200 text-gray-500 text-[10px] p-2 rounded-xl self-start rounded-tl-none shadow-sm italic animate-pulse";
+                    quickloader.textContent = "Marie is thinking...";
+                    chatBox.insertBefore(quickloader, quickReply);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+
+                    setTimeout(() => {
+
+                        const activeLoader = document.getElementById("typing-loader");
+                        if(activeLoader) activeLoader.remove();
+                        
+                        appendMessage(localQues[key], false); 
+                    }, 1200);
+                });
+            });
+
+            chatForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+                
+                const ques = chatInput.value.trim();
+                if (!ques) return;
+
+                appendMessage(ques, true);
+                chatInput.value = "";
+
+                const loader = document.createElement("div");
+                loader.id = "typing-loader";
+                loader.className = "bg-gray-200 text-gray-500 text-[10px] p-2 rounded-xl self-start rounded-tl-none shadow-sm italic animate-pulse";
+                loader.textContent = "Marie is thinking...";
+                chatBox.insertBefore(loader, quickReply);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                fetch("/user/chatbot/response/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: new URLSearchParams({"message": ques })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const removeLoader = document.getElementById("typing-loader");
+                    if(removeLoader) removeLoader.remove();
+                    appendMessage(data.reply, false)
+                })
+                .catch(error => {
+                    const targetLoader = document.getElementById("typing-loader");
+                    if(targetLoader) targetLoader.remove();
+                    appendMessage("Sorry, there was an error connecting to the network gateway.", false)
+                });
+            });
+        });
+    </script>
+</body>
+</html>
