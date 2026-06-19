@@ -146,3 +146,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Media files (user uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+GEMINI_API_KEY = "AQ.Ab8RN6KRUfteJFTsFb3lw5MTxnu5z_JLtcY1VPwd14H9DWThGA"

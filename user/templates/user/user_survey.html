@@ -1,0 +1,89 @@
+{% extends "user/layouts/base.html" %}
+
+{% block content %}
+<main class="flex-1 px-5 pt-6 pb-40 lg:pb-10 max-w-4xl w-full lg:mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900 leading-tight">Survey</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Your submitted satisfaction surveys.</p>
+  </div>
+
+  {% if submitted_surveys %}
+    <div class="space-y-4">
+      {% for survey in submitted_surveys %}
+      <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
+
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <p class="text-sm font-bold text-gray-900">{{ survey.report.get_category_display }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">Report #FC-{{ survey.report.id|stringformat:"04d" }}</p>
+          </div>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 border border-green-200 text-xs font-semibold text-green-600 shrink-0">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+            </svg>
+            Submitted
+          </span>
+        </div>
+
+        <!-- Thank you message -->
+        <p class="text-sm text-gray-700 font-medium mb-3">
+          Thank you for submitting a survey for this report! 🎉
+        </p>
+
+        <!-- Rating -->
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-2xl">
+            {% if survey.rating == 1 %}😤
+            {% elif survey.rating == 2 %}😞
+            {% elif survey.rating == 3 %}😐
+            {% elif survey.rating == 4 %}😊
+            {% elif survey.rating == 5 %}😄
+            {% endif %}
+          </span>
+          <span class="text-sm text-gray-500">
+            You rated this as <span class="font-semibold text-gray-700">
+            {% if survey.rating == 1 %}Frustrated
+            {% elif survey.rating == 2 %}Disappointed
+            {% elif survey.rating == 3 %}Neutral
+            {% elif survey.rating == 4 %}Pleased
+            {% elif survey.rating == 5 %}Delighted
+            {% endif %}
+            </span>
+          </span>
+        </div>
+
+        {% if survey.feedback %}
+        <p class="text-sm text-gray-400 italic mb-4">"{{ survey.feedback }}"</p>
+        {% endif %}
+
+        <!-- Office visit notice -->
+        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3">
+          <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/>
+          </svg>
+          <p class="text-xs text-blue-700 leading-relaxed">
+            Please visit the <span class="font-semibold">Maintenance and Engineering Division office</span> during office hours to sign the Job Order form for this report.
+          </p>
+        </div>
+
+      </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
+      <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="m9 14 2 2 4-4" />
+        </svg>
+      </div>
+      <p class="text-sm font-semibold text-gray-700">No surveys submitted yet</p>
+      <p class="text-xs text-gray-400 mt-1">Surveys will appear here once your reports are resolved.</p>
+    </div>
+  {% endif %}
+
+</main>
+{% endblock %}

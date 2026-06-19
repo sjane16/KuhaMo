@@ -9,11 +9,13 @@ class Report(models.Model):
     ]
 
     CATEGORY_CHOICES = [
-        ('av_it_equipment_failures', 'AV/IT Equipment Failures'),
-        ('broken_furniture', 'Broken Furniture'),
-        ('electrical_hazards', 'Electrical Hazards'),
-        ('heating_or_cooling_system_problems', 'Heating or Cooling System Problems'),
-        ('non_functional_fixtures', 'Non-functional Fixtures'),
+        ('electrical', 'Electrical'),
+        ('plumbing', 'Plumbing'),
+        ('refrigeration_acu', 'Refrigeration / ACUs'),
+        ('carpentry_masonry', 'Carpentry / Masonry'),
+        ('painting', 'Painting'),
+        ('vehicle_checkup', 'Vehicle Check-up'),
+        ('others', 'Others'),
     ]
 
     photo = models.ImageField(upload_to='reports/')
@@ -41,3 +43,13 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - Profile"
+    
+
+class SurveyResponse(models.Model):
+    report = models.OneToOneField(Report, on_delete=models.CASCADE, related_name='survey')
+    rating = models.IntegerField()
+    feedback = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Survey for Report #{self.report.id:04d}"

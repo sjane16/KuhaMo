@@ -8,6 +8,7 @@ import os
 from django.http import JsonResponse
 from django.conf import settings
 from google import genai
+from .models import Report, SurveyResponse
 
 
 @login_required
@@ -137,11 +138,51 @@ def userReports(request):
 
 def reportedIssue(request, report_id):
     report = get_object_or_404(Report, id=report_id)
+    already_surveyed = hasattr(report, 'survey')
+
+    emojis = [
+        ('😤', 'Frustrated', 1),
+        ('😞', 'Disappointed', 2),
+        ('😐', 'Neutral', 3),
+        ('😊', 'Pleased', 4),
+        ('😄', 'Delighted', 5),
+    ]
 
     return render(request, 'user/reported_issue.html', {
         "active_page": "reportedIssue",
         "report": report,
+        "already_surveyed": already_surveyed,
+        "emojis": emojis,
     })
+
+def userSurvey(request):
+    from .models import SurveyResponse
+    submitted_surveys = SurveyResponse.objects.filter(
+        report__in=Report.objects.all()
+    ).select_related('report').order_by('-submitted_at')
+
+    return render(request, 'user/user_survey.html', {
+        "active_page": "userSurvey",
+        "submitted_surveys": submitted_surveys,
+    })
+
+def submitSurvey(request, report_id):
+    if request.method == 'POST':
+        report = get_object_or_404(Report, id=report_id)
+        rating = request.POST.get('rating')
+        feedback = request.POST.get('feedback', '')
+
+        if not rating:
+            return JsonResponse({'success': False, 'error': 'Rating is required.'})
+
+        SurveyResponse.objects.create(
+            report=report,
+            rating=int(rating),
+            feedback=feedback,
+        )
+        return JsonResponse({'success': True})
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 def chatbot(request):
     return render(request, 'user/components/chatbot.html')
