@@ -105,3 +105,14 @@ def admin_login(request):
         form = AdminLogin()
 
     return render(request, 'accounts/admin_login.html', {'form': form})
+
+def custom_lockout(request, credentials=None, *args, **kwargs):
+    storage = get_messages(request)
+    storage.used = True 
+
+    messages.error(request, "Access denied. Your account has been temporarily locked due to 5 failed login attempts. Please try again after 30 minutes")
+
+    if request.path and 'admin' in request.path:
+        return redirect('admin_login')
+    return redirect('student_login')
+    
