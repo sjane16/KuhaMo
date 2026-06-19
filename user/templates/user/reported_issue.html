@@ -284,4 +284,139 @@
   </div>
 
 </main>
+
+{% if report.status == 'resolved' and not already_surveyed %}
+<!-- Resolved Notification Popup -->
+<div id="resolved-notif" class="fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-8 lg:pb-0">
+  <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 flex flex-col items-center text-center">
+    <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
+      <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+      </svg>
+    </div>
+    <h2 class="text-base font-bold text-gray-900 mb-2">Your report has been resolved!</h2>
+    <p class="text-sm text-gray-500 mb-6">Please take a short satisfaction survey to complete your report.</p>
+    <button onclick="openSurveyForm()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
+      Take Survey
+    </button>
+  </div>
+</div>
+
+<!-- Survey Form Popup -->
+<div id="survey-form" class="hidden fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-8 lg:pb-0">
+  <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6">
+    <h2 class="text-base font-bold text-gray-900 mb-1 text-center">Satisfaction Survey</h2>
+    <p class="text-xs text-gray-400 text-center mb-6">Report #FC-{{ report.id|stringformat:"04d" }}</p>
+
+    <!-- Emoji Rating -->
+    <p class="text-sm font-semibold text-gray-700 mb-3 text-center">How satisfied are you with the resolution?</p>
+    <div class="flex justify-between mb-6 px-2">
+      {% for emoji, label, val in emojis %}
+      <button type="button" onclick="selectRating({{ val }})"
+        id="emoji-{{ val }}"
+        class="emoji-btn flex flex-col items-center gap-1 p-2 rounded-xl transition-all">
+        <span class="text-3xl">{{ emoji }}</span>
+        <span class="text-[10px] text-gray-400">{{ label }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Feedback -->
+    <textarea id="survey-feedback" rows="3" placeholder="Any additional feedback? (optional)"
+      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none mb-4">
+    </textarea>
+
+    <button onclick="submitSurvey()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
+      Submit Survey
+    </button>
+    <p id="survey-error" class="hidden text-xs text-red-500 text-center mt-2">Please select a rating before submitting.</p>
+  </div>
+</div>
+{% endif %}
+
+{% if already_surveyed %}
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'fixed top-5 right-5 z-[9999] w-80 space-y-3 max-lg:right-auto max-lg:left-1/2 max-lg:-translate-x-1/2 max-lg:w-[92%] max-lg:max-w-sm';
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-message flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-md bg-green-50 border-green-200 text-green-700';
+    toast.innerHTML = `
+      <div class="flex-1 text-sm font-medium">✓ You've already submitted a survey for this report.</div>
+      <button type="button" onclick="this.closest('.toast-message').remove()" class="text-current opacity-60 hover:opacity-100">✕</button>
+    `;
+
+    wrapper.appendChild(toast);
+    document.body.appendChild(wrapper);
+    setTimeout(() => wrapper.remove(), 3500);
+  });
+</script>
+{% endif %}
+
+<script>
+  let selectedRating = null;
+
+  function openSurveyForm() {
+    document.getElementById('resolved-notif').remove();
+    document.getElementById('survey-form').classList.remove('hidden');
+  }
+
+  function selectRating(val) {
+    selectedRating = val;
+    document.querySelectorAll('.emoji-btn').forEach(btn => {
+      btn.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-400');
+    });
+    document.getElementById('emoji-' + val).classList.add('bg-blue-50', 'ring-2', 'ring-blue-400');
+  }
+
+  function submitSurvey() {
+    if (!selectedRating) {
+      document.getElementById('survey-error').classList.remove('hidden');
+      return;
+    }
+
+    const feedback = document.getElementById('survey-feedback').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+      || '{{ csrf_token }}';
+
+    fetch("{% url 'submitSurvey' report.id %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `rating=${selectedRating}&feedback=${encodeURIComponent(feedback)}&csrfmiddlewaretoken=${csrfToken}`
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('survey-form').remove();
+        showSuccessMessage();
+      }
+    });
+  }
+
+  function showSuccessMessage() {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-end lg:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-8 lg:pb-0';
+    modal.innerHTML = `
+      <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 flex flex-col items-center text-center">
+        <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
+          <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        </div>
+        <h2 class="text-base font-bold text-gray-900 mb-2">Thank you for your feedback!</h2>
+        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3 text-left mb-6">
+          <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/>
+          </svg>
+          <p class="text-xs text-blue-700 leading-relaxed">Please visit the <span class="font-semibold">Maintenance and Engineering Division office</span> during office hours to sign the Job Order form for this report.</p>
+        </div>
+        <button onclick="this.closest('.fixed').remove()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
+          Got it
+        </button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+</script>
 {% endblock %}

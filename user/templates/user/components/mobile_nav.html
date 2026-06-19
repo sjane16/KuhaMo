@@ -69,6 +69,26 @@
     My Reports
   </a>
 
+  <!-- Survey -->
+  <a
+    href="{% url 'userSurvey' %}"
+    class="flex flex-col items-center gap-1 flex-1 py-2 text-xs font-medium {% if request.resolver_match.url_name == 'userSurvey' %}text-blue-500{% else %}text-gray-400{% endif %}"
+  >
+    <svg
+      class="w-6 h-6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="m9 14 2 2 4-4" />
+    </svg>
+    Survey
+  </a>
+
   <!-- Menu -->
   <a
     href="{% url 'menu' %}"
