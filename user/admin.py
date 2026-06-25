@@ -18,4 +18,8 @@ class CustomUserAdmin(admin.ModelAdmin):
     list_display = ('username', 'first_name', 'last_name', 'email')
     search_fields = ('username', 'first_name', 'last_name', 'email')
 
-admin.site.register(Report)
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ('id', 'reporter_name', 'category', 'location', 'status', 'submitted_at')
+    list_filter = ('status', 'category')
+    raw_id_fields = ('user',)
