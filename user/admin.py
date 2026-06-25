@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin
 from .models import Report
 from .models import UserProfile
 
@@ -13,7 +14,7 @@ class UserProfileInline(admin.StackedInline):
 admin.site.unregister(User)
 
 @admin.register(User)
-class CustomUserAdmin(admin.ModelAdmin):
+class CustomUserAdmin(UserAdmin):
     inlines = [UserProfileInline]
     list_display = ('username', 'first_name', 'last_name', 'email')
     search_fields = ('username', 'first_name', 'last_name', 'email')

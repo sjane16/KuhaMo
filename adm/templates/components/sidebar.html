@@ -6,11 +6,16 @@
   class="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed h-full z-50"
 >
   <!-- Logo -->
-  <div class="px-6 py-6 border-b border-gray-100">
-    <h1 class="text-xl font-bold text-primary">KuhaMo</h1>
-    <p class="text-xs text-gray-400 mt-0.5">Facility Concern System</p>
+  <div class="flex items-center gap-3 px-6 py-6 border-b border-gray-100">
+    <img
+      src="{% static 'adm/images/Fac-Check-Logo.png' %}"
+      style="width: 50px; height: 50px; object-fit: contain"
+    />
+    <div>
+      <h1 class="text-xl font-bold text-primary">Fac-Check</h1>
+      <p class="text-xs text-gray-400 mt-0.5">Facility Concern System</p>
+    </div>
   </div>
-
   <!-- Nav Links -->
   <nav class="flex-1 px-4 py-6 flex flex-col gap-1">
     <a
@@ -55,24 +60,25 @@
     </a>
 
     <a
-      href="#"
-      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+      href="{% url 'universitymap'%}"
+      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'universitymap' %}bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         class="w-5 h-5"
         fill="none"
-        viewBox="0 0 24 24"
-        stroke-width="1.5"
         stroke="currentColor"
+        stroke-width="1.8"
+        viewBox="0 0 24 24"
       >
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
-          d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605"
+          d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"
         />
       </svg>
-      Analytics
+
+      University Map
     </a>
 
     <a
@@ -117,6 +123,28 @@
       </svg>
       Generate Report
     </a>
+
+    <!--MENU-->
+    <a
+      href="{% url 'ProfileMenu'%}"
+      class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'ProfileMenu' %}bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors"
+    >
+      <svg
+        class="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+        />
+      </svg>
+
+      Menu
+    </a>
   </nav>
 
   <!-- User + Logout -->
@@ -141,12 +169,15 @@
       </div>
       <div class="min-w-0">
         <p class="text-sm text-gray-600 font-semibold truncate">
-          Juan Dela Cruz
+          {{ user.first_name }} {{ user.last_name }}
         </p>
-        <p class="text-xs text-gray-500 truncate">23-22-006</p>
+        <p class="text-xs text-gray-500 truncate">{{ user.username }}</p>
       </div>
     </div>
     <button
+      type="button"
+      onClick="openLogoutModal()"
+      data-open-logout
       class="w-full text-sm font-semibold text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors"
     >
       Log out

@@ -3,16 +3,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, get_location_choices, UserForm, UserProfileForm, ProfilePhotoForm
-from .models import Report, SurveyResponse, UserProfile
 import os
 from django.http import JsonResponse
 from django.conf import settings
 from google import genai
+from .models import Report, SurveyResponse, UserProfile
 
 
 @login_required
 def menu(request):
     profile, created = UserProfile.objects.get_or_create(user=request.user)
+
     user_form = UserForm(instance=request.user)
     profile_form = UserProfileForm(instance=profile)
     photo_form = ProfilePhotoForm(instance=profile)
