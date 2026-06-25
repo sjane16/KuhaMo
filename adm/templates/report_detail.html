@@ -1,0 +1,544 @@
+{% extends "layouts/base.html" %} {% block content %}
+
+<main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
+
+  <!-- Back button -->
+  <a href="{% url 'reports' %}" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+    </svg>
+    Back to Reports
+  </a>
+
+  <!-- Modal-style card -->
+  <div class="bg-white border border-gray-200 rounded-3xl shadow overflow-hidden">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+      <div class="flex items-center gap-3">
+        <h1 class="text-base font-bold text-gray-900">Report Details</h1>
+        <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+          #FC-{{ report.id|stringformat:"04d" }}
+        </span>
+        {% if report.status == 'pending' %}
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-600 border border-yellow-200">Pending</span>
+        {% elif report.status == 'in_progress' %}
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-500 border border-blue-200">In Progress</span>
+        {% elif report.status == 'resolved' %}
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-600 border border-green-200">Resolved</span>
+        {% elif report.status == 'closed' %}
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Closed</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Body: two columns -->
+    <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+
+      <!-- LEFT PANEL -->
+      <div class="w-full lg:w-72 xl:w-80 shrink-0 p-6 flex flex-col gap-5">
+
+        <!-- Photo -->
+        <div id="concernPhotoWrap" class="border-2 border-dashed border-gray-200 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50 h-52 {% if report.photo %}cursor-pointer{% endif %}">
+          {% if report.photo %}
+            <img
+              src="{{ report.photo.url }}"
+              alt="Report Photo"
+              class="w-full h-full object-cover hover:opacity-90 transition-opacity"
+              onclick="openPhotoModal('{{ report.photo.url }}')"
+            />
+          {% else %}
+            <div class="flex flex-col items-center text-gray-300 gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 18h16.5M3 9.75h18" />
+              </svg>
+              <p class="text-xs text-gray-400">No image submitted</p>
+            </div>
+          {% endif %}
+        </div>
+        <p class="text-xs text-center text-gray-400 -mt-3">
+          {% if report.photo %}Click photo to enlarge{% else %}Concern photo for visual inspection{% endif %}
+        </p>
+
+        <!-- Meta -->
+        <div class="bg-gray-50 rounded-2xl p-4 space-y-3">
+
+          <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" />
+            </svg>
+            <div>
+              <p class="text-xs text-gray-400">Concern Category</p>
+              <p class="text-sm font-semibold text-gray-800">{{ report.get_category_display }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+            </svg>
+            <div>
+              <p class="text-xs text-gray-400">Location / Room</p>
+              <p class="text-sm font-semibold text-gray-800">{{ report.location }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M4.5 6.75h15A1.5 1.5 0 0121 8.25v10.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18.75V8.25A1.5 1.5 0 014.5 6.75z" />
+            </svg>
+            <div>
+              <p class="text-xs text-gray-400">Date Submitted</p>
+              <p class="text-sm font-semibold text-gray-800">{{ report.submitted_at|date:"M d, Y · h:i A" }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+            <div>
+              <p class="text-xs text-gray-400">Reported By</p>
+              <p class="text-sm font-semibold text-gray-800">
+                {% if report.user %}{{ report.user.get_full_name|default:report.user.username }}{% else %}—{% endif %}
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        {% if report.priority %}
+        <div class="bg-gray-50 rounded-2xl p-4">
+          <p class="text-xs text-gray-400 mb-2">Current Priority</p>
+          {% if report.priority == 'critical' %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-600 text-white">Critical / Urgent</span>
+          {% elif report.priority == 'high' %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white">High Priority</span>
+          {% elif report.priority == 'standard' %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-yellow-400 text-white">Standard</span>
+          {% elif report.priority == 'awaiting_materials' %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-purple-500 text-white">Awaiting Materials</span>
+          {% elif report.priority == 'awaiting_approval' %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-500 text-white">Awaiting Approval</span>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="flex-1 p-6 overflow-y-auto max-h-[80vh] space-y-8">
+
+        <!-- Title + reporter -->
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">{{ report.get_category_display }}</h2>
+          <p class="text-sm text-gray-500 mt-1">
+            Reported by
+            <strong class="text-gray-700">
+              {% if report.user %}{{ report.user.get_full_name|default:report.user.username }}{% else %}Unknown{% endif %}
+            </strong>
+            &nbsp;·&nbsp; {{ report.location }}
+          </p>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Description</p>
+          <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed italic">
+            {{ report.description|default:"No description provided." }}
+          </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SINGLE UNIFIED FORM
+             Covers: CBA items + Forward to Procurement + Priority +
+             Assigned Personnel. ONE "Save Changes" button submits all.
+        ═══════════════════════════════════════════════════════════ -->
+        <form method="POST" action="{% url 'adm_report_save' report.id %}">
+          {% csrf_token %}
+
+          <!-- ═══════════════════════════════════
+               COST BENEFIT ANALYSIS (accordion, optional)
+          ════════════════════════════════════ -->
+          <div class="mb-8">
+            <button
+              id="cbaToggle"
+              type="button"
+              onclick="toggleCBA()"
+              class="w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 border-blue-200 bg-blue-50 text-blue-600 font-semibold text-sm hover:bg-blue-100 transition-colors"
+            >
+              <span class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                Perform Cost Benefit Analysis
+              </span>
+              <svg id="cbaChevron" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform {% if cba_items %}rotate-180{% endif %}" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            <!-- CBA Panel: open by default if there's saved data, else collapsed -->
+            <div id="cbaPanel" class="{% if not cba_items %}hidden{% endif %} mt-3 border border-gray-200 rounded-2xl overflow-hidden">
+
+              <div class="px-5 pt-5 pb-4">
+                <h3 class="text-sm font-bold text-gray-900">Cost Benefit Analysis</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Estimate repair costs to determine whether repair or replacement is recommended.</p>
+              </div>
+
+              <!-- Items table -->
+              <div class="px-5 pb-2">
+                <div class="grid grid-cols-12 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 px-1">
+                  <div class="col-span-6">Item Description</div>
+                  <div class="col-span-2 text-center">Qty</div>
+                  <div class="col-span-2 text-center">Unit Price</div>
+                  <div class="col-span-2 text-right">Subtotal</div>
+                </div>
+
+                <div id="cbaItems" class="space-y-2">
+                  {% if cba_items %}
+                    {% for item in cba_items %}
+                    <div class="cba-row grid grid-cols-12 gap-2 items-center">
+                      <input type="text" name="item_desc[]" value="{{ item.description }}" placeholder="e.g., Motor Assembly" class="col-span-6 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                      <input type="number" name="item_qty[]" value="{{ item.qty }}" min="1" class="cba-qty col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                      <div class="col-span-2 flex items-center border border-gray-200 rounded-xl px-2 py-2 gap-1">
+                        <span class="text-xs text-gray-400">₱</span>
+                        <input type="number" name="item_price[]" value="{{ item.unit_price }}" min="0" class="cba-price w-full text-sm text-gray-900 focus:outline-none" />
+                      </div>
+                      <div class="col-span-2 flex items-center justify-end gap-2">
+                        <span class="cba-subtotal text-sm font-medium text-gray-900">₱0.00</span>
+                        <button onclick="removeRow(this)" type="button" class="text-gray-300 hover:text-red-400 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  {% else %}
+                    <div class="cba-row grid grid-cols-12 gap-2 items-center">
+                      <input type="text" name="item_desc[]" placeholder="e.g., Motor Assembly" class="col-span-6 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                      <input type="number" name="item_qty[]" value="1" min="1" class="cba-qty col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                      <div class="col-span-2 flex items-center border border-gray-200 rounded-xl px-2 py-2 gap-1">
+                        <span class="text-xs text-gray-400">₱</span>
+                        <input type="number" name="item_price[]" value="0" min="0" class="cba-price w-full text-sm text-gray-900 focus:outline-none" />
+                      </div>
+                      <div class="col-span-2 flex items-center justify-end gap-2">
+                        <span class="cba-subtotal text-sm font-medium text-gray-900">₱0.00</span>
+                        <button onclick="removeRow(this)" type="button" class="text-gray-300 hover:text-red-400 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  {% endif %}
+                </div>
+
+                <button onclick="addCBARow()" type="button" class="mt-3 flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Item
+                </button>
+              </div>
+
+              <!-- Total + Recommendation -->
+              <div class="px-5 py-4 border-t border-gray-100 mt-3">
+                <div class="flex items-center justify-between mb-4">
+                  <span class="text-sm font-semibold text-gray-900">Total Estimated Repair Cost</span>
+                  <span id="cbaTotal" class="text-lg font-bold text-gray-900">₱0.00</span>
+                </div>
+
+                <!-- Recommendation box -->
+                <div id="cbaRecommendation" class="rounded-xl px-4 py-3 bg-green-50 border border-green-200">
+                  <div class="flex items-center gap-2 mb-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                    <span class="text-xs font-semibold text-gray-800">System Recommendation</span>
+                  </div>
+                  <div class="pl-6">
+                    <p id="cbaRecommendationLabel" class="text-sm font-bold text-green-700">Repair Recommended</p>
+                    <p id="cbaRecommendationDesc" class="text-xs text-green-700 mt-0.5 leading-relaxed">The estimated repair cost is within the acceptable threshold. Repair is the cost-effective option.</p>
+                  </div>
+
+                  <!-- Forward to Procurement -->
+                  <label class="flex items-center gap-2 mt-3 pl-6 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      id="forwardProcurement"
+                      name="forward_procurement"
+                      value="1"
+                      {% if report.forwarded_to_procurement %}checked{% endif %}
+                      {% if report.status == 'closed' %}disabled{% endif %}
+                      class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400"
+                    />
+                    <span class="text-sm text-gray-700">Forward to Procurement (marks report as Closed/Procurement)</span>
+                  </label>
+                </div>
+
+                <input type="hidden" name="cba_total" id="cbaTotalInput" value="{{ report.cba_total|default:'0' }}" />
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══════════════════════════════════
+               ASSIGN PRIORITY & PERSONNEL
+          ════════════════════════════════════ -->
+          <div id="assignSection">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Assign Priority &amp; Personnel</p>
+
+            <div class="space-y-4">
+              <!-- Priority Level -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Priority Level</label>
+                <div class="relative">
+                  <select name="priority" class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10">
+                    <option value="" {% if not report.priority %}selected{% endif %}>Select priority</option>
+                    <option value="critical"           {% if report.priority == 'critical' %}selected{% endif %}>1 — Critical / Urgent</option>
+                    <option value="high"               {% if report.priority == 'high' %}selected{% endif %}>2 — High Priority</option>
+                    <option value="standard"           {% if report.priority == 'standard' %}selected{% endif %}>3 — Standard</option>
+                    <option value="awaiting_materials" {% if report.priority == 'awaiting_materials' %}selected{% endif %}>4 — Awaiting Materials</option>
+                    <option value="awaiting_approval"  {% if report.priority == 'awaiting_approval' %}selected{% endif %}>5 — Awaiting Approval</option>
+                  </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Assign Personnel -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Assign Personnel</label>
+                <input
+                  type="text"
+                  name="assigned_personnel"
+                  value="{{ report.assigned_personnel|default:'' }}"
+                  placeholder="e.g., Mr. Reyes"
+                  class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <!-- Random Forest Predicted Resolution (static for now) -->
+            <div class="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              <span class="text-sm text-blue-600">
+                Random Forest Predicted Resolution: <strong>8.3 hours</strong>
+              </span>
+            </div>
+
+          </div>
+          <button type="submit" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3.5 rounded-xl transition-colors">
+              Save Changes
+            </button>
+        </form>
+
+        <!-- ═══════════════════════════════════
+             UPDATE STATUS (info only — no manual trigger buttons
+             except Mark Resolved, which appears once in_progress)
+        ════════════════════════════════════ -->
+        <div>
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Update Status</p>
+          <div class="flex flex-wrap gap-3">
+
+            {% if report.status == 'pending' %}
+              <span class="text-sm text-gray-400 italic">Status will move to "In Progress" automatically once you click Save Changes.</span>
+
+            {% elif report.status == 'in_progress' %}
+              <form method="POST" action="{% url 'adm_report_status' report.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="resolved" />
+                <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                  Mark Resolved
+                </button>
+              </form>
+
+            {% elif report.status == 'resolved' %}
+              <span class="text-sm text-gray-400 italic">This report has been resolved.</span>
+
+            {% elif report.status == 'closed' %}
+              {% if report.forwarded_to_procurement %}
+                <span class="text-sm text-gray-500 italic">This report has been closed — the item has been forwarded to procurement.</span>
+              {% else %}
+                <span class="text-sm text-gray-400 italic">This report has been closed.</span>
+              {% endif %}
+            {% endif %}
+
+          </div>
+        </div>
+
+      </div><!-- end right panel -->
+    </div><!-- end body -->
+  </div><!-- end card -->
+</main>
+
+<!-- ═══════════════════════════════════
+     PHOTO LIGHTBOX MODAL
+════════════════════════════════════ -->
+<div
+  id="photoModal"
+  class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70 p-4"
+  onclick="closePhotoModal(event)"
+>
+  <div class="relative max-w-3xl w-full">
+    <button
+      type="button"
+      onclick="closePhotoModal(event)"
+      class="absolute -top-10 right-0 text-white/80 hover:text-white transition-colors"
+      aria-label="Close"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <img id="photoModalImg" src="" alt="Concern photo (enlarged)" class="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+  </div>
+</div>
+
+<script>
+  // ── CBA toggle ──
+  function toggleCBA() {
+    const panel   = document.getElementById('cbaPanel');
+    const chevron = document.getElementById('cbaChevron');
+    panel.classList.toggle('hidden');
+    chevron.classList.toggle('rotate-180');
+  }
+
+  // ── CBA calculation ──
+  function recalcCBA() {
+    let total = 0;
+    document.querySelectorAll('.cba-row').forEach(row => {
+      const qty   = parseFloat(row.querySelector('.cba-qty').value)   || 0;
+      const price = parseFloat(row.querySelector('.cba-price').value) || 0;
+      const sub   = qty * price;
+      row.querySelector('.cba-subtotal').textContent = '₱' + sub.toFixed(2);
+      total += sub;
+    });
+
+    document.getElementById('cbaTotal').textContent = '₱' + total.toFixed(2);
+    document.getElementById('cbaTotalInput').value = total.toFixed(2);
+    updateRecommendation(total);
+  }
+
+  // Static threshold: ₱5,000 — repair below, replace above
+  function updateRecommendation(total) {
+    const label = document.getElementById('cbaRecommendationLabel');
+    const desc  = document.getElementById('cbaRecommendationDesc');
+    const box   = document.getElementById('cbaRecommendation');
+
+    if (total === 0 || total <= 5000) {
+      box.className   = 'rounded-xl px-4 py-3 bg-green-50 border border-green-200';
+      label.className = 'text-sm font-bold text-green-700';
+      label.textContent = 'Repair Recommended';
+      desc.className  = 'text-xs text-green-700 mt-0.5 leading-relaxed';
+      desc.textContent = 'The estimated repair cost is within the acceptable threshold. Repair is the cost-effective option.';
+    } else {
+      box.className   = 'rounded-xl px-4 py-3 bg-red-50 border border-red-200';
+      label.className = 'text-sm font-bold text-red-700';
+      label.textContent = 'Replacement Recommended';
+      desc.className  = 'text-xs text-red-700 mt-0.5 leading-relaxed';
+      desc.textContent = 'The estimated repair cost exceeds the recommended threshold of ₱5,000. Replacement is advised.';
+    }
+  }
+
+  function addCBARow() {
+    const container = document.getElementById('cbaItems');
+    const row = document.createElement('div');
+    row.className = 'cba-row grid grid-cols-12 gap-2 items-center';
+    row.innerHTML = `
+      <input type="text" name="item_desc[]" placeholder="e.g., Motor Assembly" class="col-span-6 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+      <input type="number" name="item_qty[]" value="1" min="1" class="cba-qty col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-100" />
+      <div class="col-span-2 flex items-center border border-gray-200 rounded-xl px-2 py-2 gap-1">
+        <span class="text-xs text-gray-400">₱</span>
+        <input type="number" name="item_price[]" value="0" min="0" class="cba-price w-full text-sm text-gray-900 focus:outline-none" />
+      </div>
+      <div class="col-span-2 flex items-center justify-end gap-2">
+        <span class="cba-subtotal text-sm font-medium text-gray-900">₱0.00</span>
+        <button onclick="removeRow(this)" type="button" class="text-gray-300 hover:text-red-400 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+          </svg>
+        </button>
+      </div>`;
+    container.appendChild(row);
+    attachRowListeners(row);
+    recalcCBA();
+  }
+
+  function removeRow(btn) {
+    const rows = document.querySelectorAll('.cba-row');
+    if (rows.length === 1) return; // keep at least one
+    btn.closest('.cba-row').remove();
+    recalcCBA();
+  }
+
+  function attachRowListeners(row) {
+    row.querySelector('.cba-qty').addEventListener('input', recalcCBA);
+    row.querySelector('.cba-price').addEventListener('input', recalcCBA);
+  }
+
+  // Attach listeners to all existing rows (including server-rendered saved items) + initial calc
+  document.querySelectorAll('.cba-row').forEach(attachRowListeners);
+  recalcCBA();
+
+    // ── Forward to Procurement checkbox → toggle Assign section ──
+  const procurementCheckbox = document.getElementById('forwardProcurement');
+  const assignSection = document.getElementById('assignSection');
+
+  function toggleAssignSection() {
+    if (procurementCheckbox && procurementCheckbox.checked) {
+      assignSection.classList.add('hidden');
+    } else {
+      assignSection.classList.remove('hidden');
+    }
+  }
+
+  // Run on page load (para kung naka-checked na yung checkbox from DB)
+  if (procurementCheckbox) {
+    toggleAssignSection();
+    procurementCheckbox.addEventListener('change', toggleAssignSection);
+  }
+
+  // ── Photo lightbox ──
+  function openPhotoModal(url) {
+    const modal = document.getElementById('photoModal');
+    const img   = document.getElementById('photoModalImg');
+    img.src = url;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePhotoModal(e) {
+    if (e.target.id === 'photoModal' || e.target.closest('button[aria-label="Close"]')) {
+      const modal = document.getElementById('photoModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = '';
+    }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('photoModal');
+      if (!modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+      }
+    }
+  });
+</script>
+
+{% endblock %}
