@@ -1,19 +1,23 @@
-{% extends "user/layouts/base.html" %}
-{% load static %}
-
-{% block content %}
+{% extends "user/layouts/base.html" %} {%block title%}Report Issue{%endblock%}
+{% load static %} {% block content %}
 <main class="flex-1 px-5 pt-6 pb-40 lg:pb-10 max-w-4xl w-full lg:mx-auto">
-
   <!-- Header -->
   <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-900 leading-tight">Report a Concern</h1>
-    <p class="text-sm text-gray-500 mt-0.5">Upload a photo of your concerns/report.</p>
+    <h1 class="text-2xl font-bold text-gray-900 leading-tight">
+      Report a Concern
+    </h1>
+    <p class="text-sm text-gray-500 mt-0.5">
+      Upload a photo of your concerns/report.
+    </p>
   </div>
 
   <!-- Form Card -->
   <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
-
-    <form method="POST" enctype="multipart/form-data" action="{% url 'reportForm' %}">
+    <form
+      method="POST"
+      enctype="multipart/form-data"
+      action="{% url 'reportForm' %}"
+    >
       {% csrf_token %}
 
       <!-- Photo Upload Area -->
@@ -22,135 +26,261 @@
           for="photo-upload"
           class="border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center py-14 px-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200 group relative overflow-hidden"
         >
-          <img id="preview-image" class="hidden absolute inset-0 w-full h-full object-cover" />
+          <img
+            id="preview-image"
+            class="hidden absolute inset-0 w-full h-full object-cover"
+          />
 
-          <div id="upload-content" class="flex flex-col items-center justify-center text-center">
-            <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+          <div
+            id="upload-content"
+            class="flex flex-col items-center justify-center text-center"
+          >
+            <div
+              class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-7 h-7 text-blue-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
+                />
               </svg>
             </div>
             <p class="text-sm font-bold text-gray-900">Click to upload photo</p>
-            <p class="text-sm text-gray-400 mt-1">or drag and drop your file here</p>
+            <p class="text-sm text-gray-400 mt-1">
+              or drag and drop your file here
+            </p>
             <p class="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
           </div>
 
-          <div id="uploaded-status" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-3 py-1 rounded-full">
+          <div
+            id="uploaded-status"
+            class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-3 py-1 rounded-full"
+          >
             Uploaded ✓
           </div>
 
-          <div id="error-message" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-1 rounded-full">
+          <div
+            id="error-message"
+            class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-1 rounded-full"
+          >
             File too large (max 10MB)
           </div>
         </label>
 
         <!-- IMPORTANT: walang required dito para Django toast ang lalabas -->
-        <input id="photo-upload" name="photo" type="file" class="hidden" accept="image/jpeg,image/png" />
+        <input
+          id="photo-upload"
+          name="photo"
+          type="file"
+          class="hidden"
+          accept="image/jpeg,image/png"
+        />
 
         {% if form.photo.errors %}
-          <p class="text-xs text-red-500 mt-2">{{ form.photo.errors|join:", " }}</p>
+        <p class="text-xs text-red-500 mt-2">
+          {{ form.photo.errors|join:", " }}
+        </p>
         {% endif %}
       </div>
 
       <!-- Category -->
       <div class="mb-5">
-        <label class="block text-sm font-semibold text-gray-800 mb-2">Category of the Issue</label>
+        <label class="block text-sm font-semibold text-gray-800 mb-2"
+          >Category of the Issue</label
+        >
         <div class="relative">
-          <select name="category" class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer pr-10">
-            <option value="" disabled {% if not form.category.value %}selected{% endif %}>Select a category</option>
+          <select
+            name="category"
+            class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer pr-10"
+          >
+            <option
+              value=""
+              disabled
+              {%
+              if
+              not
+              form.category.value
+              %}selected{%
+              endif
+              %}
+            >
+              Select a category
+            </option>
             {% for value, label in form.category.field.choices %}
-              <option value="{{ value }}" {% if form.category.value == value %}selected{% endif %}>{{ label }}</option>
+            <option
+              value="{{ value }}"
+              {%
+              if
+              form.category.value=""
+              ="value"
+              %}selected{%
+              endif
+              %}
+            >
+              {{ label }}
+            </option>
             {% endfor %}
           </select>
 
-          <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          <div
+            class="pointer-events-none absolute inset-y-0 right-4 flex items-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+              />
             </svg>
           </div>
         </div>
 
         {% if form.category.errors %}
-          <p class="text-xs text-red-500 mt-1">{{ form.category.errors|join:", " }}</p>
+        <p class="text-xs text-red-500 mt-1">
+          {{ form.category.errors|join:", " }}
+        </p>
         {% endif %}
       </div>
 
       <!-- Location -->
       <div class="mb-5">
-        <label class="block text-sm font-semibold text-gray-800 mb-2">Location</label>
+        <label class="block text-sm font-semibold text-gray-800 mb-2"
+          >Location</label
+        >
         <div class="relative">
-          <select name="location" class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer pr-10">
-            {% for value, label in form.location.field.choices %}
-              {% if value %}
-                <option value="{{ value }}" {% if form.location.value == value %}selected{% endif %}>{{ label }}</option>
-              {% else %}
-                <option value="" disabled {% if not form.location.value %}selected{% endif %}>{{ label }}</option>
-              {% endif %}
-            {% endfor %}
+          <select
+            name="location"
+            class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer pr-10"
+          >
+            {% for value, label in form.location.field.choices %} {% if value %}
+            <option
+              value="{{ value }}"
+              {%
+              if
+              form.location.value=""
+              ="value"
+              %}selected{%
+              endif
+              %}
+            >
+              {{ label }}
+            </option>
+            {% else %}
+            <option
+              value=""
+              disabled
+              {%
+              if
+              not
+              form.location.value
+              %}selected{%
+              endif
+              %}
+            >
+              {{ label }}
+            </option>
+            {% endif %} {% endfor %}
           </select>
 
-          <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          <div
+            class="pointer-events-none absolute inset-y-0 right-4 flex items-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+              />
             </svg>
           </div>
         </div>
 
         {% if form.location.errors %}
-          <p class="text-xs text-red-500 mt-1">{{ form.location.errors|join:", " }}</p>
+        <p class="text-xs text-red-500 mt-1">
+          {{ form.location.errors|join:", " }}
+        </p>
         {% endif %}
       </div>
 
       <!-- Description -->
       <div class="mb-6">
-        <label class="block text-sm font-semibold text-gray-800 mb-2">Description</label>
+        <label class="block text-sm font-semibold text-gray-800 mb-2"
+          >Description</label
+        >
         <textarea
           name="description"
           rows="5"
           placeholder="Describe the issue of the concern..."
           class="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
-        >{{ form.description.value|default:'' }}</textarea>
+        >
+{{ form.description.value|default:'' }}</textarea
+        >
 
         {% if form.description.errors %}
-          <p class="text-xs text-red-500 mt-1">{{ form.description.errors|join:", " }}</p>
+        <p class="text-xs text-red-500 mt-1">
+          {{ form.description.errors|join:", " }}
+        </p>
         {% endif %}
       </div>
 
       <!-- Submit -->
-      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-4 rounded-xl transition-colors duration-200">
+      <button
+        type="submit"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-4 rounded-xl transition-colors duration-200"
+      >
         Submit Report
       </button>
-
     </form>
   </div>
-
 </main>
 
 <script>
-  const input = document.getElementById('photo-upload');
-  const preview = document.getElementById('preview-image');
-  const uploadContent = document.getElementById('upload-content');
-  const status = document.getElementById('uploaded-status');
-  const errorMsg = document.getElementById('error-message');
+  const input = document.getElementById("photo-upload");
+  const preview = document.getElementById("preview-image");
+  const uploadContent = document.getElementById("upload-content");
+  const status = document.getElementById("uploaded-status");
+  const errorMsg = document.getElementById("error-message");
   const MAX_SIZE = 10 * 1024 * 1024;
 
-  input.addEventListener('change', function () {
+  input.addEventListener("change", function () {
     const file = this.files[0];
 
-    status.classList.add('hidden');
-    errorMsg.classList.add('hidden');
+    status.classList.add("hidden");
+    errorMsg.classList.add("hidden");
 
     if (!file) {
-      preview.classList.add('hidden');
-      uploadContent.classList.remove('hidden');
+      preview.classList.add("hidden");
+      uploadContent.classList.remove("hidden");
       return;
     }
 
     if (file.size > MAX_SIZE) {
       this.value = "";
-      errorMsg.classList.remove('hidden');
-      preview.classList.add('hidden');
-      uploadContent.classList.remove('hidden');
+      errorMsg.classList.remove("hidden");
+      preview.classList.add("hidden");
+      uploadContent.classList.remove("hidden");
       return;
     }
 
@@ -158,9 +288,9 @@
 
     reader.onload = function (e) {
       preview.src = e.target.result;
-      preview.classList.remove('hidden');
-      uploadContent.classList.add('hidden');
-      status.classList.remove('hidden');
+      preview.classList.remove("hidden");
+      uploadContent.classList.add("hidden");
+      status.classList.remove("hidden");
     };
 
     reader.readAsDataURL(file);
