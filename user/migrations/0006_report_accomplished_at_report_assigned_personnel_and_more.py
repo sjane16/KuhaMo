@@ -28,11 +28,6 @@ class Migration(migrations.Migration):
             name='priority',
             field=models.CharField(blank=True, choices=[('critical', 'Critical / Urgent'), ('high', 'High Priority'), ('standard', 'Standard'), ('awaiting_materials', 'Awaiting Materials'), ('awaiting_approval', 'Awaiting Approval')], max_length=30, null=True),
         ),
-        migrations.AddField(
-            model_name='report',
-            name='user',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reports', to=settings.AUTH_USER_MODEL),
-        ),
         migrations.AlterField(
             model_name='report',
             name='status',
