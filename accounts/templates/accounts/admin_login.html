@@ -1,10 +1,10 @@
 {% load static tailwind_tags %} {% tailwind_css %}
 <!doctype html>
-<html lang="" en>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>KuhaMo Admin Login</title>
+    <title>Fac-Check Admin Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -28,6 +28,7 @@
     <form
       method="POST"
       action="{% url 'admin_login' %}"
+      enctype="multipart/form-data"
       class="bg-white p-8 rounded-2xl shadow-md w-full max-w-md mb-4"
     >
       {% csrf_token %}
@@ -181,6 +182,11 @@
       >
         Log In as Admin
       </button>
+      <a href="{% url 'student_login' %}" class="text-sm text-center pt-5 text-gray-700 block hover:text-blue-600 transition-all">Not an administrator? Sign in here</a>
+      <a href="{% url 'index' %}" class="text-sm text-center pt-2 text-gray-500 block hover:text-blue-600 transition-all">
+        ← Back to Home
+      </a>
+
     </form>
     <div class="grid grid-cols-3 gap-4 w-full max-w-md mx-auto mb-4">
       <div class="flex flex-col text-center items-center">
@@ -271,7 +277,7 @@
       <p class="text-xs">&copy; 2026 Fac-Check. All rights reserved.</p>
     </footer>
     <script>
-      const passwordTextfield = document.getElementById("admin_password_field");
+      const passwordTextfield = document.getElementById("admin_password_field") || document.querySelector("input[type='password']");
       const toggleButton = document.getElementById("eye_toggle_btn");
       const slashEye = document.getElementById("slash_eye_icon");
       const openEye = document.getElementById("open_eye_icon");

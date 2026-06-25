@@ -3,23 +3,21 @@ from .forms import StudentLogin, AdminLogin
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from django.contrib.messages import get_messages
-from django_ratelimit.decorators import ratelimit
 from axes.decorators import axes_dispatch
 from axes.utils import reset_request
 from django.core.exceptions import PermissionDenied
-
+from django_ratelimit.core import is_ratelimited
 
 def splash_screen(request):
     return render(request, 'accounts/index.html')
 
-@ratelimit(key='ip', rate='5/m', method='POST', block=False)
+
 def student_login(request):
 
-    if getattr(request, 'limited', False):
-        messages.error(request, "Too many login attempts. Please try again later.")
-        return render(request, 'accounts/student_login.html')
-    
     if request.method == 'POST':
+        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=student_login):
+            messages.error(request, "Too many login attempts. Please try again later")
+            return render(request, 'accounts/student_login.html', {'form': StudentLogin()})
         form = StudentLogin(data = request.POST)
         if form.is_valid():
             student_id = form.cleaned_data.get('student_id')
@@ -56,14 +54,13 @@ def student_login(request):
 
     return render(request, 'accounts/student_login.html', {'form': form})
 
-@ratelimit(key='ip', rate='5/m', method='POST', block=False)
 def admin_login(request):
 
-    if getattr(request, 'limited', False):
-        messages.error(request, "Too many login attempts. Please try again later.")
-        return render(request, 'accounts/admin_login.html')
-
     if request.method == 'POST':
+        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=admin_login):
+            messages.error(request, "Too many login attempts. Please try again later")
+            return render(request, 'accounts/admin_login.html', {'form': AdminLogin()})
+
         form = AdminLogin(data=request.POST)
         if form.is_valid():
             admin_id = form.cleaned_data.get('admin_id')

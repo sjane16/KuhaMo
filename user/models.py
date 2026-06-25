@@ -18,12 +18,18 @@ class Report(models.Model):
         ('others', 'Others'),
     ]
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports')
     photo = models.ImageField(upload_to='reports/')
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     location = models.CharField(max_length=100)
     description = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     submitted_at = models.DateTimeField(auto_now_add=True)
+
+    @property 
+    def reporter_name(self):
+        full_name = self.user.get_full_name()
+        return full_name if full_name else self.user.username
 
     def __str__(self):
         return f"#{self.id:04d} - {self.get_category_display()} ({self.location})"

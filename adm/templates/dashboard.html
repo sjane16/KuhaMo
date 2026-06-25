@@ -1,471 +1,214 @@
-{% extends "layouts/base.html" %} {% block content %} {% include 'user/components/toast.html' %}
+{% extends 'layouts/base.html' %} {% block content %} {% include 'user/components/toast.html' %}
 
 <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
-  <h1 class="text-lg font-bold text-gray-800">Admin's Dashboard</h1>
-  <p class="text-sm text-gray-600">
-    Manage all the facility concerns reported at the university.
+  <h1 class="text-2xl font-bold text-gray-800">Admin's Dashboard</h1>
+  <p class="text-base text-gray-600 pt-2 mb-6">
+    Analytics and overview for facility maintenance and reservation management. 
   </p>
 
-  {{ chart_labels|json_script:"chartLabels" }}
-  {{chart_data|json_script:"chartData" }}
+  <div class="flex items-center gap-3 mb-4">
+    <h2 class="text-lg font-bold text-gray-800 whitespace-nowrap">Corrective Maintenance Analytics</h2>
+    <div class="flex-1 h-px bg-gray-300"></div>
+  </div>
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
 
-  <!-- 4 CATEGORIES ON TOP-->
-  <section class="w-full mt-6">
-    <div
-      class="text-gray-600 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full"
-    >
-      <div class="border border-gray-300 bg-white p-4 rounded-3xl shadow">
-        <span
-          class="float-right bg-blue-100 p-2 rounded-full inline-flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-blue-500"
-          >
-            <path
-              d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
-            />
-            <rect x="9" y="3" width="6" height="4" rx="1" />
-            <line x1="9" y1="12" x2="15" y2="12" />
-            <line x1="9" y1="16" x2="13" y2="16" />
-          </svg>
-        </span>
-        Total Reports
-        <p class="text-2xl font-bold text-gray-800 mt-2">120</p>
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+      <div class="bg-yellow-100 p-3 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-yellow-500 w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
       </div>
-
-      <div class="border border-gray-300 bg-white p-4 rounded-3xl shadow">
-        <span
-          class="float-right bg-red-100 p-2 rounded-full inline-flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-red-500"
-          >
-            <path
-              d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-            />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-        </span>
-        High Priority
-        <p class="text-2xl font-bold text-gray-800 mt-2">35</p>
-      </div>
-
-      <div class="border border-gray-300 bg-white p-4 rounded-3xl shadow">
-        <span
-          class="float-right bg-yellow-100 p-2 rounded-full inline-flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-yellow-500"
-          >
-            <path
-              d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-            />
-          </svg>
-        </span>
-        For Repair
-        <p class="text-2xl font-bold text-gray-800 mt-2">45</p>
-      </div>
-
-      <div class="border border-gray-300 bg-white p-4 rounded-3xl shadow">
-        <span
-          class="float-right bg-gray-100 p-2 rounded-full inline-flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-gray-400"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-          </svg>
-        </span>
-        For Disposal
-        <p class="text-2xl font-bold text-gray-800 mt-2">10</p>
+      <div>
+        <p class="text-sm text-gray-500">Pending</p>
+        <p class="text-2xl font-bold text-gray-800">{{ pending }}</p>
       </div>
     </div>
-  </section>
 
-  <!-- 2 CHARTS IN THE MIDDLE -->
-  <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-    <!-- REPORTS OVER TIME -->
-    <section class="w-full mt-6">
-      <div class="border border-gray-300 bg-white p-6 rounded-3xl shadow">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-sm font-semibold text-gray-700">Reports Over Time</h2>
-          <span class="text-xs text-gray-400">Last 7 days</span>
-        </div>
-        <canvas id="reportsChart" height="116"></canvas>
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+      <div class="bg-blue-100 p-3 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-blue-500 w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75a4.5 4.5 0 0 1-4.884 4.484c-1.076-.091-2.264.071-2.95.904l-7.152 8.684a2.548 2.548 0 1 1-3.586-3.586l8.684-7.152c.833-.686.995-1.874.904-2.95a4.5 4.5 0 0 1 6.336-4.486l-3.276 3.276a3.004 3.004 0 0 0 2.25 2.25l3.276-3.276c.256.565.398 1.192.398 1.852Z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.867 19.125h.008v.008h-.008v-.008Z" />
+        </svg>
       </div>
-    </section>
-
-    <!-- ISSUE CATEGORIES -->
-    <section class="w-full mt-2 lg:mt-6">
-      <div class="border border-gray-300 bg-white p-6 rounded-3xl shadow">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-sm font-semibold text-gray-700">Issue Categories</h2>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="flex justify-center">
-            <canvas id="categoryChart" width="200" height="200"></canvas>
-          </div>
-          <ul class="mt-4 space-y-2 mt-6 -mb-3">
-            <li class="flex items-center justify-between text-sm text-gray-600">
-              <span class="flex items-center gap-2"
-                ><span
-                  class="w-3 h-3 rounded-full bg-blue-500 inline-block"
-                ></span>
-                Broken Furniture</span
-              >
-              <span>2</span>
-            </li>
-            <li class="flex items-center justify-between text-sm text-gray-600">
-              <span class="flex items-center gap-2"
-                ><span
-                  class="w-3 h-3 rounded-full bg-yellow-400 inline-block"
-                ></span>
-                Electrical Hazards</span
-              >
-              <span>2</span>
-            </li>
-            <li class="flex items-center justify-between text-sm text-gray-600">
-              <span class="flex items-center gap-2"
-                ><span
-                  class="w-3 h-3 rounded-full bg-green-500 inline-block"
-                ></span>
-                AV/IT Equipment</span
-              >
-              <span>2</span>
-            </li>
-            <li class="flex items-center justify-between text-sm text-gray-600">
-              <span class="flex items-center gap-2"
-                ><span
-                  class="w-3 h-3 rounded-full bg-red-500 inline-block"
-                ></span>
-                Non-functional Fixtures</span
-              >
-              <span>1</span>
-            </li>
-            <li class="flex items-center justify-between text-sm text-gray-600">
-              <span class="flex items-center gap-2"
-                ><span
-                  class="w-3 h-3 rounded-full bg-gray-400 inline-block"
-                ></span>
-                Heating/Cooling Issues</span
-              >
-              <span>1</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  </section>
-
-  <!-- CAMPUS MAP -->
-  <section class="w-full mt-6">
-    <div class="border border-gray-300 bg-white p-6 rounded-3xl shadow">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold text-gray-700">Campus Concern Map</h2>
-      </div>
-
-      <!-- MAP -->
-      <div id="map" class="w-full h-[400px] rounded-xl"></div>
-    </div>
-  </section>
-
-  <section class="w-full mt-6">
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      <!-- MOST COMMON -->
-      <div class="bg-gray-100 border border-gray-200 rounded-3xl p-5">
-        <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
-          <!-- icon -->
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="size-6"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"
-            />
-          </svg>
-          Most Common
-        </div>
-
-        <h3 class="text-lg font-semibold text-gray-800">Furniture Damage</h3>
-
-        <p class="text-sm text-gray-500 mt-1">34% of reports this month</p>
-      </div>
-
-      <!-- PEAK TIME -->
-      <div class="bg-gray-100 border border-gray-200 rounded-3xl p-5">
-        <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="size-6"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25"
-            />
-          </svg>
-          Peak Time
-        </div>
-
-        <h3 class="text-lg font-semibold text-gray-800">10 AM – 12 PM</h3>
-
-        <p class="text-sm text-gray-500 mt-1">Mid-morning transitions</p>
-      </div>
-
-      <!-- AI PREDICTION -->
-      <div class="bg-blue-100 rounded-3xl p-5">
-        <div class="flex items-center gap-2 text-sm text-blue-600 mb-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="size-6"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
-            />
-          </svg>
-          AI Prediction
-        </div>
-
-        <h3 class="text-md text-gray-800 font-semibold leading-snug">
-          High probability of equipment failure in Lab 1
-        </h3>
-
-        <p class="text-sm text-gray-500 mt-2">87% confidence · next 7 days</p>
-      </div>
-
-      <!-- RECOMMENDATION -->
-      <div class="bg-green-100 border border-green-200 rounded-3xl p-5">
-        <div class="flex items-center gap-2 text-sm text-green-600 mb-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="size-5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"
-            />
-          </svg>
-          Recommendation
-        </div>
-
-        <h3 class="text-md font-semibold text-gray-800">
-          Schedule preventive maintenance
-        </h3>
-
-        <p class="text-sm text-gray-500 mt-2">Lab 1 · within 3 days</p>
+      <div>
+        <p class="text-sm text-gray-500">In Progress</p>
+        <p class="text-2xl font-bold text-gray-800">{{ in_progress }}</p>
       </div>
     </div>
+
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+      <div class="bg-green-100 p-3 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-green-500 w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">Resolved This Week</p>
+        <p class="text-2xl font-bold text-gray-800">{{ resolved_thisweek }}</p>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+      <div class="bg-purple-100 p-3 rounded-xl">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-purple-500 w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">Avg. Satisfaction</p>
+        <p class="text-2xl font-bold text-gray-800">{{ avg_satisfaction }}/5</p>
+      </div>
+    </div>
+
   </section>
 
-  <!-- SCRIPT FOR REPORTS OVER TIME -->
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    
+    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <h2 class="text-base font-semibold text-gray-700 mb-4">Satisfaction Survey Results</h2>
+      <div class="h-[300px] relative">
+        <canvas id="satisfactionChart" height="150"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <h2 class="text-base font-semibold text-gray-700 mb-4">Most Reported Categories</h2>
+      <div class="h-[300px] relative">
+        <canvas id="categoriesChart" height="150"></canvas>
+      </div>
+    </div>
+
+
+  </section>
+
+  <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    
+    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <h2 class="text-base font-semibold text-gray-700 mb-4">High Incident Locations</h2>
+      <div class="h-[300px] relative">
+        <canvas id="locationsChart" height="150"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <h2 class="text-base font-semibold text-gray-700 mb-4">Resolution Time: Expected vs. Actual</h2>
+      <div class="h-[300px] relative">
+        <canvas id="resolutionChart" height="150"></canvas>
+      </div>
+    </div>
+
+
+  </section>
+
+  
+  </main>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    const ctx = document.getElementById("reportsChart").getContext("2d");
-    new Chart(ctx, {
-      type: "line",
+    const satisfactionLabels = {{ satisfaction_labels|safe }};
+    const satisfactionCounts = {{ satisfaction_counts|safe }};
+    const categoryLabels = {{ categories|safe }};
+    const categoryCounts = {{ categories_counts|safe }};
+    const locationLabel = {{ location|safe }};
+    const locationCounts = {{ location_counts|safe }};
+    const resolutionWeeks = {{ resolution_weeks|safe }};
+    const expectedHours = {{ expected_hours|safe }};
+    const actualHours = {{ actual_hours|safe }};
+
+    new Chart(document.getElementById('satisfactionChart'), {
+      type: 'pie',
       data: {
-        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        datasets: [
-          {
-            label: "reports",
-            data: [12, 18, 15, 24, 28, 9, 8],
-            borderColor: "#3b82f6",
-            backgroundColor: "rgba(59,130,246,0.05)",
-            tension: 0.4,
-            pointBackgroundColor: "#3b82f6",
-            pointRadius: 4,
-            fill: true,
-          },
-        ],
+        labels: satisfactionLabels,
+        datasets: [{
+          data: satisfactionCounts,
+          backgroundColor: ['#1a7a4a', '#2ecc71', '#82e0aa', '#abebc6', '#d5f5e3'],
+          borderWidth: 0,
+        }]
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#fff",
-            titleColor: "#374151",
-            bodyColor: "#3b82f6",
-            borderColor: "#e5e7eb",
-            borderWidth: 1,
-            padding: 10,
-            callbacks: {
-              label: (ctx) => `reports : ${ctx.parsed.y}`,
-            },
-          },
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: { color: "#f3f4f6" },
-            ticks: { color: "#9ca3af", font: { size: 11 } },
-          },
-          x: {
-            grid: { color: "#f3f4f6" },
-            ticks: { color: "#9ca3af", font: { size: 11 } },
-          },
-        },
-      },
-    });
-  </script>
+          legend: {position: 'bottom', labels: {font: {size: 11}}}
+        }
+      }
+    }); 
 
-  <!-- SCRIPT FOR ISSUE CATEGORIES -->
-  <script>
-    const categoryCtx = document
-      .getElementById("categoryChart")
-      .getContext("2d");
-    new Chart(categoryCtx, {
-      type: "doughnut",
+    new Chart(document.getElementById('categoriesChart'), {
+      type: 'bar',
       data: {
-        labels: [
-          "Broken Furniture",
-          "Electrical Hazards",
-          "AV/IT Equipment",
-          "Non-functional Fixtures",
-          "Heating/Cooling Issues",
-        ],
-        datasets: [
-          {
-            data: [2, 2, 2, 1, 1],
-            backgroundColor: [
-              "#3b82f6",
-              "#facc15",
-              "#22c55e",
-              "#ef4444",
-              "#9ca3af",
-            ],
-            borderWidth: 0,
-            hoverOffset: 8,
-          },
-        ],
+        labels: categoryLabels,
+        datasets: [{
+          data: categoryCounts,
+          backgroundColor:  '#3b82f6',
+          borderRadius: 4,
+        }]
       },
       options: {
-        responsive: false,
-        cutout: "65%",
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#fff",
-            titleColor: "#374151",
-            bodyColor: "#374151",
-            borderColor: "#e5e7eb",
-            borderWidth: 1,
-            padding: 10,
-            callbacks: {
-              label: (ctx) => `${ctx.label} : ${ctx.parsed}`,
-            },
-          },
-        },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {legend: {display: false}},
+        scales: {
+          y: {beginAtZero: true, grid: {color: '#f3f4f6'}, ticks: {color: '#9ca3af' }},
+          x: {grid: {display: false}, ticks: { color: '#9ca3af' }}
+        }
+      }
+    }); 
+
+    new Chart(document.getElementById('locationsChart'), {
+      type: 'bar',
+      data: {
+        labels: locationLabel,
+        datasets: [{
+          data: locationCounts,
+          backgroundColor: '#f0a500',
+          borderRadius: 4,
+        }]
       },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {legend: {display: false}},
+        scales: {
+          y: {beginAtZero: true, grid: {color: '#f3f4f6'}, ticks: {color: '#9ca3af' }},
+          x: {grid: {display: false}, ticks: { color: '#9ca3af' }}
+        }
+      }
+    }); 
+
+    new Chart(document.getElementById('resolutionChart'), {
+      type: 'line',
+      data: {
+        labels: resolutionWeeks,
+        datasets: [
+        {
+          label: 'Expected Time (hours)',
+          data: expectedHours,
+          borderColor: '#aaa',
+          backgroundColor: 'rgba(200,200,200,0.15)',
+          fill: true, 
+          tension: 0.3,
+        },
+        {
+          label: 'Actual Time (hours)',
+          data: actualHours,
+          borderColor: '#5b8dee',
+          backgroundColor: 'transparent',
+          tension: 0.3,
+        }
+      ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {legend: {position: 'bottom', labels: {font: {size: 11}}}}, 
+        scales: {
+          y: {grid: {color: '#f3f4f6'}, ticks: {color: '#9ca3af'}},
+          x: {grid: {display: false}, ticks: {color: '#9ca3af'}}
+        }
+      }
     });
   </script>
-
-  <!-- CAMPUS MAP -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const bounds = [
-      [0, 0],
-      [500, 800],
-    ];
-
-    const map = L.map("map", {
-      crs: L.CRS.Simple,
-      minZoom: -1,
-    });
-
-    L.imageOverlay("/static/images/campus-map.png", bounds).addTo(map);
-    map.fitBounds(bounds);
-
-    const reports = [
-      { title: "Broken Chair", x: 120, y: 80, severity: "low" },
-      { title: "Electrical Hazard", x: 300, y: 200, severity: "high" },
-      { title: "Aircon Issue", x: 500, y: 300, severity: "medium" },
-    ];
-
-    function getColor(severity) {
-      if (severity === "high") return "red";
-      if (severity === "medium") return "orange";
-      return "blue";
-    }
-
-    reports.forEach((report) => {
-      L.circleMarker([report.y, report.x], {
-        radius: 10,
-        fillColor: getColor(report.severity),
-        color: "#fff",
-        weight: 2,
-        fillOpacity: 0.9,
-      })
-        .addTo(map)
-        .bindPopup(`<strong>${report.title}</strong>`);
-    });
-  </script>
-</main>
-{% endblock %}
+  {% endblock %}

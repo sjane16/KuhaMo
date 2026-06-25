@@ -8,12 +8,12 @@ import os
 from django.http import JsonResponse
 from django.conf import settings
 from google import genai
-from .models import Report, SurveyResponse
+from .models import Report, SurveyResponse, UserProfile
 
 
 @login_required
 def menu(request):
-    profile = request.user.profile
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
 
     user_form = UserForm(instance=request.user)
     profile_form = UserProfileForm(instance=profile)
@@ -78,11 +78,12 @@ def base(request):
         "active_page": "base"
     })
 
-
+@login_required
 def userDashboard(request):
-    total_reports = Report.objects.count()
-    resolved_reports = Report.objects.filter(status='resolved').count()
-    recent_reports = Report.objects.all().order_by('-submitted_at')[:3]
+    user_reports = Report.objects.filter(user=request.user)
+    total_reports = user_reports.count()
+    resolved_reports = user_reports.filter(status='resolved').count()
+    recent_reports = user_reports.order_by('-submitted_at')[:3]
 
     return render(request, 'user/user_dashboard.html', {
         "active_page": "userDashboard",
@@ -91,13 +92,14 @@ def userDashboard(request):
         "recent_reports": recent_reports,
     })
 
-
+@login_required
 def reportForm(request):
     if request.method == 'POST':
         form = ReportForm(request.POST, request.FILES)
 
         if form.is_valid():
             report = form.save(commit=False)
+            report.user = request.user
 
             selected_value = form.cleaned_data['location']
             location_map = dict(get_location_choices())
@@ -121,10 +123,10 @@ def reportForm(request):
         "form": form,
     })
 
-
+@login_required
 def userReports(request):
     status_filter = request.GET.get('status', 'all')
-    reports = Report.objects.all().order_by('-submitted_at')
+    reports = Report.objects.filter(user = request.user).order_by('-submitted_at')
 
     if status_filter != 'all':
         reports = reports.filter(status=status_filter)
