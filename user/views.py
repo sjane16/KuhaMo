@@ -3,18 +3,16 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, get_location_choices, UserForm, UserProfileForm, ProfilePhotoForm
-from .models import Report
-import os 
+from .models import Report, SurveyResponse, UserProfile
+import os
 from django.http import JsonResponse
 from django.conf import settings
 from google import genai
-from .models import Report, SurveyResponse, UserProfile
 
 
 @login_required
 def menu(request):
     profile, created = UserProfile.objects.get_or_create(user=request.user)
-
     user_form = UserForm(instance=request.user)
     profile_form = UserProfileForm(instance=profile)
     photo_form = ProfilePhotoForm(instance=profile)
@@ -23,7 +21,6 @@ def menu(request):
         if 'save_info' in request.POST:
             user_form = UserForm(request.POST, instance=request.user)
             profile_form = UserProfileForm(request.POST, instance=profile)
-
             if user_form.is_valid() and profile_form.is_valid():
                 user_form.save()
                 profile_form.save()
@@ -31,10 +28,9 @@ def menu(request):
                 return redirect('menu')
             else:
                 messages.error(request, f"Errors: {user_form.errors}| {profile_form.errors}")
-        
+
         elif 'save_photo' in request.POST:
             photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=profile)
-
             if photo_form.is_valid():
                 photo_form.save()
                 messages.success(request, "Profile Photo Updated Successfully")
@@ -51,7 +47,6 @@ def menu(request):
             old_password = request.POST.get('old_password')
             new_password1 = request.POST.get('new_password1')
             new_password2 = request.POST.get('new_password2')
-
             if not request.user.check_password(old_password):
                 messages.error(request, "Old password is incorrect.")
             elif new_password1 != new_password2:
@@ -64,7 +59,7 @@ def menu(request):
                 update_session_auth_hash(request, request.user)
                 messages.success(request, "New password saved successfully!", extra_tags='password_changed')
                 return redirect('menu')
-            
+
     return render(request, 'user/menu.html', {
         "active_page": "menu",
         "user_form": user_form,
@@ -74,17 +69,14 @@ def menu(request):
 
 
 def base(request):
-    return render(request, 'user/layouts/base.html', {
-        "active_page": "base"
-    })
+    return render(request, 'user/layouts/base.html', {"active_page": "base"})
+
 
 @login_required
 def userDashboard(request):
-    user_reports = Report.objects.filter(user=request.user)
-    total_reports = user_reports.count()
-    resolved_reports = user_reports.filter(status='resolved').count()
-    recent_reports = user_reports.order_by('-submitted_at')[:3]
-
+    total_reports = Report.objects.filter(user=request.user).count()
+    resolved_reports = Report.objects.filter(user=request.user, status='resolved').count()
+    recent_reports = Report.objects.filter(user=request.user).order_by('-submitted_at')[:3]
     return render(request, 'user/user_dashboard.html', {
         "active_page": "userDashboard",
         "total_reports": total_reports,
@@ -92,45 +84,38 @@ def userDashboard(request):
         "recent_reports": recent_reports,
     })
 
+
 @login_required
 def reportForm(request):
     if request.method == 'POST':
         form = ReportForm(request.POST, request.FILES)
-
         if form.is_valid():
             report = form.save(commit=False)
             report.user = request.user
-
             selected_value = form.cleaned_data['location']
             location_map = dict(get_location_choices())
             report.location = location_map.get(selected_value, selected_value)
-
             report.save()
-
             messages.success(request, "Your concern has been submitted successfully.")
             return redirect('userReports')
-
         if 'photo' in form.errors:
             messages.error(request, "Please upload a photo of the concern.")
         else:
             messages.error(request, "Please complete all required fields.")
-
     else:
         form = ReportForm()
-
     return render(request, 'user/report_form.html', {
         "active_page": "reportForm",
         "form": form,
     })
 
+
 @login_required
 def userReports(request):
     status_filter = request.GET.get('status', 'all')
-    reports = Report.objects.filter(user = request.user).order_by('-submitted_at')
-
+    reports = Report.objects.filter(user=request.user).order_by('-submitted_at')
     if status_filter != 'all':
         reports = reports.filter(status=status_filter)
-
     return render(request, 'user/user_reports.html', {
         "active_page": "userReports",
         "reports": reports,
@@ -141,7 +126,6 @@ def userReports(request):
 def reportedIssue(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     already_surveyed = hasattr(report, 'survey')
-
     emojis = [
         ('😤', 'Frustrated', 1),
         ('😞', 'Disappointed', 2),
@@ -149,7 +133,6 @@ def reportedIssue(request, report_id):
         ('😊', 'Pleased', 4),
         ('😄', 'Delighted', 5),
     ]
-
     return render(request, 'user/reported_issue.html', {
         "active_page": "reportedIssue",
         "report": report,
@@ -157,103 +140,94 @@ def reportedIssue(request, report_id):
         "emojis": emojis,
     })
 
+
 def userSurvey(request):
-    from .models import SurveyResponse
     submitted_surveys = SurveyResponse.objects.filter(
         report__in=Report.objects.all()
     ).select_related('report').order_by('-submitted_at')
-
     return render(request, 'user/user_survey.html', {
         "active_page": "userSurvey",
         "submitted_surveys": submitted_surveys,
     })
+
 
 def submitSurvey(request, report_id):
     if request.method == 'POST':
         report = get_object_or_404(Report, id=report_id)
         rating = request.POST.get('rating')
         feedback = request.POST.get('feedback', '')
-
         if not rating:
             return JsonResponse({'success': False, 'error': 'Rating is required.'})
-
         SurveyResponse.objects.create(
             report=report,
             rating=int(rating),
             feedback=feedback,
         )
         return JsonResponse({'success': True})
-
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
 
 def chatbot(request):
     return render(request, 'user/components/chatbot.html')
 
+
 UDM_FAQ_DATA = """
 OFFICIAL FAQ KNOWLEDGE BASE FOR KUHAMO SYSTEM (UDM):
-1. What is KuhaMo? 
-- KuhaMo is an automated facility concern reporting system for Universidad de Manila (UDM). It allows students, faculty, and staff to report campus defects 
-using AI-powered image classification to streamline university maintenance. 
-2. Who can use this system? 
+1. What is KuhaMo?
+- KuhaMo is an automated facility concern reporting system for Universidad de Manila (UDM). It allows students, faculty, and staff to report campus defects
+using AI-powered image classification to streamline university maintenance.
+2. Who can use this system?
 - All official UDM stakeholders, including active students, professors, and university administrative staff can log in and submit facility reports.
 3. How do I report a broken facility or equipment?
 - First, log in to your KuhaMo account then go to the report submission page. After that, upload a clear photo of the defect and select the room location. Lastly, submit the report.
 4. Why did my report get rejected?
-- The system requires a clear image of the actual defect for the CNN Classification Engine to analyze it properly. Ensure your photo is not blurry, dark, 
-or unrelated to a facility concern. The file size must also be within the allowed system limit. 
+- The system requires a clear image of the actual defect for the CNN Classification Engine to analyze it properly. Ensure your photo is not blurry, dark,
+or unrelated to a facility concern. The file size must also be within the allowed system limit.
 5. Can I edit or delete my report after submission?
 - No. Once a report is submitted, it is locked to preserve data integrity and immediately routed to the Supply and Equipment Office. If you made
 a critical mistake, please contact the administrator to cancel the report.
 6. How do I check the status of my report?
 - You can monitor your submitted concerns in real-time through your Dashboard page. Each report will display its current stage in the maintenance workflow.
 7. What do the different report statuses mean?
-- "Pending" means your report has been successfully submitted and is waiting for administrator validation. "In Progress" indicates that the maintenance team has acknowledge the issue and is actively
-working on repair. "Resolved" means the defect has been fixed or addressed. "Ready for Condemnation/Disposal" the equipment asset is deemed completely unfixable and is marked for official disposal. 
-8. What should I do if my account gets locked? 
-- For security reasons, our system utilizes security throttling that temporarily locks an account after multiple failed login attempts 
-to prevent unauthorized access. Please wait a few minutes before trying again, or contact IT support to reset your credentials. 
+- "Pending" means your report has been successfully submitted and is waiting for administrator validation. "In Progress" indicates that the maintenance team has acknowledged the issue and is actively
+working on repair. "Resolved" means the defect has been fixed or addressed. "Closed" means the item has been forwarded to procurement.
+8. What should I do if my account gets locked?
+- For security reasons, our system utilizes security throttling that temporarily locks an account after multiple failed login attempts
+to prevent unauthorized access. Please wait a few minutes before trying again, or contact IT support to reset your credentials.
 9. Is my personal information safe in the system?
-- Yes. The system employs HTTPS data encryption and secure Role-Based Access Controls to ensure that your personal profile and submitted data are strictly protected 
-and only accessible to authorized university personnel. 
+- Yes. The system employs HTTPS data encryption and secure Role-Based Access Controls to ensure that your personal profile and submitted data are strictly protected
+and only accessible to authorized university personnel.
 """
+
 
 def chatbot_response(request):
     if request.method == 'POST':
         user_message = request.POST.get('message', '').strip()
-
         if not user_message:
             return JsonResponse({'reply': "Please enter a message."})
-        
         try:
             api_key = getattr(settings, "GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
             client = genai.Client(api_key=api_key)
-
             system_instruction = (
                 "You are KM Bot, the official automated chat assistant for the KuhaMo system at Universidad de Manila (UDM). \n\n"
-
                 "STRICT RULES: \n"
                 "1. Answer the query strictly using the facts stated inside the OFFICIAL FAQ KNOWLEDGE BASE FOR KUHAMO SYSTEM (UDM) provided below. \n"
-                "2. Do NOT use outside knowledge. If the answer cannot be found in the text document below,"
+                "2. Do NOT use outside knowledge. If the answer cannot be found in the text document below, "
                 "you are strictly prohibited from guessing or fabricating details. Instead, reply word-for-word: "
                 "'Sorry, I don't have the information you're looking for.' \n\n"
-                "3. Keep responses concise, helpful, and match the language used by the user (Tagalog, English, or  a mix of both). \n\n"
-
+                "3. Keep responses concise, helpful, and match the language used by the user (Tagalog, English, or a mix of both). \n\n"
                 f"OFFICIAL FAQ KNOWLEDGE BASE FOR KUHAMO SYSTEM (UDM): \n{UDM_FAQ_DATA}"
             )
-
             response = client.models.generate_content(
-                model = "gemini-2.5-flash",
-                contents = user_message, 
-                config = {
+                model="gemini-2.5-flash",
+                contents=user_message,
+                config={
                     'system_instruction': system_instruction,
                     'temperature': 0.1,
                 }
             )
-
             return JsonResponse({'reply': response.text})
-        
         except Exception as e:
             print(f"Error encountered: {e}")
             return JsonResponse({'reply': "Sorry, I'm having trouble processing your request right now."})
-        
     return JsonResponse({'error': 'Invalid request'}, status=400)
