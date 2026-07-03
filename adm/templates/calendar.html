@@ -1,0 +1,384 @@
+{% extends "layouts/base.html" %} {% block title %}Calendar
+Reservation{%endblock %} {% block content %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css"
+/>
+
+<main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
+  <h1 class="text-2xl font-bold text-gray-800">Calendar Reservation</h1>
+  <p class="text-base text-gray-600 pt-2 mb-6">
+    View and manage reservations for facilities.
+  </p>
+
+  <div class="grid grid-cols-1 xl:grid-cols-[70%_30%] gap-4">
+    <!--Calendar View-->
+    <section>
+      <div id="reservationCalendar"></div>
+    </section>
+
+    <!--Reservation Details-->
+    <section class="xl:col-span-1 flex flex-col gap-4">
+      <div
+        class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col"
+      >
+        <h2 class="text-lg font-bold text-gray-800">Reservation Details</h2>
+        <p class="text-sm text-gray-500 pb-2">
+          Select a reservation to view details.
+        </p>
+        <div id="reservationDetails" class="flex flex-col gap-2"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<style>
+  /* ===========================
+   CALENDAR CONTAINER
+=========================== */
+
+  #reservationCalendar {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 1.25rem;
+  }
+
+  /* ===========================
+   HEADER
+=========================== */
+
+  #reservationCalendar .fc-button-group {
+    display: flex;
+    gap: 0.6rem;
+  }
+
+  #reservationCalendar .fc-header-toolbar {
+    margin-bottom: 1.5rem;
+  }
+
+  #reservationCalendar .fc-toolbar-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -0.02em;
+  }
+
+  /* ===========================
+   BUTTONS
+=========================== */
+
+  #reservationCalendar .fc-button {
+    border-radius: 12px !important;
+    height: 40px;
+    padding: 0 0.9rem !important;
+    font-weight: 600;
+    transition: 0.2s ease;
+  }
+
+  #reservationCalendar .fc-button-primary {
+    background: #fff !important;
+    border: 1px solid #d1d5db !important;
+    color: #374151 !important;
+    box-shadow: none !important;
+    text-transform: capitalize;
+  }
+
+  #reservationCalendar .fc-button-primary:hover {
+    background: #f3f4f6 !important;
+    border-color: #9ca3af !important;
+    color: #111827 !important;
+  }
+
+  #reservationCalendar .fc-button-primary:not(:disabled).fc-button-active {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: white !important;
+  }
+
+  #reservationCalendar .fc-button:focus {
+    box-shadow: none !important;
+  }
+
+  /* ===========================
+   WEEKDAY HEADER
+=========================== */
+
+  #reservationCalendar .fc-col-header {
+    border: none;
+  }
+
+  #reservationCalendar .fc-col-header-cell {
+    background: #f9fafb;
+    border: none;
+  }
+
+  #reservationCalendar .fc-col-header-cell-cushion {
+    color: #6b7280;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.85rem 0;
+    text-decoration: none;
+  }
+
+  /* ===========================
+   DAY CELLS
+=========================== */
+
+  #reservationCalendar .fc-theme-standard td,
+  #reservationCalendar .fc-theme-standard th {
+    border-color: #f1f5f9;
+  }
+
+  #reservationCalendar .fc-daygrid-day {
+    transition: 0.2s ease;
+  }
+
+  #reservationCalendar .fc-daygrid-day:hover {
+    background: #f8fafc;
+  }
+
+  #reservationCalendar .fc-daygrid-day-frame {
+    min-height: 110px;
+  }
+
+  /* ===========================
+   DAY NUMBERS
+=========================== */
+
+  #reservationCalendar .fc-daygrid-day-number {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #374151;
+    padding: 0.7rem;
+    text-decoration: none;
+  }
+
+  #reservationCalendar .fc-day-today {
+    background: #eff6ff !important;
+  }
+
+  #reservationCalendar .fc-day-today .fc-daygrid-day-number {
+    background: #2563eb;
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.35rem;
+  }
+
+  /* ===========================
+   EVENTS
+=========================== */
+
+  #reservationCalendar .fc-event {
+    border: none;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  #reservationCalendar .fc-event:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.95);
+  }
+
+  #reservationCalendar .fc-event-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ===========================
+   + MORE LINK
+=========================== */
+
+  #reservationCalendar .fc-daygrid-more-link {
+    color: #2563eb;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  /* ===========================
+   POPUP
+=========================== */
+
+  #reservationCalendar .fc-popover {
+    border: none;
+    border-radius: 14px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+  }
+
+  #reservationCalendar .fc-popover-header {
+    background: #f9fafb;
+  }
+
+  /* ===========================
+   REMOVE UGLY OUTER BORDER
+=========================== */
+
+  #reservationCalendar .fc-scrollgrid {
+    border: none;
+  }
+
+  #reservationCalendar table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  /* ===========================
+   TIMEGRID SLOT
+=========================== */
+  #reservationCalendar .fc-timegrid-slot-label-cushion {
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  #reservationCalendar .fc-timegrid-axis-cushion {
+    color: #6b7280;
+    font-weight: 600;
+  }
+</style>
+<script>
+  // ── DUMMY DATA (UI only — no backend wiring yet) ──
+  const CATEGORY_COLORS = {
+    approved: "#22C55E",
+    pending: "#F59E0B",
+    rejected: "#EF4444",
+  };
+
+  const dummyEvents = [
+    {
+      id: 1,
+      title: "Palma Hall — Seminar on Climate Change",
+      start: "2026-06-22",
+      status: "pending",
+    },
+    {
+      id: 2,
+      title: "Mehan — Outdoor Photography Club",
+      start: "2026-06-28",
+      status: "pending",
+    },
+    {
+      id: 3,
+      title: "Library Conf. Room — Thesis Defense",
+      start: "2026-07-09",
+      status: "approved",
+    },
+    {
+      id: 4,
+      title: "Gymnasium — Intramurals Planning",
+      start: "2026-07-15",
+      status: "approved",
+    },
+  ];
+
+  const dummyPendingRequests = [
+    {
+      id: 1,
+      facility: "Palma Hall",
+      requester: "Maria Santos",
+      purpose: "Seminar on Climate Change",
+      date: "Jun 22",
+    },
+    {
+      id: 2,
+      facility: "Mehan",
+      requester: "Juan Dela Cruz",
+      purpose: "Outdoor Photography Club",
+      date: "Jun 28",
+    },
+  ];
+
+  document.addEventListener("DOMContentLoaded", function () {
+    // ── Render Calendar ──
+    const calendarEl = document.getElementById("reservationCalendar");
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: "dayGridMonth",
+      headerToolbar: {
+        left: "prev,next",
+        center: "title",
+        right: "dayGridMonth,timeGridWeek,timeGridDay",
+      },
+      height: "auto",
+      events: dummyEvents.map((e) => ({
+        id: e.id,
+        title: e.title,
+        start: e.start,
+        backgroundColor: CATEGORY_COLORS[e.status],
+        textColor: "#fff",
+      })),
+      eventClick: function (info) {
+        // TODO: open detail modal / navigate to reservation detail once backend exists
+        alert(info.event.title);
+      },
+    });
+    calendar.render();
+
+    // ── Render Pending Requests ──
+    const listEl = document.getElementById("reservationDetails");
+    dummyPendingRequests.forEach((req) => {
+      const card = document.createElement("div");
+      card.className = "border border-gray-100 rounded-2xl p-4 bg-gray-50";
+      card.innerHTML = `
+        <div class="flex items-start justify-between mb-1">
+          <p class="text-sm font-bold text-gray-800">${req.facility}</p>
+          <span class="text-xs text-gray-400">${req.date}</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-0.5">${req.requester}</p>
+        <p class="text-xs text-gray-600 mb-3">${req.purpose}</p>
+        <div class="flex gap-2">
+          <button type="button" data-id="${req.id}" class="approve-btn flex-1 flex items-center justify-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-lg py-1.5 hover:bg-green-100 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            Approve
+          </button>
+          <button type="button" data-id="${req.id}" class="reject-btn flex-1 flex items-center justify-center gap-1 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg py-1.5 hover:bg-red-100 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Reject
+          </button>
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+
+    // Placeholder handlers — wire to real endpoints once the Reservation model exists
+    listEl.addEventListener("click", function (e) {
+      if (e.target.closest(".approve-btn")) {
+        console.log(
+          "Approve request",
+          e.target.closest(".approve-btn").dataset.id,
+        );
+      }
+      if (e.target.closest(".reject-btn")) {
+        console.log(
+          "Reject request",
+          e.target.closest(".reject-btn").dataset.id,
+        );
+      }
+    });
+
+    // Add Event button — placeholder
+    document
+      .getElementById("addEventBtn")
+      .addEventListener("click", function () {
+        alert("Add Event modal goes here once the form/model is built.");
+      });
+  });
+</script>
+{% endblock %}

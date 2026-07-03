@@ -61,9 +61,21 @@ class UserProfile(models.Model):
         ('staff', 'Staff'),
     ]
 
+    DEPARTMENT_CHOICES = [
+        ('CCS', 'College of Computing Studies'),
+        ('CHS', 'College of Health Sciences'),
+        ('CCJ', 'College of Criminal Justice'),
+        ('CED', 'College of Education'),
+        ('NSTP', 'National Service Training Program'),
+        ('GenED', 'General Education'),
+        ('CBPM', 'College of Business and Public Management'),
+        ('COL', 'College of Law'),
+        ('CAS', 'College of Arts and Sciences'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
-    department = models.CharField(max_length=100, blank=True)
+    department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
 

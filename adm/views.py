@@ -4,10 +4,10 @@ from user.models import Report, SurveyResponse
 from django.db.models import Count, Avg
 from datetime import timedelta
 import json
-
-from django.shortcuts import render, get_object_or_404
+import django.contrib as messages
 from django.http import JsonResponse
 from .models import Building, Floor, Room
+from django.contrib.auth import update_session_auth_hash
 
 def dashboard(request):
     now = timezone.now()
@@ -196,9 +196,36 @@ def report_status(request, report_id):
     return redirect('adm_report_detail', report_id=report_id)
 
 def ProfileMenu(request):
+    if request.method == 'POST':
+        if 'save_info' in request.POST:
+            request.user.first_name = request.POST.get('first_name')
+            request.user.last_name = request.POST.get('last_name')
+            request.user.email = request.POST.get('email')
+            request.user.save()
+            messages.success(request, "Profile Updated Successfully")
+            return redirect ('ProfileMenu')
+    
+        elif 'change_password' in request.POST:
+            old_password = request.POST.get('old_password')
+            new_password1 = request.POST.get('new_password1')
+            new_password2 = request.POST.get('new_password2')
+            if not request.user.check_password(old_password):
+                messages.error(request, "Old password is incorrect.")
+            elif new_password1 != new_password2:
+                messages.error(request, "New password do not match.")
+            elif len(new_password1) < 8:
+                messages.error(request, "New password must be at least 8 characters long.")
+            else:
+                request.user.set_password(new_password1)
+                request.user.save()
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "Password updated successfully!")
+            return redirect('ProfileMenu')
+    
     return render(request, 'menu-admin.html', {
-        "active_page": "ProfileMenu"
-})
+            "active_page": "ProfileMenu",
+            "role": "Admin",
+    })
 
 def universitymap (request):
     return render(request, 'university-map.html', {
@@ -297,4 +324,10 @@ def floor_map_api(request):
         'image_height': floor.image_height,
         'rooms': room_data,
         'category_counts': category_counts,
+    })
+
+
+def calendar_view(request):
+    return render(request, 'calendar.html', {
+        "active_page": "calendar"
     })
