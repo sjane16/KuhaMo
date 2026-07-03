@@ -17,6 +17,33 @@
     <div class="flex-1 h-px bg-gray-300"></div>
   </div>
 
+  <div class="flex items-center gap-2 mb-6">
+    <span class="text-xs text-gray-500 mr-1">Showing:</span>
+
+    <a href="?period=7" 
+    class="px-4 py-1.5 rounded-full text-xs font-medium border transition
+    {% if period == '7' %}bg-blue-600 text-white border-blue-600
+    {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
+      Last 7 Days 
+    </a>
+
+    <a href="?period=30" 
+    class="px-4 py-1.5 rounded-full text-xs font-medium border transition
+    {% if period == '30' %}bg-blue-600 text-white border-blue-600
+    {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
+      Last 30 Days 
+    </a>
+
+    <a href="?period=all" 
+    class="px-4 py-1.5 rounded-full text-xs font-medium border transition
+    {% if period == 'all' %}bg-blue-600 text-white border-blue-600
+    {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
+      All Time
+    </a>
+
+
+  </div>
+
   <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
     <div
       class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4"

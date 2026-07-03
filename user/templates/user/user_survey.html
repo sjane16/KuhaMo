@@ -49,17 +49,12 @@
       <!-- Rating -->
       <div class="flex items-center gap-2 mb-4">
         <span class="text-2xl">
-          {% if survey.rating == 1 %}😤 {% elif survey.rating == 2 %}😞 {% elif
-          survey.rating == 3 %}😐 {% elif survey.rating == 4 %}😊 {% elif
-          survey.rating == 5 %}😄 {% endif %}
+          {% if survey.rating == 1 %}😤 {% elif survey.rating == 2 %}😞 {% elif survey.rating == 3 %}😐 {% elif survey.rating == 4 %}😊 {% elif survey.rating == 5 %}😄 {% endif %}
         </span>
         <span class="text-sm text-gray-500">
           You rated this as
           <span class="font-semibold text-gray-700">
-            {% if survey.rating == 1 %}Frustrated {% elif survey.rating == 2
-            %}Disappointed {% elif survey.rating == 3 %}Neutral {% elif
-            survey.rating == 4 %}Pleased {% elif survey.rating == 5 %}Delighted
-            {% endif %}
+            {% if survey.rating == 1 %}Frustrated {% elif survey.rating == 2 %}Disappointed {% elif survey.rating == 3 %}Neutral {% elif survey.rating == 4 %}Pleased {% elif survey.rating == 5 %}Delighted {% endif %}
           </span>
         </span>
       </div>

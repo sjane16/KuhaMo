@@ -196,11 +196,9 @@
         <div
           class="absolute top-4 left-[18%] right-[18%] h-0.5 bg-gray-200"
         ></div>
-        {% if report.status == 'in_progress' or report.status == 'resolved' or
-        report.status == 'closed' %}
+        {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
         <div class="absolute top-4 left-[18%] w-[32%] h-0.5 bg-blue-600"></div>
-        {% endif %} {% if report.status == 'resolved' or report.status ==
-        'closed' %}
+        {% endif %} {% if report.status == 'resolved' or report.status == 'closed' %}
         <div
           class="absolute top-4 left-[18%] right-[18%] h-0.5 bg-blue-600"
         ></div>
@@ -239,10 +237,8 @@
           <!-- Under Review -->
           <div class="flex flex-col items-center">
             <div
-              class="w-8 h-8 rounded-full {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %} flex items-center justify-center"
-            >
-              {% if report.status == 'in_progress' or report.status ==
-              'resolved' or report.status == 'closed' %}
+              class="w-8 h-8 rounded-full {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %} flex items-center justify-center">
+              {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="w-5 h-5"
@@ -538,127 +534,159 @@
     </div>
 
     <!-- Progress -->
-    <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-      <h2 class="text-black font-bold mb-7">Progress</h2>
-      <div class="relative max-w-3xl mx-auto">
-        <div
-          class="absolute top-4 left-[17%] right-[17%] h-0.5 bg-gray-200"
-        ></div>
-        {% if report.status == 'in_progress' %}
-        <div class="absolute top-4 left-[17%] w-[33%] h-0.5 bg-blue-600"></div>
-        {% elif report.status == 'resolved' or report.status == 'closed' %}
-        <div
-          class="absolute top-4 left-[17%] right-[17%] h-0.5 bg-blue-600"
-        ></div>
-        {% endif %}
+<div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+  <h2 class="text-black font-bold mb-7">Progress</h2>
 
-        <div class="relative grid grid-cols-3 text-center">
-          <!-- Submitted -->
-          <div class="flex flex-col items-center">
-            <div
-              class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="2.5"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m4.5 12.75 6 6 9-13.5"
-                />
-              </svg>
-            </div>
-            <p class="mt-3 text-sm font-semibold text-gray-900">Submitted</p>
-            <p class="mt-1 text-xs text-gray-400">
-              {{ report.submitted_at|date:"M d, Y" }}
-            </p>
-            <p class="text-xs text-gray-300">
-              {{ report.submitted_at|date:"h:i A" }}
-            </p>
-          </div>
 
-          <!-- Under Review -->
-          <div class="flex flex-col items-center">
-            <div
-              class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}"
-            >
-              {% if report.status == 'in_progress' or report.status ==
-              'resolved' or report.status == 'closed' %}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="2.5"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m4.5 12.75 6 6 9-13.5"
-                />
-              </svg>
-              {% endif %}
-            </div>
-            <p class="mt-3 text-sm font-semibold text-gray-900">Under Review</p>
-            {% if report.in_progress_at %}
-            <p class="mt-1 text-xs text-gray-400">
-              {{ report.in_progress_at|date:"M d, Y" }}
-            </p>
-            <p class="text-xs text-gray-300">
-              {{ report.in_progress_at|date:"h:i A" }}
-            </p>
-            {% else %}
-            <p class="mt-1 text-xs text-gray-400">—</p>
-            {% endif %}
-          </div>
+  <div class="relative max-w-3xl mx-auto">
+    <div class="absolute top-4 left-[17%] right-[17%] h-0.5 bg-gray-200"></div>
 
-          <!-- Resolved / Closed -->
-          <div class="flex flex-col items-center">
-            <div
-              class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}"
-            >
-              {% if report.status == 'resolved' or report.status == 'closed' %}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="2.5"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="m4.5 12.75 6 6 9-13.5"
-                />
-              </svg>
-              {% endif %}
-            </div>
-            <p class="mt-3 text-sm font-semibold text-gray-900">
-              {% if report.status == 'closed' %}Closed{% else %}Resolved{% endif
-              %}
-            </p>
-            {% if report.accomplished_at %}
-            <p class="mt-1 text-xs text-gray-400">
-              {{ report.accomplished_at|date:"M d, Y" }}
-            </p>
-            <p class="text-xs text-gray-300">
-              {{ report.accomplished_at|date:"h:i A" }}
-            </p>
-            {% else %}
-            <p class="mt-1 text-xs text-gray-400">—</p>
-            {% endif %}
-          </div>
+
+    {% if report.status == 'in_progress' %}
+    <div class="absolute top-4 left-[17%] w-[33%] h-0.5 bg-blue-600"></div>
+    {% elif report.status == 'resolved' or report.status == 'closed' %}
+    <div class="absolute top-4 left-[17%] right-[17%] h-0.5 bg-blue-600"></div>
+    {% endif %}
+
+
+    <div class="relative grid grid-cols-3 text-center">
+
+
+      <!-- Submitted -->
+      <div class="flex flex-col items-center">
+        <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2.5"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="m4.5 12.75 6 6 9-13.5"
+            />
+          </svg>
         </div>
+
+
+        <p class="mt-3 text-sm font-semibold text-gray-900">
+          Submitted
+        </p>
+
+
+        <p class="mt-1 text-xs text-gray-400">
+          {{ report.submitted_at|date:"M d, Y" }}
+        </p>
+
+
+        <p class="text-xs text-gray-300">
+          {{ report.submitted_at|date:"h:i A" }}
+        </p>
       </div>
+
+
+
+
+      <!-- Under Review -->
+      <div class="flex flex-col items-center">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+
+
+          {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2.5"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="m4.5 12.75 6 6 9-13.5"
+            />
+          </svg>
+          {% endif %}
+
+
+        </div>
+
+
+        <p class="mt-3 text-sm font-semibold text-gray-900">
+          Under Review
+        </p>
+
+
+        {% if report.in_progress_at %}
+        <p class="mt-1 text-xs text-gray-400">
+          {{ report.in_progress_at|date:"M d, Y" }}
+        </p>
+
+
+        <p class="text-xs text-gray-300">
+          {{ report.in_progress_at|date:"h:i A" }}
+        </p>
+        {% else %}
+        <p class="mt-1 text-xs text-gray-400">—</p>
+        {% endif %}
+      </div>
+
+
+
+
+      <!-- Resolved / Closed -->
+      <div class="flex flex-col items-center">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+
+
+          {% if report.status == 'resolved' or report.status == 'closed' %}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2.5"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="m4.5 12.75 6 6 9-13.5"
+            />
+          </svg>
+          {% endif %}
+
+
+        </div>
+
+
+        <p class="mt-3 text-sm font-semibold text-gray-900">
+          {% if report.status == 'closed' %}Closed{% else %}Resolved{% endif %}
+        </p>
+
+
+        {% if report.accomplished_at %}
+        <p class="mt-1 text-xs text-gray-400">
+          {{ report.accomplished_at|date:"M d, Y" }}
+        </p>
+
+
+        <p class="text-xs text-gray-300">
+          {{ report.accomplished_at|date:"h:i A" }}
+        </p>
+        {% else %}
+        <p class="mt-1 text-xs text-gray-400">—</p>
+        {% endif %}
+      </div>
+
+
     </div>
   </div>
+</div>
 </main>
 
 {% if report.status == 'resolved' or report.status == 'closed' %}{% if not
