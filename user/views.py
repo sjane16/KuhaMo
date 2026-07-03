@@ -2,12 +2,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
-from .forms import ReportForm, get_location_choices, UserForm, UserProfileForm, ProfilePhotoForm
+from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
 import os
 from django.http import JsonResponse
 from django.conf import settings
 from google import genai
 from .models import Report, SurveyResponse, UserProfile
+from adm.models import Floor, Room
 
 
 @login_required
@@ -93,9 +94,10 @@ def reportForm(request):
         if form.is_valid():
             report = form.save(commit=False)
             report.user = request.user
-            selected_value = form.cleaned_data['location']
-            location_map = dict(get_location_choices())
-            report.location = location_map.get(selected_value, selected_value)
+            #saving the room's name
+            selected_room = form.cleaned_data['location']
+            report.location = selected_room.name
+
             report.save()
             messages.success(request, "Your concern has been submitted successfully.")
             return redirect('userReports')
@@ -232,3 +234,14 @@ def chatbot_response(request):
             print(f"Error encountered: {e}")
             return JsonResponse({'reply': "Sorry, I'm having trouble processing your request right now."})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+#AJAX VIEWS FOR THE DROPDOWN
+def load_floors(request):
+    building_id = request.GET.get('building')
+    floors = Floor.objects.filter(building_id=building_id).order_by('floor_number')
+    return JsonResponse(list(floors.values('id', 'label')), safe=False)
+
+def load_rooms(request):
+    floor_id = request.GET.get('floor')
+    rooms = Room.objects.filter(floor_id=floor_id).order_by('name')
+    return JsonResponse(list(rooms.values('id','name', 'code')), safe=False)

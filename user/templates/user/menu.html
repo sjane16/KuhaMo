@@ -286,45 +286,23 @@
               name="department"
               class="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none cursor-pointer pr-10"
             >
+              {% for value, label in profile_form.department.field.choices %}
               <option
-                value="CCS"
+                value="{{ value }}"
                 {%
                 if
                 user.profile.department=""
-                ="CCS"
+                ="value"
                 %}selected{%
                 endif
                 %}
               >
-                CCS Department
+                {{ label }}
               </option>
-              <option
-                value="CAS"
-                {%
-                if
-                user.profile.department=""
-                ="CAS"
-                %}selected{%
-                endif
-                %}
-              >
-                CAS Department
-              </option>
-              <option
-                value="CBE"
-                {%
-                if
-                user.profile.department=""
-                ="CBE"
-                %}selected{%
-                endif
-                %}
-              >
-                CBE Department
-              </option>
+              {% endfor %}
             </select>
             <svg
-              class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+              class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none mt-2"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
