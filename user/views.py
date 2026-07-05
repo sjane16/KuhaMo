@@ -9,6 +9,7 @@ from django.conf import settings
 from google import genai
 from .models import Report, SurveyResponse, UserProfile
 from adm.models import Floor, Room
+from .validators import validate_password_strength
 
 
 @login_required
@@ -38,7 +39,10 @@ def menu(request):
                 messages.success(request, "Profile Photo Updated Successfully")
                 return redirect('menu')
             else:
-                messages.error(request, "Please upload a valid photo.")
+                if 'profile_photo' in photo_form.errors:
+                    messages.error(request, photo_form.errors['profile_photo'][0])
+                else:
+                    messages.error(request, "Please upload a valid photo.")
 
         elif 'remove_photo' in request.POST:
             profile.profile_photo.delete(save=True)
@@ -49,18 +53,22 @@ def menu(request):
             old_password = request.POST.get('old_password')
             new_password1 = request.POST.get('new_password1')
             new_password2 = request.POST.get('new_password2')
+
             if not request.user.check_password(old_password):
                 messages.error(request, "Old password is incorrect.")
             elif new_password1 != new_password2:
                 messages.error(request, "New passwords do not match.")
-            elif len(new_password1) < 8:
-                messages.error(request, "New password must be at least 8 characters long.")
             else:
-                request.user.set_password(new_password1)
-                request.user.save()
-                update_session_auth_hash(request, request.user)
-                messages.success(request, "New password saved successfully!", extra_tags='password_changed')
-                return redirect('menu')
+                password_errors = validate_password_strength(new_password1)
+                if password_errors:
+                    for err in password_errors:
+                        messages.error(request, err)
+                else:
+                    request.user.set_password(new_password1)
+                    request.user.save()
+                    update_session_auth_hash(request, request.user)
+                    messages.success(request, "New password saved successfully!", extra_tags='password_changed')
+                    return redirect('menu')
 
     return render(request, 'user/menu.html', {
         "active_page": "menu",
@@ -91,27 +99,54 @@ def userDashboard(request):
 def reportForm(request):
     if request.method == 'POST':
         form = ReportForm(request.POST, request.FILES)
+
         if form.is_valid():
             report = form.save(commit=False)
             report.user = request.user
-            #saving the room's name
+
             selected_room = form.cleaned_data['location']
-            report.location = selected_room.name
+            report.location = f"{selected_room.floor.building.name}, {selected_room.floor.label}, {selected_room.name}"
+
+            try:
+                from ml.predictor import predict_image
+
+                prediction = predict_image(request.FILES['photo'])
+
+                report.category = prediction['category']
+                report.cnn_raw_prediction = prediction['raw_label']
+                report.cnn_confidence = prediction['confidence']
+                report.cnn_margin = prediction['margin']
+                report.flagged_for_review = prediction['flagged_for_review']
+
+            except Exception as error:
+                print(f"CNN Prediction Error: {error}")
+                messages.error(request, "Unable to analyze the uploaded photo. Please try again.")
+                return render(request, 'user/report_form.html', {
+                    "active_page": "reportForm",
+                    "form": form,
+                })
 
             report.save()
-            messages.success(request, "Your concern has been submitted successfully.")
+
+            messages.success(
+                request,
+                "Your concern has been submitted successfully."
+            )
+
             return redirect('userReports')
+
         if 'photo' in form.errors:
             messages.error(request, "Please upload a photo of the concern.")
         else:
             messages.error(request, "Please complete all required fields.")
+
     else:
         form = ReportForm()
+
     return render(request, 'user/report_form.html', {
         "active_page": "reportForm",
         "form": form,
     })
-
 
 @login_required
 def userReports(request):
@@ -126,9 +161,23 @@ def userReports(request):
     })
 
 
+@login_required
 def reportedIssue(request, report_id):
-    report = get_object_or_404(Report, id=report_id)
-    already_surveyed = hasattr(report, 'survey')
+    report = get_object_or_404(
+        Report,
+        id=report_id,
+        user=request.user
+    )
+
+    already_surveyed = SurveyResponse.objects.filter(
+        report=report
+    ).exists()
+
+    show_survey = (
+        report.status == 'resolved'
+        and not already_surveyed
+    )
+
     emojis = [
         ('😤', 'Frustrated', 1),
         ('😞', 'Disappointed', 2),
@@ -136,38 +185,74 @@ def reportedIssue(request, report_id):
         ('😊', 'Pleased', 4),
         ('😄', 'Delighted', 5),
     ]
+
     return render(request, 'user/reported_issue.html', {
         "active_page": "reportedIssue",
         "report": report,
         "already_surveyed": already_surveyed,
+        "show_survey": show_survey,
         "emojis": emojis,
     })
 
 
+@login_required
 def userSurvey(request):
     submitted_surveys = SurveyResponse.objects.filter(
-        report__in=Report.objects.all()
+        report__user=request.user
     ).select_related('report').order_by('-submitted_at')
+
     return render(request, 'user/user_survey.html', {
         "active_page": "userSurvey",
         "submitted_surveys": submitted_surveys,
     })
 
 
+@login_required
 def submitSurvey(request, report_id):
-    if request.method == 'POST':
-        report = get_object_or_404(Report, id=report_id)
-        rating = request.POST.get('rating')
-        feedback = request.POST.get('feedback', '')
-        if not rating:
-            return JsonResponse({'success': False, 'error': 'Rating is required.'})
-        SurveyResponse.objects.create(
-            report=report,
-            rating=int(rating),
-            feedback=feedback,
-        )
-        return JsonResponse({'success': True})
-    return JsonResponse({'error': 'Invalid request'}, status=400)
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid request.'
+        }, status=400)
+
+    report = get_object_or_404(
+        Report,
+        id=report_id,
+        user=request.user
+    )
+
+    rating = request.POST.get('rating')
+    feedback = request.POST.get('feedback', '').strip()
+
+    try:
+        rating = int(rating)
+    except (TypeError, ValueError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Please select a valid rating.'
+        }, status=400)
+
+    if rating not in [1, 2, 3, 4, 5]:
+        return JsonResponse({
+            'success': False,
+            'error': 'Rating must be between 1 and 5.'
+        }, status=400)
+
+    if SurveyResponse.objects.filter(report=report).exists():
+        return JsonResponse({
+            'success': False,
+            'error': 'You have already submitted a survey for this report.'
+        }, status=400)
+
+    SurveyResponse.objects.create(
+        report=report,
+        rating=rating,
+        feedback=feedback,
+    )
+
+    return JsonResponse({
+        'success': True
+    })
 
 
 def chatbot(request):

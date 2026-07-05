@@ -1,308 +1,190 @@
-{% extends "user/layouts/base.html" %} {%block title%}Report Issue{%endblock%}
-{% load static %} {% block content %}
-<main class="flex-1 px-5 pt-6 pb-40 lg:pb-10 max-w-4xl w-full lg:mx-auto">
-  <!-- Header -->
-  <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-900 leading-tight">
-      Report a Concern
-    </h1>
-    <p class="text-sm text-gray-500 mt-0.5">
-      Upload a photo of your concerns/report.
-    </p>
-  </div>
-
-  <!-- Form Card -->
-  <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
-    <form
-      method="POST"
-      enctype="multipart/form-data"
-      action="{% url 'reportForm' %}"
-    >
-      {% csrf_token %}
-
-      <!-- Photo Upload Area -->
-      <div class="mb-6">
-        <label
-          for="photo-upload"
-          class="border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center py-14 px-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200 group relative overflow-hidden"
-        >
-          <img
-            id="preview-image"
-            class="hidden absolute inset-0 w-full h-full object-cover"
-          />
-
-          <div
-            id="upload-content"
-            class="flex flex-col items-center justify-center text-center"
-          >
-            <div
-              class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-7 h-7 text-blue-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
-                />
+{% extends "user/layouts/base.html" %} {% block title %}Report Issue{% endblock %}
+{% load static %}
+{% block content %}
+  <main class="flex-1 px-5 pt-6 pb-40 lg:pb-10 max-w-4xl w-full lg:mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900 leading-tight">Report a Concern</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Upload a photo of your concerns/report.</p>
+    </div>
+    <!-- Form Card -->
+    <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
+      <form id="report-form"
+            method="POST"
+            enctype="multipart/form-data"
+            action="{% url 'reportForm' %}">
+        {% csrf_token %}
+        <!-- Photo Upload Area -->
+        <div class="mb-6">
+          <label for="photo-upload"
+                 class="border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center py-14 px-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200 group relative overflow-hidden">
+            <img id="preview-image"
+                 class="hidden absolute inset-0 w-full h-full object-cover" />
+            <div id="upload-content"
+                 class="flex flex-col items-center justify-center text-center">
+              <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="w-7 h-7 text-blue-500"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke-width="1.5"
+                     stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                </svg>
+              </div>
+              <p class="text-sm font-bold text-gray-900">Click to upload photo</p>
+              <p class="text-sm text-gray-400 mt-1">or drag and drop your file here</p>
+              <p class="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+            </div>
+            <div id="uploaded-status" class="hidden  px-3 py-1 "></div>
+            <div id="error-message"
+                 class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-1 rounded-full">
+              File too large (max 10MB)
+            </div>
+          </label>
+          <!-- IMPORTANT: walang required dito para Django toast ang lalabas -->
+          <input id="photo-upload"
+                 name="photo"
+                 type="file"
+                 class="hidden"
+                 accept="image/jpeg,image/png" />
+          {% if form.photo.errors %}
+            <p class="text-xs text-red-500 mt-2">{{ form.photo.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+        <!-- Location -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Building</label>
+          <div class="relative">
+            {{ form.building }}
+            <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="w-5 h-5 text-gray-400"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke-width="2"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
               </svg>
             </div>
-            <p class="text-sm font-bold text-gray-900">Click to upload photo</p>
-            <p class="text-sm text-gray-400 mt-1">
-              or drag and drop your file here
-            </p>
-            <p class="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
           </div>
-
-          <div
-            id="uploaded-status"
-            class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-3 py-1 rounded-full"
-          >
-            Uploaded ✓
-          </div>
-
-          <div
-            id="error-message"
-            class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-1 rounded-full"
-          >
-            File too large (max 10MB)
-          </div>
-        </label>
-
-        <!-- IMPORTANT: walang required dito para Django toast ang lalabas -->
-        <input
-          id="photo-upload"
-          name="photo"
-          type="file"
-          class="hidden"
-          accept="image/jpeg,image/png"
-        />
-
-        {% if form.photo.errors %}
-        <p class="text-xs text-red-500 mt-2">
-          {{ form.photo.errors|join:", " }}
-        </p>
-        {% endif %}
-      </div>
-
-      <!-- Category -->
-      <div class="mb-5">
-        <label class="block text-sm font-semibold text-gray-800 mb-2"
-          >Category of the Issue</label
-        >
-        <div class="relative">
-          <select
-            name="category"
-            class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer pr-10"
-          >
-            <option
-              value=""
-              disabled
-              {%
-              if
-              not
-              form.category.value
-              %}selected{%
-              endif
-              %}
-            >
-              Select a category
-            </option>
-            {% for value, label in form.category.field.choices %}
-            <option
-              value="{{ value }}"
-              {%
-              if
-              form.category.value=""
-              ="value"
-              %}selected{%
-              endif
-              %}
-            >
-              {{ label }}
-            </option>
-            {% endfor %}
-          </select>
-
-          <div
-            class="pointer-events-none absolute inset-y-0 right-4 flex items-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="2"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-              />
-            </svg>
-          </div>
+          {% if form.building.errors %}
+            <p class="text-xs text-red-500 mt-1">{{ form.building.errors|join:", " }}</p>
+          {% endif %}
         </div>
-
-        {% if form.category.errors %}
-        <p class="text-xs text-red-500 mt-1">
-          {{ form.category.errors|join:", " }}
-        </p>
-        {% endif %}
-      </div>
-
-      <!-- Location -->
-      <div class="mb-5">
-        <label class="block text-sm font-semibold text-gray-800 mb-2"
-          >Building</label
-        >
-        <div class="relative">
-          {{form.building}}
-          <div
-            class="pointer-events-none absolute inset-y-0 right-4 flex items-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="2"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-              />
-            </svg>
+        <!-- Floor -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Floor</label>
+          <div class="relative" id="floor-wrapper">
+            {{ form.floor }}
+            <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="w-5 h-5 text-gray-400"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke-width="2"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </div>
           </div>
+          <!-- Hidden by default. Only shown briefly on tap-while-locked,
+             or for a genuine "no floors available" result. -->
+          <p id="floor-hint" class="text-xs mt-1.5 text-gray-400 hidden"></p>
+          {% if form.floor.errors %}
+            <p class="text-xs text-red-500 mt-1">{{ form.floor.errors|join:", " }}</p>
+          {% endif %}
         </div>
-        {% if form.building.errors %}
-        <p class="text-xs text-red-500 mt-1">
-          {{ form.building.errors|join:", " }}
-        </p>
-        {% endif %}
-      </div>
-
-      <div class="mb-5">
-        <label class="block text-sm font-semibold text-gray-800 mb-2"
-          >Floor</label
-        >
-        <div class="relative">
-          {{form.floor}}
-          <div
-            class="pointer-events-none absolute inset-y-0 right-4 flex items-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="2"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-              />
-            </svg>
+        <!-- Room -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Room</label>
+          <div class="relative" id="room-wrapper">
+            {{ form.location }}
+            <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="w-5 h-5 text-gray-400"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke-width="2"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </div>
           </div>
+          <!-- Hidden by default. Only shown briefly on tap-while-locked,
+             or for a genuine "no rooms available" result. -->
+          <p id="room-hint" class="text-xs mt-1.5 text-gray-400 hidden"></p>
+          {% if form.location.errors %}
+            <p class="text-xs text-red-500 mt-1">{{ form.location.errors|join:", " }}</p>
+          {% endif %}
         </div>
-        {% if form.floor.errors %}
-        <p class="text-xs text-red-500 mt-1">
-          {{ form.floor.errors|join:", " }}
-        </p>
-        {% endif %}
-      </div>
-
-      <div class="mb-5">
-        <label class="block text-sm font-semibold text-gray-800 mb-2"
-          >Room</label
-        >
-        <div class="relative">
-          {{form.location}}
-          <div
-            class="pointer-events-none absolute inset-y-0 right-4 flex items-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-5 h-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="2"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-              />
-            </svg>
-          </div>
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Description</label>
+          <textarea name="description" rows="5" placeholder="Describe the issue of the concern..." class="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y">
+{{ form.description.value|default:'' }}</textarea>
+          {% if form.description.errors %}
+            <p class="text-xs text-red-500 mt-1">{{ form.description.errors|join:", " }}</p>
+          {% endif %}
         </div>
-        {% if form.location.errors %}
-        <p class="text-xs text-red-500 mt-1">
-          {{ form.location.errors|join:", " }}
-        </p>
-        {% endif %}
+        <!-- Submit -->
+        <button id="submit-button"
+                type="submit"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-4 rounded-xl transition-colors duration-200">
+          Submit Report
+        </button>
+      </form>
+    </div>
+  </main>
+  <div id="cnn-loading"
+       class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/50 backdrop-blur-sm px-5">
+    <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-7 flex flex-col items-center text-center">
+      <div class="relative w-16 h-16 mb-5">
+        <div class="absolute inset-0 rounded-full border-4 border-blue-100"></div>
+        <div class="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <svg class="w-7 h-7 text-blue-600"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="1.7"
+               viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5m4.75-11.396c.251-.023.501-.04.75-.052m-.75.052a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19 14.5M14.25 3.104c-.251-.023-.501-.04-.75-.052M5 14.5l-1.286 1.286a2.25 2.25 0 0 0 1.591 3.841h13.39a2.25 2.25 0 0 0 1.591-3.841L19 14.5M5 14.5h14" />
+          </svg>
+        </div>
       </div>
-      <div class="mb-6">
-        <label class="block text-sm font-semibold text-gray-800 mb-2"
-          >Description</label
-        >
-
-        <textarea
-          name="description"
-          rows="5"
-          placeholder="Describe the issue of the concern..."
-          class="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
-        >
-{{ form.description.value|default:'' }}</textarea
-        >
-
-        {% if form.description.errors %}
-        <p class="text-xs text-red-500 mt-1">
-          {{ form.description.errors|join:", " }}
-        </p>
-        {% endif %}
+      <h2 class="text-base font-bold text-gray-900">Analyzing Concern</h2>
+      <p class="text-sm text-gray-500 mt-2 leading-relaxed">
+        Our AI model is analyzing your uploaded photo and identifying the concern category.
+      </p>
+      <div class="flex items-center gap-2 mt-5 text-xs font-medium text-blue-600">
+        <span class="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+        Please wait, do not close this page.
       </div>
-      <!-- Submit -->
-      <button
-        type="submit"
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-4 rounded-xl transition-colors duration-200"
-      >
-        Submit Report
-      </button>
-    </form>
+    </div>
   </div>
-</main>
-
-<script>
+  <script>
   const input = document.getElementById("photo-upload");
   const preview = document.getElementById("preview-image");
   const uploadContent = document.getElementById("upload-content");
   const status = document.getElementById("uploaded-status");
   const errorMsg = document.getElementById("error-message");
   const MAX_SIZE = 10 * 1024 * 1024;
+  
+
 
   input.addEventListener("change", function () {
     const file = this.files[0];
 
+
     status.classList.add("hidden");
     errorMsg.classList.add("hidden");
+
 
     if (!file) {
       preview.classList.add("hidden");
       uploadContent.classList.remove("hidden");
       return;
     }
+
 
     if (file.size > MAX_SIZE) {
       this.value = "";
@@ -312,7 +194,9 @@
       return;
     }
 
+
     const reader = new FileReader();
+
 
     reader.onload = function (e) {
       preview.src = e.target.result;
@@ -321,55 +205,167 @@
       status.classList.remove("hidden");
     };
 
+
     reader.readAsDataURL(file);
   });
 
-  // Logic for the dropdown of location
+
+  // ---- Cascading Building -> Floor -> Room logic ----
   const buildingSelect = document.getElementById("id_building");
   const floorSelect = document.getElementById("id_floor");
   const roomSelect = document.getElementById("id_location");
 
-  if (floorSelect.options.length <= 1) floorSelect.disabled = true;
-  if (roomSelect.options.length <= 1) roomSelect.disabled = true;
+
+  const floorWrapper = document.getElementById("floor-wrapper");
+  const roomWrapper = document.getElementById("room-wrapper");
+  const floorHint = document.getElementById("floor-hint");
+  const roomHint = document.getElementById("room-hint");
+
+
+  function setLocked(select, locked) {
+    select.disabled = locked;
+    select.classList.toggle("pointer-events-none", locked);
+    select.classList.toggle("bg-gray-100", locked);
+    select.classList.toggle("text-gray-400", locked);
+    select.classList.toggle("border-gray-200", locked);
+    select.classList.toggle("cursor-not-allowed", locked);
+  }
+
+
+  // Shows a temporary message under a field, then optionally hides it again.
+  // Used both for the "you tapped a locked field" flash and for
+  // genuine "no results" states (which stay visible, autoHideMs = null).
+  function showTempMessage(hintEl, message, isWarning, autoHideMs) {
+    hintEl.textContent = message;
+    hintEl.classList.remove("hidden");
+    hintEl.classList.toggle("text-red-500", isWarning);
+    hintEl.classList.toggle("text-gray-400", !isWarning);
+
+
+    clearTimeout(hintEl._timer);
+    if (autoHideMs) {
+      hintEl._timer = setTimeout(() => {
+        hintEl.classList.add("hidden");
+        hintEl.textContent = "";
+      }, autoHideMs);
+    }
+  }
+
+
+  function flashLockedWarning(select, hintEl, message) {
+    select.classList.add("border-red-500");
+    showTempMessage(hintEl, message, true, 2000);
+    clearTimeout(select._borderTimer);
+    select._borderTimer = setTimeout(() => {
+      select.classList.remove("border-red-500");
+    }, 2000);
+  }
+
+
+  // Initial state on page load — locked, no visible hint.
+  setLocked(floorSelect, floorSelect.options.length <= 1);
+  setLocked(roomSelect, roomSelect.options.length <= 1);
+
+
+  floorWrapper.addEventListener("click", function () {
+    if (floorSelect.disabled) {
+      flashLockedWarning(floorSelect, floorHint, "⚠ Select a building first.");
+    }
+  });
+
+
+  roomWrapper.addEventListener("click", function () {
+    if (roomSelect.disabled) {
+      // floorSelect.disabled tells us which step is actually blocking Room:
+      // Floor still disabled -> Building hasn't been chosen yet.
+      // Floor enabled (even if empty) -> Building is done, Floor is the blocker.
+      const message = floorSelect.disabled
+        ? "⚠ Select a building first."
+        : "⚠ Select a floor first.";
+      flashLockedWarning(roomSelect, roomHint, message);
+    }
+  });
+
 
   buildingSelect.addEventListener("change", function () {
     const buildingId = this.value;
-    floorSelect.innerHTML = '<option value=""> Select a Floor</option>';
-    roomSelect.innerHTML = '<option value=""> Select a Room</option>';
-    roomSelect.disabled = true;
 
-    if (buildingId) {
-      fetch(`/user/ajax/load-floors/?building=${buildingId}`)
-        .then((response) => response.json())
-        .then((data) => {
-          data.forEach((floor) => {
-            const option = new Option(floor.label, floor.id);
-            floorSelect.add(option);
-          });
-          floorSelect.disabled = false;
-        });
-    } else {
-      floorSelect.disabled = true;
+
+    floorSelect.innerHTML = '<option value="">Select a Floor</option>';
+    roomSelect.innerHTML = '<option value="">Select a Room</option>';
+    setLocked(roomSelect, true);
+    roomHint.classList.add("hidden");
+    roomHint.textContent = "";
+
+
+    if (!buildingId) {
+      setLocked(floorSelect, true);
+      floorHint.classList.add("hidden");
+      floorHint.textContent = "";
+      return;
     }
+
+
+    fetch(`/user/ajax/load-floors/?building=${buildingId}`)
+      .then((response) => response.json())
+      .then((data) => {
+        data.forEach((floor) => {
+          floorSelect.add(new Option(floor.label, floor.id));
+        });
+        setLocked(floorSelect, data.length === 0);
+        if (data.length === 0) {
+          showTempMessage(floorHint, "No floors available.", false, null);
+        } else {
+          floorHint.classList.add("hidden");
+          floorHint.textContent = "";
+        }
+      });
   });
+
 
   floorSelect.addEventListener("change", function () {
     const floorId = this.value;
-    roomSelect.innerHTML = '<option value = "">Select a Room</option>';
 
-    if (floorId) {
-      fetch(`/user/ajax/load-rooms/?floor=${floorId}`)
-        .then((response) => response.json())
-        .then((data) => {
-          data.forEach((room) => {
-            const option = new Option(room.name, room.id);
-            roomSelect.add(option);
-          });
-          roomSelect.disabled = false;
-        });
-    } else {
-      roomSelect.disabled = true;
+
+    roomSelect.innerHTML = '<option value="">Select a Room</option>';
+
+
+    if (!floorId) {
+      setLocked(roomSelect, true);
+      roomHint.classList.add("hidden");
+      roomHint.textContent = "";
+      return;
     }
+
+
+    fetch(`/user/ajax/load-rooms/?floor=${floorId}`)
+      .then((response) => response.json())
+      .then((data) => {
+        data.forEach((room) => {
+          roomSelect.add(new Option(room.name, room.id));
+        });
+        setLocked(roomSelect, data.length === 0);
+        if (data.length === 0) {
+          showTempMessage(roomHint, "No rooms available.", false, null);
+        } else {
+          roomHint.classList.add("hidden");
+          roomHint.textContent = "";
+        }
+      });
   });
-</script>
+
+  const reportForm = document.getElementById("report-form");
+  const cnnLoading = document.getElementById("cnn-loading");
+  const submitButton = document.getElementById("submit-button");
+
+  reportForm.addEventListener("submit", function () {
+    cnnLoading.classList.remove("hidden");
+    cnnLoading.classList.add("flex");
+
+    submitButton.disabled = true;
+    submitButton.textContent = "Analyzing...";
+
+    document.body.style.overflow = "hidden";
+  });
+  </script>
 {% endblock %}

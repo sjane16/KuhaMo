@@ -4,10 +4,11 @@ from user.models import Report, SurveyResponse
 from django.db.models import Count, Avg
 from datetime import timedelta
 import json
-import django.contrib as messages
+from django.contrib import messages
 from django.http import JsonResponse
 from .models import Building, Floor, Room
 from django.contrib.auth import update_session_auth_hash
+from user.validators import validate_password_strength
 
 def dashboard(request):
     now = timezone.now()
@@ -54,14 +55,22 @@ def dashboard(request):
     categories =[label_map.get(c['category'], c['category']) for c in categories_data]
     categories_counts = [c['count'] for c in categories_data]
 
-    location_data = (
-        filter_periods(Report.objects)
-        .values('location')
-        .annotate(count=Count('id'))
-        .order_by('-count')[:6]
-    )
-    location = [l['location'] for l in location_data]
-    location_counts = [l['count'] for l in location_data]
+    room_counts = {}
+
+    for report in filter_periods(Report.objects):
+        room = report.room_location
+
+        if room:
+            room_counts[room] = room_counts.get(room, 0) + 1
+
+    top_rooms = sorted(
+        room_counts.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )[:6]
+
+    location = [room for room, count in top_rooms]
+    location_counts = [count for room, count in top_rooms]
 
     resolution_weeks = []
     expected_hours = []
@@ -133,27 +142,48 @@ def report_detail(request, report_id):
 
 def report_save(request, report_id):
     report = get_object_or_404(Report, id=report_id)
+
     if request.method == 'POST':
+        category = request.POST.get('category', '').strip()
         priority = request.POST.get('priority', '').strip()
-        assigned_personnel = request.POST.get('assigned_personnel', '').strip()
+        assigned_personnel = request.POST.get(
+            'assigned_personnel', ''
+        ).strip()
+
+        # Admin-confirmed / corrected category
+        valid_categories = dict(Report.CATEGORY_CHOICES)
+
+        if category in valid_categories:
+            report.category = category
+
         report.priority = priority if priority else None
-        report.assigned_personnel = assigned_personnel if assigned_personnel else None
+        report.assigned_personnel = (
+            assigned_personnel if assigned_personnel else None
+        )
 
         descriptions = request.POST.getlist('item_desc[]')
-        quantities   = request.POST.getlist('item_qty[]')
-        prices       = request.POST.getlist('item_price[]')
+        quantities = request.POST.getlist('item_qty[]')
+        prices = request.POST.getlist('item_price[]')
 
         items = []
-        for desc, qty, price in zip(descriptions, quantities, prices):
+
+        for desc, qty, price in zip(
+            descriptions,
+            quantities,
+            prices
+        ):
             desc = (desc or '').strip()
+
             try:
                 qty_val = float(qty) if qty else 0
             except ValueError:
                 qty_val = 0
+
             try:
                 price_val = float(price) if price else 0
             except ValueError:
                 price_val = 0
+
             if desc or qty_val or price_val:
                 items.append({
                     'description': desc,
@@ -164,23 +194,36 @@ def report_save(request, report_id):
 
         if items or report.cba_items:
             report.cba_items = items
-            report.cba_total = sum(item['subtotal'] for item in items)
+            report.cba_total = sum(
+                item['subtotal']
+                for item in items
+            )
 
-        forward_checked = request.POST.get('forward_procurement') == '1'
+        forward_checked = (
+            request.POST.get('forward_procurement') == '1'
+        )
+
         if forward_checked:
             report.forwarded_to_procurement = True
 
         if forward_checked:
             report.status = 'closed'
+
             if not report.accomplished_at:
                 report.accomplished_at = timezone.now()
+
         elif report.status == 'pending':
             report.status = 'in_progress'
+
             if not report.in_progress_at:
                 report.in_progress_at = timezone.now()
 
         report.save()
-    return redirect('adm_report_detail', report_id=report_id)
+
+    return redirect(
+        'adm_report_detail',
+        report_id=report_id
+    )
 
 
 def report_status(request, report_id):
@@ -203,28 +246,33 @@ def ProfileMenu(request):
             request.user.email = request.POST.get('email')
             request.user.save()
             messages.success(request, "Profile Updated Successfully")
-            return redirect ('ProfileMenu')
-    
+            return redirect('ProfileMenu')
+
         elif 'change_password' in request.POST:
             old_password = request.POST.get('old_password')
             new_password1 = request.POST.get('new_password1')
             new_password2 = request.POST.get('new_password2')
+
             if not request.user.check_password(old_password):
                 messages.error(request, "Old password is incorrect.")
             elif new_password1 != new_password2:
-                messages.error(request, "New password do not match.")
-            elif len(new_password1) < 8:
-                messages.error(request, "New password must be at least 8 characters long.")
+                messages.error(request, "New passwords do not match.")
             else:
-                request.user.set_password(new_password1)
-                request.user.save()
-                update_session_auth_hash(request, request.user)
-                messages.success(request, "Password updated successfully!")
-            return redirect('ProfileMenu')
-    
+                password_errors = validate_password_strength(new_password1)
+
+                if password_errors:
+                    for err in password_errors:
+                        messages.error(request, err)
+                else:
+                    request.user.set_password(new_password1)
+                    request.user.save()
+                    update_session_auth_hash(request, request.user)
+                    messages.success(request, "Password changed successfully.")
+                    return redirect('ProfileMenu')
+
     return render(request, 'menu-admin.html', {
-            "active_page": "ProfileMenu",
-            "role": "Admin",
+        "active_page": "ProfileMenu",
+        "role": "Admin",
     })
 
 def universitymap (request):

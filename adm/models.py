@@ -34,13 +34,10 @@ class Room(models.Model):
 
     def __str__(self):
         return self.name
-
+    
     def get_active_reports(self):
         from user.models import Report
-        return Report.objects.filter(
-            location=self.name,
-            status__in=['pending', 'in_progress']
-        )
+        return Report.objects.filter(location__endswith=f", {self.name}", status__in=['pending', 'in_progress'])
 
     def get_categories(self):
         reports = self.get_active_reports()
