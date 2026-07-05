@@ -4,8 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-django = "*"
 djlint = "*"
+django = "*"
+pillow = "*"
+google-genai = "*"
+tensorflow-cpu = "*"
+django-axes = "*"
+django-ratelimit = "*"
+django-tailwind = "*"
 
 [dev-packages]
 
