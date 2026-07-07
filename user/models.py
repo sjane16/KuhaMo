@@ -42,6 +42,14 @@ class Report(models.Model):
     forwarded_to_procurement = models.BooleanField(default=False)
     cba_items = models.JSONField(null=True, blank=True)
     cba_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    cnn_raw_prediction = models.CharField(max_length=100, blank=True, null=True)
+    cnn_confidence = models.FloatField(blank=True, null=True)
+    cnn_margin = models.FloatField(blank=True, null=True)
+    flagged_for_review = models.BooleanField(default=False)
+
+    @property
+    def room_location(self):
+        return self.location.split(",")[-1].strip()
 
     @property
     def reporter_name(self):
@@ -91,3 +99,4 @@ class SurveyResponse(models.Model):
 
     def __str__(self):
         return f"Survey for Report #{self.report.id:04d}"
+    
