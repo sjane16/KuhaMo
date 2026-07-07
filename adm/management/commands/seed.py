@@ -61,7 +61,7 @@ class Command(BaseCommand):
             building=nb, floor_number=1,
             label='Ground Floor',
             map_image='floor_maps/NB-Ground-Floor.png',
-            image_width=1920, image_height=1080
+            image_width=1536, image_height=609
         )
         nb_f2 = Floor.objects.create(
             building=nb, floor_number=2,
@@ -134,13 +134,13 @@ class Command(BaseCommand):
 
 
         # Ground Floor
-        Room.objects.create(floor=nb_f1, name='Faculty Comfort Room', code='NB_FCR', x=200, y=430)
-        Room.objects.create(floor=nb_f1, name='Storage Room', code='NB_STORAGE', x=445, y=470)
-        Room.objects.create(floor=nb_f1, name='Office of the VP for Administration', code='NB_VPA', x=675, y=470)
-        Room.objects.create(floor=nb_f1, name='Office of the VP for Comptrollership', code='NB_VPC', x=915, y=470)
-        Room.objects.create(floor=nb_f1, name='Human Resources Management and Development Division', code='NB_HRMDD', x=1155, y=470)
-        Room.objects.create(floor=nb_f1, name='Planning and Budget Division', code='NB_PBD', x=1395, y=470)
-        Room.objects.create(floor=nb_f1, name='Accounting Division', code='NB_ACCTG', x=1665, y=470)
+        Room.objects.create(floor=nb_f1, name='Faculty Comfort Room', code='NB_FCR', x=150, y=366)
+        Room.objects.create(floor=nb_f1, name='Storage Room', code='NB_STORAGE', x=330, y=380)
+        Room.objects.create(floor=nb_f1, name='Office of the VP for Administration', code='NB_VPA', x=460, y=380)
+        Room.objects.create(floor=nb_f1, name='Office of the VP for Comptrollership', code='NB_VPC', x=630, y=380)
+        Room.objects.create(floor=nb_f1, name='Human Resources Management and Development Division', code='NB_HRMDD', x=945, y=380)
+        Room.objects.create(floor=nb_f1, name='Planning and Budget Division', code='NB_PBD', x=1145, y=380)
+        Room.objects.create(floor=nb_f1, name='Accounting Division', code='NB_ACCTG', x=1310, y=380)
 
 
         # Second Floor
