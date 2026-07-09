@@ -1,7 +1,7 @@
 {% extends "layouts/base.html" %}
 {% block title %}Reports{% endblock %}
 {% block content %}
-  <main class="flex-1 w-full bg-gray-50">
+  <main class="flex-1 min-w-0 w-full bg-gray-50">
     <!-- MOBILE VIEW -->
     <div class="lg:hidden flex flex-col min-h-screen bg-gray-50">
       <div class="flex-1 px-4 pt-5 pb-28 overflow-y-auto">
@@ -148,7 +148,7 @@
       </div>
     </div>
     <!-- DESKTOP VIEW -->
-    <div class="hidden lg:block px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full bg-gray-50">
+    <div class="hidden lg:block min-w-0 w-full px-6 lg:px-10 xl:px-16 pt-6 pb-10">
       <h1 class="text-lg font-bold text-gray-800">Reports Management</h1>
       <p class="text-sm text-gray-500">Manage all maintenance reports and assign priorities.</p>
       <div class="mt-6 flex items-center gap-3">
@@ -191,8 +191,8 @@
                  class="text-sm text-gray-600 bg-transparent focus:outline-none w-full placeholder-gray-300" />
         </div>
       </div>
-      <div class="mt-5 bg-white border border-gray-200 rounded-3xl shadow overflow-hidden">
-        <div class="overflow-x-auto">
+      <div class="mt-5 w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-3xl shadow overflow-hidden">
+        <div class="w-full max-w-full overflow-x-auto">
           <table class="w-full min-w-[1050px] text-sm" id="reportsTable">
             <thead>
               <tr class="border-b border-gray-100">
@@ -211,15 +211,15 @@
               {% for report in reports %}
                 <tr class="hover:bg-gray-50 transition-colors report-row"
                     data-status="{{ report.status }}">
-                  <td class="px-4 py-4 text-gray-500 font-medium text-center">#FC-{{ report.id|stringformat:"04d" }}</td>
-                  <td class="px-4 py-4 text-gray-700">
+                  <td class="px-4 py-4 text-gray-500 whitespace-normal text-xs text-center font-semibold">{{ report.report_number }}</td>
+                  <td class="px-4 py-4 text-gray-500 max-w-[180px] whitespace-normal">
                     {% if report.assigned_personnel %}
                       {{ report.assigned_personnel }}
                     {% else %}
                       <span class="text-gray-400 text-xs">Not assigned</span>
                     {% endif %}
                   </td>
-                  <td class="px-4 py-4 text-gray-700">{{ report.get_category_display }}</td>
+                  <td class="px-4 py-4 text-gray-500 max-w-[180px] whitespace-normal">{{ report.get_category_display }}</td>
                   <td class="px-4 py-4 text-gray-500 text-center max-w-[180px] whitespace-normal break-words">{{ report.room_location }}</td>
                   <td class="px-4 py-4 text-center">
                     {% if report.status == 'pending' %}

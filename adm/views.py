@@ -145,6 +145,7 @@ def report_save(request, report_id):
 
     if request.method == 'POST':
         category = request.POST.get('category', '').strip()
+        custom_category = request.POST.get('custom_category', '').strip()
         priority = request.POST.get('priority', '').strip()
         assigned_personnel = request.POST.get(
             'assigned_personnel', ''
@@ -155,6 +156,7 @@ def report_save(request, report_id):
 
         if category in valid_categories:
             report.category = category
+            report.custom_category = custom_category if category == "others" else None
 
         report.priority = priority if priority else None
         report.assigned_personnel = (

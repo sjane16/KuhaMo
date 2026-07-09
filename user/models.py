@@ -1,5 +1,17 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import User
+from django.utils import timezone
+
+
+REPORT_PREFIX = "MED-JO"
+
+
+class ReportSequence(models.Model):
+    year = models.PositiveIntegerField(unique=True)
+    last_number = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.year} - {self.last_number}"
 
 
 class Report(models.Model):
@@ -29,8 +41,10 @@ class Report(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
+    report_number = models.CharField(max_length=30, unique=True, blank=True, null=True)
     photo = models.ImageField(upload_to='reports/')
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
+    custom_category = models.CharField(max_length=100, blank=True, null=True)
     location = models.CharField(max_length=100)
     description = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -58,8 +72,29 @@ class Report(models.Model):
             return full_name if full_name else self.user.username
         return '—'
 
+    def save(self, *args, **kwargs):
+        if self.report_number:
+            return super().save(*args, **kwargs)
+
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+
+            report_date = timezone.localtime(self.submitted_at)
+            sequence, _ = ReportSequence.objects.select_for_update().get_or_create(
+                year=report_date.year,
+                defaults={'last_number': 0},
+            )
+            sequence.last_number += 1
+            sequence.save(update_fields=['last_number'])
+
+            self.report_number = (
+                f"{REPORT_PREFIX}-{report_date.year}-"
+                f"{report_date.month:02d}-{sequence.last_number:06d}"
+            )
+            super().save(update_fields=['report_number'])
+
     def __str__(self):
-        return f"#{self.id:04d} - {self.get_category_display()} ({self.location})"
+        return f"{self.report_number or f'#{self.id:04d}'} - {self.get_category_display()} ({self.location})"
 
 
 class UserProfile(models.Model):
@@ -98,5 +133,4 @@ class SurveyResponse(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Survey for Report #{self.report.id:04d}"
-    
+        return f"Survey for Report {self.report.report_number or f'#{self.report.id:04d}'}"

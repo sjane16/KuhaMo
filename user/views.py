@@ -10,6 +10,7 @@ from google import genai
 from .models import Report, SurveyResponse, UserProfile
 from adm.models import Floor, Room
 from .validators import validate_password_strength
+from ml.predictor import predict_image
 
 
 @login_required
@@ -107,32 +108,17 @@ def reportForm(request):
             selected_room = form.cleaned_data['location']
             report.location = f"{selected_room.floor.building.name}, {selected_room.floor.label}, {selected_room.name}"
 
-            try:
-                from ml.predictor import predict_image
+            report.category = form.cleaned_data['category']
+            report.custom_category = form.cleaned_data['custom_category']
 
-                prediction = predict_image(request.FILES['photo'])
-
-                report.category = prediction['category']
-                report.cnn_raw_prediction = prediction['raw_label']
-                report.cnn_confidence = prediction['confidence']
-                report.cnn_margin = prediction['margin']
-                report.flagged_for_review = prediction['flagged_for_review']
-
-            except Exception as error:
-                print(f"CNN Prediction Error: {error}")
-                messages.error(request, "Unable to analyze the uploaded photo. Please try again.")
-                return render(request, 'user/report_form.html', {
-                    "active_page": "reportForm",
-                    "form": form,
-                })
+            report.cnn_raw_prediction = request.POST.get('cnn_raw_prediction')
+            report.cnn_confidence = request.POST.get('cnn_confidence') or None
+            report.cnn_margin = request.POST.get('cnn_margin') or None
+            report.flagged_for_review = request.POST.get('flagged_for_review') == 'true'
 
             report.save()
 
-            messages.success(
-                request,
-                "Your concern has been submitted successfully."
-            )
-
+            messages.success(request, "Your concern has been submitted successfully.")
             return redirect('userReports')
 
         if 'photo' in form.errors:
@@ -179,11 +165,11 @@ def reportedIssue(request, report_id):
     )
 
     emojis = [
-        ('😤', 'Frustrated', 1),
-        ('😞', 'Disappointed', 2),
-        ('😐', 'Neutral', 3),
-        ('😊', 'Pleased', 4),
-        ('😄', 'Delighted', 5),
+        ('😤', 'Unsatisfactory', 1),
+        ('😞', 'Fair', 2),
+        ('😐', 'Satisfactory', 3),
+        ('😊', 'Very Satisfactory', 4),
+        ('😄', 'Outstanding', 5),
     ]
 
     return render(request, 'user/reported_issue.html', {
@@ -330,3 +316,19 @@ def load_rooms(request):
     floor_id = request.GET.get('floor')
     rooms = Room.objects.filter(floor_id=floor_id).order_by('name')
     return JsonResponse(list(rooms.values('id','name', 'code')), safe=False)
+
+@login_required
+def predictCategory(request):
+    if request.method != 'POST' or 'photo' not in request.FILES:
+        return JsonResponse({'success': False}, status=400)
+
+    prediction = predict_image(request.FILES['photo'])
+
+    return JsonResponse({
+        'success': True,
+        'category': prediction['category'],
+        'confidence': prediction['confidence'],
+        'margin': prediction['margin'],
+        'flagged_for_review': prediction['flagged_for_review'],
+        'raw_prediction': prediction['raw_label']
+    })
