@@ -21,7 +21,7 @@
         <div class="flex items-center gap-3">
           <h1 class="text-base font-bold text-gray-900">Report Details</h1>
           <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-            #FC-{{ report.id|stringformat:"04d" }}
+            {{ report.report_number }}
           </span>
           {% if report.status == 'pending' %}
             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-600 border border-yellow-200">Pending</span>
@@ -449,6 +449,15 @@
                   CNN classification is provided as a recommendation only.
                   The administrator may correct the final category.
                 </p>
+                <div id="custom-category-wrapper"
+                     class="mt-4 {% if report.category != 'others' %}hidden{% endif %}">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Specified Category</label>
+                  <input type="text"
+                         name="custom_category"
+                         value="{{ report.custom_category|default:'' }}"
+                         placeholder="Specify category"
+                         class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
               </div>
             </div>
             <!-- ═══════════════════════════════════
@@ -724,5 +733,11 @@
       }
     }
   });
+
+  document.querySelector('select[name="category"]').addEventListener("change", function () {
+    document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
+});
+
+
   </script>
 {% endblock %}

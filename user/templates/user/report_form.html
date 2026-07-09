@@ -52,6 +52,19 @@
             <p class="text-xs text-red-500 mt-2">{{ form.photo.errors|join:", " }}</p>
           {% endif %}
         </div>
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Recommended Category</label>
+          {{ form.category }}
+          <p id="cnn-confidence" class="hidden text-xs text-blue-600 mt-2"></p>
+        </div>
+        <div id="custom-category-wrapper" class="mb-5 hidden">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Custom Category</label>
+          <input type="text"
+                 name="custom_category"
+                 id="id_custom_category"
+                 class="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                 placeholder="Specify the category of your concern..." />
+        </div>
         <!-- Location -->
         <div class="mb-5">
           <label class="block text-sm font-semibold text-gray-800 mb-2">Building</label>
@@ -127,6 +140,10 @@
           {% endif %}
         </div>
         <!-- Submit -->
+        <input type="hidden" name="cnn_raw_prediction" id="cnn_raw_prediction">
+        <input type="hidden" name="cnn_confidence" id="cnn_confidence">
+        <input type="hidden" name="cnn_margin" id="cnn_margin">
+        <input type="hidden" name="flagged_for_review" id="flagged_for_review">
         <button id="submit-button"
                 type="submit"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-4 rounded-xl transition-colors duration-200">
@@ -198,12 +215,55 @@
     const reader = new FileReader();
 
 
-    reader.onload = function (e) {
-      preview.src = e.target.result;
-      preview.classList.remove("hidden");
-      uploadContent.classList.add("hidden");
-      status.classList.remove("hidden");
-    };
+   reader.onload = function (e) {
+  preview.src = e.target.result;
+  preview.classList.remove("hidden");
+  uploadContent.classList.add("hidden");
+  status.classList.remove("hidden");
+  cnnLoading.classList.remove("hidden");
+  cnnLoading.classList.add("flex");
+  document.body.style.overflow = "hidden";
+ 
+
+  const formData = new FormData();
+  formData.append("photo", file);
+  formData.append("csrfmiddlewaretoken", document.querySelector("[name=csrfmiddlewaretoken]").value);
+
+  fetch("{% url 'predictCategory' %}", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (!data.success) {
+      cnnLoading.classList.remove("flex");
+      cnnLoading.classList.add("hidden");
+      document.body.style.overflow = "";
+      return;
+    }
+
+    document.getElementById("id_category").value = data.category;
+    document.getElementById("cnn-confidence").classList.remove("hidden");
+    document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
+
+    document.getElementById("cnn_raw_prediction").value = data.raw_prediction;
+    document.getElementById("cnn_confidence").value = data.confidence;
+    document.getElementById("cnn_margin").value = data.margin;
+    document.getElementById("flagged_for_review").value = data.flagged_for_review;
+
+    document.getElementById("custom-category-wrapper").classList.toggle("hidden", data.category !== "others");
+    cnnLoading.classList.remove("flex");
+    cnnLoading.classList.add("hidden");
+    document.body.style.overflow = "";
+
+  })
+  .catch(error => {
+    console.error(error);
+    cnnLoading.classList.remove("flex");
+    cnnLoading.classList.add("hidden");
+    document.body.style.overflow = "";
+  });
+};
 
 
     reader.readAsDataURL(file);
@@ -354,18 +414,17 @@
       });
   });
 
-  const reportForm = document.getElementById("report-form");
-  const cnnLoading = document.getElementById("cnn-loading");
-  const submitButton = document.getElementById("submit-button");
+  document.getElementById("id_category").addEventListener("change", function () {
+  document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
+});
 
-  reportForm.addEventListener("submit", function () {
-    cnnLoading.classList.remove("hidden");
-    cnnLoading.classList.add("flex");
+const reportForm = document.getElementById("report-form");
+const cnnLoading = document.getElementById("cnn-loading");
+const submitButton = document.getElementById("submit-button");
 
-    submitButton.disabled = true;
-    submitButton.textContent = "Analyzing...";
-
-    document.body.style.overflow = "hidden";
-  });
+reportForm.addEventListener("submit", function () {
+  submitButton.disabled = true;
+  submitButton.textContent = "Submitting...";
+});
   </script>
 {% endblock %}

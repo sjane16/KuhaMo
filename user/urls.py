@@ -17,4 +17,5 @@ urlpatterns = [
     path('chatbot/response/', user_required(views.chatbot_response), name='chatbot_response'),
     path('ajax/load-floors/', user_required(views.load_floors), name='ajax_load_floors'),
     path('ajax/load-rooms/', user_required(views.load_rooms), name='ajax_load_rooms'),
+    path('ajax/predict-category/', user_required(views.predictCategory), name='predictCategory'),
 ]
