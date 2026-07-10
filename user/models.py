@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import timedelta
 
 
 REPORT_PREFIX = "MED-JO"
@@ -33,11 +34,9 @@ class Report(models.Model):
     ]
 
     PRIORITY_CHOICES = [
-        ('critical', 'Critical / Urgent'),
-        ('high', 'High Priority'),
-        ('standard', 'Standard'),
-        ('awaiting_materials', 'Awaiting Materials'),
-        ('awaiting_approval', 'Awaiting Approval'),
+    ('critical', 'Critical / Urgent'),
+    ('high', 'High Priority'),
+    ('standard', 'Standard'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
@@ -50,12 +49,16 @@ class Report(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     submitted_at = models.DateTimeField(auto_now_add=True)
     priority = models.CharField(max_length=30, choices=PRIORITY_CHOICES, blank=True, null=True)
-    assigned_personnel = models.CharField(max_length=100, blank=True, null=True)
+    assigned_personnel = models.CharField(max_length=255, blank=True, null=True)
+    assigned_personnel_data = models.JSONField(default=list, blank=True)
     accomplished_at = models.DateTimeField(null=True, blank=True)
     in_progress_at = models.DateTimeField(null=True, blank=True)
-    forwarded_to_procurement = models.BooleanField(default=False)
-    cba_items = models.JSONField(null=True, blank=True)
-    cba_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    pending_awaiting_personnel = models.BooleanField(default=False)
+    pending_awaiting_personnel_at = models.DateTimeField(null=True, blank=True)
+    pending_awaiting_materials = models.BooleanField(default=False)
+    pending_awaiting_materials_at = models.DateTimeField(null=True, blank=True)
+    pending_awaiting_approval = models.BooleanField(default=False)
+    pending_awaiting_approval_at = models.DateTimeField(null=True, blank=True)
     cnn_raw_prediction = models.CharField(max_length=100, blank=True, null=True)
     cnn_confidence = models.FloatField(blank=True, null=True)
     cnn_margin = models.FloatField(blank=True, null=True)
@@ -71,6 +74,62 @@ class Report(models.Model):
             full_name = self.user.get_full_name()
             return full_name if full_name else self.user.username
         return '—'
+
+    @property
+    def assigned_personnel_summary(self):
+        if self.assigned_personnel_data:
+            return ", ".join(
+                item.get('name')
+                for item in self.assigned_personnel_data
+                if item.get('name')
+            )
+
+        if self.assigned_personnel:
+            import re
+            return re.sub(
+                r'\s*\(QTT\s+\d+\)',
+                '',
+                self.assigned_personnel
+            )
+
+        return None
+
+    @property
+    def expected_resolution_hours(self):
+        if self.priority == 'critical':
+            return 24
+        if self.priority == 'high':
+            return 48
+        if self.priority == 'standard':
+            return 72
+        return 72
+
+    @property
+    def expected_resolution_at(self):
+        if not self.in_progress_at:
+            return None
+        return self.in_progress_at + timedelta(hours=self.expected_resolution_hours)
+
+    @property
+    def actual_resolution_hours(self):
+        if not self.in_progress_at or not self.accomplished_at:
+            return None
+        seconds = (self.accomplished_at - self.in_progress_at).total_seconds()
+        return round(seconds / 3600, 1)
+
+    @property
+    def met_expected_resolution(self):
+        expected_at = self.expected_resolution_at
+        if not expected_at or not self.accomplished_at:
+            return False
+        return self.accomplished_at <= expected_at
+
+    @property
+    def closed_at(self):
+        try:
+            return self.survey.submitted_at
+        except SurveyResponse.DoesNotExist:
+            return self.accomplished_at
 
     def save(self, *args, **kwargs):
         if self.report_number:

@@ -125,23 +125,33 @@
                 </p>
               </div>
             </div>
+            {% if report.priority %}
+              <div class="flex items-start gap-3 pt-3 border-t border-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke-width="1.6"
+                     stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v18m9-9H3" />
+                </svg>
+                <div>
+                  <p class="text-xs text-gray-400 mb-1.5">Current Priority</p>
+                  {% if report.priority == 'critical' %}
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-600 text-white">Critical / Urgent</span>
+                  {% elif report.priority == 'high' %}
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white">High Priority</span>
+                  {% elif report.priority == 'standard' %}
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-yellow-400 text-white">Standard</span>
+                  {% elif report.priority == 'awaiting_materials' %}
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-purple-500 text-white">Awaiting Materials</span>
+                  {% elif report.priority == 'awaiting_approval' %}
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-500 text-white">Awaiting Approval</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
           </div>
-          {% if report.priority %}
-            <div class="bg-gray-50 rounded-2xl p-4">
-              <p class="text-xs text-gray-400 mb-2">Current Priority</p>
-              {% if report.priority == 'critical' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-600 text-white">Critical / Urgent</span>
-              {% elif report.priority == 'high' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white">High Priority</span>
-              {% elif report.priority == 'standard' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-yellow-400 text-white">Standard</span>
-              {% elif report.priority == 'awaiting_materials' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-purple-500 text-white">Awaiting Materials</span>
-              {% elif report.priority == 'awaiting_approval' %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-500 text-white">Awaiting Approval</span>
-              {% endif %}
-            </div>
-          {% endif %}
         </div>
         <!-- RIGHT PANEL -->
         <div class="flex-1 p-6 space-y-8 margin-bottom-8 overflow-visible max-h-none lg:overflow-y-auto lg:max-h-[80vh]">
@@ -165,189 +175,12 @@
           </div>
           <!-- ═══════════════════════════════════════════════════════
              SINGLE UNIFIED FORM
-             Covers: CBA items + Forward to Procurement + Priority +
-             Assigned Personnel. ONE "Save Changes" button submits all.
+             Covers: Priority + Assigned Personnel.
+             Status only auto-moves when Priority and Personnel are assigned.
+             ONE "Save Changes" button submits all.
         ═══════════════════════════════════════════════════════════ -->
           <form method="POST" action="{% url 'adm_report_save' report.id %}">
             {% csrf_token %}
-            <!-- ═══════════════════════════════════
-               COST BENEFIT ANALYSIS (accordion, optional)
-          ════════════════════════════════════ -->
-            <div class="mb-8">
-              <button id="cbaToggle"
-                      type="button"
-                      onclick="toggleCBA()"
-                      class="w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 border-blue-200 bg-blue-50 text-blue-600 font-semibold text-sm hover:bg-blue-100 transition-colors">
-                <span class="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg"
-                       class="w-4 h-4"
-                       fill="none"
-                       viewBox="0 0 24 24"
-                       stroke-width="2"
-                       stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                  </svg>
-                  Perform Cost Benefit Analysis
-                </span>
-                <svg id="cbaChevron"
-                     xmlns="http://www.w3.org/2000/svg"
-                     class="w-4 h-4 transition-transform {% if cba_items %}rotate-180{% endif %}"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="2.5"
-                     stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                </svg>
-              </button>
-              <!-- CBA Panel: open by default if there's saved data, else collapsed -->
-              <div id="cbaPanel"
-                   class="{% if not cba_items %}hidden{% endif %} mt-3 border border-gray-200 rounded-2xl overflow-hidden">
-                <div class="px-5 pt-5 pb-4">
-                  <h3 class="text-sm font-bold text-gray-900">Cost Benefit Analysis</h3>
-                  <p class="text-xs text-gray-500 mt-0.5">Estimate repair costs to determine whether repair or replacement is recommended.</p>
-                </div>
-                <!-- Items table -->
-                <div class="px-5 pb-2">
-                  <div class="grid grid-cols-12 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 px-1">
-                    <div class="col-span-6">Item Description</div>
-                    <div class="col-span-2 text-center">Qty</div>
-                    <div class="col-span-2 text-center">Unit Price</div>
-                    <div class="col-span-2 text-right">Subtotal</div>
-                  </div>
-                  <div id="cbaItems" class="space-y-2">
-                    {% if cba_items %}
-                      {% for item in cba_items %}
-                        <div class="cba-row grid grid-cols-12 gap-2 items-center">
-                          <input type="text"
-                                 name="item_desc[]"
-                                 value="{{ item.description }}"
-                                 placeholder="e.g., Motor Assembly"
-                                 class="col-span-6 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                          <input type="number"
-                                 name="item_qty[]"
-                                 value="{{ item.qty }}"
-                                 min="1"
-                                 class="cba-qty col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                          <div class="col-span-2 flex items-center border border-gray-200 rounded-xl px-2 py-2 gap-1">
-                            <span class="text-xs text-gray-400">₱</span>
-                            <input type="number"
-                                   name="item_price[]"
-                                   value="{{ item.unit_price }}"
-                                   min="0"
-                                   class="cba-price w-full text-sm text-gray-900 focus:outline-none" />
-                          </div>
-                          <div class="col-span-2 flex items-center justify-end gap-2">
-                            <span class="cba-subtotal text-sm font-medium text-gray-900">₱0.00</span>
-                            <button onclick="removeRow(this)"
-                                    type="button"
-                                    class="text-gray-300 hover:text-red-400 transition-colors">
-                              <svg xmlns="http://www.w3.org/2000/svg"
-                                   class="w-4 h-4"
-                                   fill="none"
-                                   viewBox="0 0 24 24"
-                                   stroke-width="2"
-                                   stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      {% endfor %}
-                    {% else %}
-                      <div class="cba-row grid grid-cols-12 gap-2 items-center">
-                        <input type="text"
-                               name="item_desc[]"
-                               placeholder="e.g., Motor Assembly"
-                               class="col-span-6 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                        <input type="number"
-                               name="item_qty[]"
-                               value="1"
-                               min="1"
-                               class="cba-qty col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                        <div class="col-span-2 flex items-center border border-gray-200 rounded-xl px-2 py-2 gap-1">
-                          <span class="text-xs text-gray-400">₱</span>
-                          <input type="number"
-                                 name="item_price[]"
-                                 value="0"
-                                 min="0"
-                                 class="cba-price w-full text-sm text-gray-900 focus:outline-none" />
-                        </div>
-                        <div class="col-span-2 flex items-center justify-end gap-2">
-                          <span class="cba-subtotal text-sm font-medium text-gray-900">₱0.00</span>
-                          <button onclick="removeRow(this)"
-                                  type="button"
-                                  class="text-gray-300 hover:text-red-400 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                 class="w-4 h-4"
-                                 fill="none"
-                                 viewBox="0 0 24 24"
-                                 stroke-width="2"
-                                 stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    {% endif %}
-                  </div>
-                  <button onclick="addCBARow()"
-                          type="button"
-                          class="mt-3 flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="w-4 h-4"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="2.5"
-                         stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Add Item
-                  </button>
-                </div>
-                <!-- Total + Recommendation -->
-                <div class="px-5 py-4 border-t border-gray-100 mt-3">
-                  <div class="flex items-center justify-between mb-4">
-                    <span class="text-sm font-semibold text-gray-900">Total Estimated Repair Cost</span>
-                    <span id="cbaTotal" class="text-lg font-bold text-gray-900">₱0.00</span>
-                  </div>
-                  <!-- Recommendation box -->
-                  <div id="cbaRecommendation"
-                       class="rounded-xl px-4 py-3 bg-green-50 border border-green-200">
-                    <div class="flex items-center gap-2 mb-1.5">
-                      <svg xmlns="http://www.w3.org/2000/svg"
-                           class="w-4 h-4 text-green-600 shrink-0"
-                           fill="none"
-                           viewBox="0 0 24 24"
-                           stroke-width="2"
-                           stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                      <span class="text-xs font-semibold text-gray-800">System Recommendation</span>
-                    </div>
-                    <div class="pl-6">
-                      <p id="cbaRecommendationLabel" class="text-sm font-bold text-green-700">Repair Recommended</p>
-                      <p id="cbaRecommendationDesc"
-                         class="text-xs text-green-700 mt-0.5 leading-relaxed">The estimated repair cost is within the acceptable threshold. Repair is the cost-effective option.</p>
-                    </div>
-                    <!-- Forward to Procurement -->
-                    <label class="flex items-center gap-2 mt-3 pl-6 cursor-pointer select-none">
-                      <input type="checkbox"
-                             id="forwardProcurement"
-                             name="forward_procurement"
-                             value="1"
-                             {% if report.forwarded_to_procurement %}checked{% endif %}
-                             {% if report.status == 'closed' %}disabled{% endif %}
-                             class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-400" />
-                      <span class="text-sm text-gray-700">Forward to Procurement (marks report as Closed/Procurement)</span>
-                    </label>
-                  </div>
-                  <input type="hidden"
-                         name="cba_total"
-                         id="cbaTotalInput"
-                         value="{{ report.cba_total|default:'0' }}" />
-                </div>
-              </div>
-            </div>
             <!-- ═══════════════════════════════════
      CNN RECOMMENDATION
 ════════════════════════════════════ -->
@@ -465,7 +298,7 @@
             ════════════════════════════════════ -->
             <div id="assignSection">
               <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Assign Priority &amp; Personnel</p>
-              <div class="space-y-4">
+              <div class="space-y-3">
                 <!-- Priority Level -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Priority Level</label>
@@ -474,18 +307,10 @@
                             class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10">
                       <option value="" {% if not report.priority %}selected{% endif %}>Select priority</option>
                       <option value="critical"
-                              {% if report.priority == 'critical' %}selected{% endif %}>1 — Critical / Urgent</option>
-                      <option value="high" {% if report.priority == 'high' %}selected{% endif %}>2 — High Priority</option>
+                              {% if report.priority == 'critical' %}selected{% endif %}>3 - Critical / Urgent</option>
+                      <option value="high" {% if report.priority == 'high' %}selected{% endif %}>2 - High Priority</option>
                       <option value="standard"
-                              {% if report.priority == 'standard' %}selected{% endif %}>3 — Standard</option>
-                      <option value="awaiting_materials"
-                              {% if report.priority == 'awaiting_materials' %}selected{% endif %}>
-                        4 — Awaiting Materials
-                      </option>
-                      <option value="awaiting_approval"
-                              {% if report.priority == 'awaiting_approval' %}selected{% endif %}>
-                        5 — Awaiting Approval
-                      </option>
+                              {% if report.priority == 'standard' %}selected{% endif %}>1 - Standard</option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg"
@@ -502,28 +327,83 @@
                 <!-- Assign Personnel -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Assign Personnel</label>
-                  <input type="text"
-                         name="assigned_personnel"
-                         value="{{ report.assigned_personnel|default:'' }}"
-                         placeholder="e.g., Mr. Reyes"
-                         class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <div class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                    {% for personnel in personnel_rows %}
+                      <label class="flex items-center gap-3 text-sm text-gray-700">
+                        <input type="checkbox"
+                               name="personnel_names"
+                               value="{{ personnel.slug }}"
+                               {% if personnel.checked %}checked{% endif %}
+                               class="personnel-checkbox w-4 h-4 rounded border-gray-300 text-blue-600">
+                        {{ personnel.name }}
+                      </label>
+                    {% endfor %}
+                    <label class="flex items-center gap-3 text-sm text-gray-700">
+                      <input type="checkbox"
+                             id="include-other-personnel"
+                             name="include_other_personnel"
+                             value="1"
+                             {% if other_personnel.name %}checked{% endif %}
+                             class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                      Others
+                    </label>
+                    <div id="other-personnel-wrapper"
+                         class="{% if not other_personnel.name %}hidden{% endif %}">
+                      <input type="text"
+                             name="other_personnel"
+                             value="{{ other_personnel.name }}"
+                             placeholder="Enter external or outsourced personnel"
+                             class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+                </div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Pending Sub-status</label>
+                <div class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <label class="flex items-center gap-3 text-sm text-gray-700">
+                    <input type="checkbox"
+                           name="pending_awaiting_personnel"
+                           value="1"
+                           {% if report.pending_awaiting_personnel %}checked{% endif %}
+                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                    Awaiting Personnel
+                  </label>
+                  <label class="flex items-center gap-3 text-sm text-gray-700">
+                    <input type="checkbox"
+                           name="pending_awaiting_materials"
+                           value="1"
+                           {% if report.pending_awaiting_materials %}checked{% endif %}
+                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                    Awaiting Materials
+                  </label>
+                  <label class="flex items-center gap-3 text-sm text-gray-700">
+                    <input type="checkbox"
+                           name="pending_awaiting_approval"
+                           value="1"
+                           {% if report.pending_awaiting_approval %}checked{% endif %}
+                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                    Awaiting Approval / Budget
+                  </label>
                 </div>
               </div>
-              <!-- Random Forest -->
-              <div class="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="w-4 h-4 text-blue-400 shrink-0"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="1.8"
-                     stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0 a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                <span class="text-sm text-blue-600">
-                  Random Forest Predicted Resolution:
-                  <strong>8.3 hours</strong>
-                </span>
-              </div>
+            </div>
+            <!-- Predicted Resolution Time -->
+            <div class="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="w-4 h-4 text-blue-400 shrink-0"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke-width="1.8"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0 a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              <span class="text-sm text-blue-600">
+                Predicted Resolution Time:
+                {% if report.priority %}
+                  <strong>{{ report.expected_resolution_hours }} hours</strong>
+                {% else %}
+                  <strong>Assign a priority to calculate</strong>
+                {% endif %}
+              </span>
             </div>
             <button type="submit"
                     class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3.5 rounded-xl transition-colors">
@@ -538,32 +418,31 @@
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Update Status</p>
             <div class="flex flex-wrap gap-3">
               {% if report.status == 'pending' %}
-                <span class="text-sm text-gray-400 italic">Status will move to "In Progress" automatically once you click Save Changes.</span>
+                <span class="text-sm text-gray-400 italic">Status will move to "In Progress" automatically once you assign Priority &amp; Personnel.</span>
               {% elif report.status == 'in_progress' %}
-                <form method="POST" action="{% url 'adm_report_status' report.id %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="status" value="resolved" />
-                  <button type="submit"
-                          class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="w-4 h-4"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="2.5"
-                         stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
-                    Mark Resolved
-                  </button>
-                </form>
+                <div class="space-y-2">
+                  <form method="POST" action="{% url 'adm_report_status' report.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="status" value="resolved" />
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg"
+                           class="w-4 h-4"
+                           fill="none"
+                           viewBox="0 0 24 24"
+                           stroke-width="2.5"
+                           stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      </svg>
+                      Mark Resolved
+                    </button>
+                  </form>
+                  <p class="text-sm text-gray-400 italic">Resolved means the issue has been repaired or addressed.</p>
+                </div>
               {% elif report.status == 'resolved' %}
-                <span class="text-sm text-gray-400 italic">This report has been resolved.</span>
+                <span class="text-sm text-gray-400 italic">The issue has been resolved.</span>
               {% elif report.status == 'closed' %}
-                {% if report.forwarded_to_procurement %}
-                  <span class="text-sm text-gray-500 italic">This report has been closed — the item has been forwarded to procurement.</span>
-                {% else %}
-                  <span class="text-sm text-gray-400 italic">This report has been closed.</span>
-                {% endif %}
+                <span class="text-sm text-gray-400 italic">Closed: Only the end-user can trigger this status, and only after they complete the Client Satisfaction Survey.</span>
               {% endif %}
             </div>
           </div>
@@ -601,109 +480,6 @@
     </div>
   </div>
   <script>
-  // ── CBA toggle ──
-  function toggleCBA() {
-    const panel   = document.getElementById('cbaPanel');
-    const chevron = document.getElementById('cbaChevron');
-    panel.classList.toggle('hidden');
-    chevron.classList.toggle('rotate-180');
-  }
-
-  // ── CBA calculation ──
-  function recalcCBA() {
-    let total = 0;
-    document.querySelectorAll('.cba-row').forEach(row => {
-      const qty   = parseFloat(row.querySelector('.cba-qty').value)   || 0;
-      const price = parseFloat(row.querySelector('.cba-price').value) || 0;
-      const sub   = qty * price;
-      row.querySelector('.cba-subtotal').textContent = '₱' + sub.toFixed(2);
-      total += sub;
-    });
-
-    document.getElementById('cbaTotal').textContent = '₱' + total.toFixed(2);
-    document.getElementById('cbaTotalInput').value = total.toFixed(2);
-    updateRecommendation(total);
-  }
-
-  // Static threshold: ₱5,000 — repair below, replace above
-  function updateRecommendation(total) {
-    const label = document.getElementById('cbaRecommendationLabel');
-    const desc  = document.getElementById('cbaRecommendationDesc');
-    const box   = document.getElementById('cbaRecommendation');
-
-    if (total === 0 || total <= 5000) {
-      box.className   = 'rounded-xl px-4 py-3 bg-green-50 border border-green-200';
-      label.className = 'text-sm font-bold text-green-700';
-      label.textContent = 'Repair Recommended';
-      desc.className  = 'text-xs text-green-700 mt-0.5 leading-relaxed';
-      desc.textContent = 'The estimated repair cost is within the acceptable threshold. Repair is the cost-effective option.';
-    } else {
-      box.className   = 'rounded-xl px-4 py-3 bg-red-50 border border-red-200';
-      label.className = 'text-sm font-bold text-red-700';
-      label.textContent = 'Replacement Recommended';
-      desc.className  = 'text-xs text-red-700 mt-0.5 leading-relaxed';
-      desc.textContent = 'The estimated repair cost exceeds the recommended threshold of ₱5,000. Replacement is advised.';
-    }
-  }
-
-  function addCBARow() {
-    const container = document.getElementById('cbaItems');
-    const row = document.createElement('div');
-    row.className = 'cba-row grid grid-cols-12 gap-2 items-center';
-    row.innerHTML = `
-      <input type="text" name="item_desc[]" placeholder="e.g., Motor Assembly" class="col-span-6 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-      <input type="number" name="item_qty[]" value="1" min="1" class="cba-qty col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-blue-100" />
-      <div class="col-span-2 flex items-center border border-gray-200 rounded-xl px-2 py-2 gap-1">
-        <span class="text-xs text-gray-400">₱</span>
-        <input type="number" name="item_price[]" value="0" min="0" class="cba-price w-full text-sm text-gray-900 focus:outline-none" />
-      </div>
-      <div class="col-span-2 flex items-center justify-end gap-2">
-        <span class="cba-subtotal text-sm font-medium text-gray-900">₱0.00</span>
-        <button onclick="removeRow(this)" type="button" class="text-gray-300 hover:text-red-400 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-          </svg>
-        </button>
-      </div>`;
-    container.appendChild(row);
-    attachRowListeners(row);
-    recalcCBA();
-  }
-
-  function removeRow(btn) {
-    const rows = document.querySelectorAll('.cba-row');
-    if (rows.length === 1) return; // keep at least one
-    btn.closest('.cba-row').remove();
-    recalcCBA();
-  }
-
-  function attachRowListeners(row) {
-    row.querySelector('.cba-qty').addEventListener('input', recalcCBA);
-    row.querySelector('.cba-price').addEventListener('input', recalcCBA);
-  }
-
-  // Attach listeners to all existing rows (including server-rendered saved items) + initial calc
-  document.querySelectorAll('.cba-row').forEach(attachRowListeners);
-  recalcCBA();
-
-    // ── Forward to Procurement checkbox → toggle Assign section ──
-  const procurementCheckbox = document.getElementById('forwardProcurement');
-  const assignSection = document.getElementById('assignSection');
-
-  function toggleAssignSection() {
-    if (procurementCheckbox && procurementCheckbox.checked) {
-      assignSection.classList.add('hidden');
-    } else {
-      assignSection.classList.remove('hidden');
-    }
-  }
-
-  // Run on page load (para kung naka-checked na yung checkbox from DB)
-  if (procurementCheckbox) {
-    toggleAssignSection();
-    procurementCheckbox.addEventListener('change', toggleAssignSection);
-  }
-
   // ── Photo lightbox ──
   function openPhotoModal(url) {
     const modal = document.getElementById('photoModal');
@@ -734,9 +510,19 @@
     }
   });
 
-  document.querySelector('select[name="category"]').addEventListener("change", function () {
-    document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
-});
+  const categorySelect = document.querySelector('select[name="category"]');
+  if (categorySelect) {
+    categorySelect.addEventListener("change", function () {
+      document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
+    });
+  }
+
+  const otherPersonnelCheckbox = document.getElementById("include-other-personnel");
+  if (otherPersonnelCheckbox) {
+    otherPersonnelCheckbox.addEventListener("change", function () {
+      document.getElementById("other-personnel-wrapper").classList.toggle("hidden", !this.checked);
+    });
+  }
 
 
   </script>

@@ -230,16 +230,24 @@ def submitSurvey(request, report_id):
             'error': 'You have already submitted a survey for this report.'
         }, status=400)
 
+    if report.status != 'resolved':
+        return JsonResponse({
+            'success': False,
+            'error': 'Survey is available only after the report is resolved.'
+        }, status=400)
+
     SurveyResponse.objects.create(
         report=report,
         rating=rating,
         feedback=feedback,
     )
 
+    report.status = 'closed'
+    report.save(update_fields=['status'])
+
     return JsonResponse({
         'success': True
     })
-
 
 def chatbot(request):
     return render(request, 'user/components/chatbot.html')
@@ -264,7 +272,7 @@ a critical mistake, please contact the administrator to cancel the report.
 - You can monitor your submitted concerns in real-time through your Dashboard page. Each report will display its current stage in the maintenance workflow.
 7. What do the different report statuses mean?
 - "Pending" means your report has been successfully submitted and is waiting for administrator validation. "In Progress" indicates that the maintenance team has acknowledged the issue and is actively
-working on repair. "Resolved" means the defect has been fixed or addressed. "Closed" means the item has been forwarded to procurement.
+working on repair. "Resolved" means the issue has been repaired. "Closed" means the end-user completed the Client Satisfaction Survey after resolution.
 8. What should I do if my account gets locked?
 - For security reasons, our system utilizes security throttling that temporarily locks an account after multiple failed login attempts
 to prevent unauthorized access. Please wait a few minutes before trying again, or contact IT support to reset your credentials.

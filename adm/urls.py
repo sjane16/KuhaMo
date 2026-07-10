@@ -13,6 +13,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='admin_login'), name='logoutadmin'),
     path('menu/', admin_required(views.ProfileMenu), name='ProfileMenu'),
     path('universitymap/', admin_required(views.universitymap), name='universitymap'),
+    path('survey-analysis/', admin_required(views.survey_analysis), name='survey_analysis'),
     path('api/buildings/', admin_required(views.buildings_api), name='buildings_api'),
     path('api/floor-map/', admin_required(views.floor_map_api), name='floor_map_api'),
     path('calendar/', admin_required(views.calendar_view), name='calendar_view'),
