@@ -67,7 +67,7 @@
         </div>
         <!-- Location -->
         <div class="mb-5">
-          <label class="block text-sm font-semibold text-gray-800 mb-2">Building</label>
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Building / Facility</label>
           <div class="relative">
             {{ form.building }}
             <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
@@ -86,7 +86,7 @@
           {% endif %}
         </div>
         <!-- Floor -->
-        <div class="mb-5">
+        <div class="mb-5" id = "floor-field">
           <label class="block text-sm font-semibold text-gray-800 mb-2">Floor</label>
           <div class="relative" id="floor-wrapper">
             {{ form.floor }}
@@ -109,8 +109,8 @@
           {% endif %}
         </div>
         <!-- Room -->
-        <div class="mb-5">
-          <label class="block text-sm font-semibold text-gray-800 mb-2">Room</label>
+        <div class="mb-5" id="room-field">
+          <label class="block text-sm font-semibold text-gray-800 mb-2">Room / Area</label>
           <div class="relative" id="room-wrapper">
             {{ form.location }}
             <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
@@ -179,252 +179,279 @@
     </div>
   </div>
   <script>
-  const input = document.getElementById("photo-upload");
-  const preview = document.getElementById("preview-image");
-  const uploadContent = document.getElementById("upload-content");
-  const status = document.getElementById("uploaded-status");
-  const errorMsg = document.getElementById("error-message");
-  const MAX_SIZE = 10 * 1024 * 1024;
-  
+      const input = document.getElementById("photo-upload");
+      const preview = document.getElementById("preview-image");
+      const uploadContent = document.getElementById("upload-content");
+      const status = document.getElementById("uploaded-status");
+      const errorMsg = document.getElementById("error-message");
+      const MAX_SIZE = 10 * 1024 * 1024;
 
 
-  input.addEventListener("change", function () {
-    const file = this.files[0];
+
+      input.addEventListener("change", function() {
+          const file = this.files[0];
 
 
-    status.classList.add("hidden");
-    errorMsg.classList.add("hidden");
+          status.classList.add("hidden");
+          errorMsg.classList.add("hidden");
 
 
-    if (!file) {
-      preview.classList.add("hidden");
-      uploadContent.classList.remove("hidden");
-      return;
-    }
+          if (!file) {
+              preview.classList.add("hidden");
+              uploadContent.classList.remove("hidden");
+              return;
+          }
 
 
-    if (file.size > MAX_SIZE) {
-      this.value = "";
-      errorMsg.classList.remove("hidden");
-      preview.classList.add("hidden");
-      uploadContent.classList.remove("hidden");
-      return;
-    }
+          if (file.size > MAX_SIZE) {
+              this.value = "";
+              errorMsg.classList.remove("hidden");
+              preview.classList.add("hidden");
+              uploadContent.classList.remove("hidden");
+              return;
+          }
 
 
-    const reader = new FileReader();
+          const reader = new FileReader();
 
 
-   reader.onload = function (e) {
-  preview.src = e.target.result;
-  preview.classList.remove("hidden");
-  uploadContent.classList.add("hidden");
-  status.classList.remove("hidden");
-  cnnLoading.classList.remove("hidden");
-  cnnLoading.classList.add("flex");
-  document.body.style.overflow = "hidden";
- 
-
-  const formData = new FormData();
-  formData.append("photo", file);
-  formData.append("csrfmiddlewaretoken", document.querySelector("[name=csrfmiddlewaretoken]").value);
-
-  fetch("{% url 'predictCategory' %}", {
-    method: "POST",
-    body: formData
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (!data.success) {
-      cnnLoading.classList.remove("flex");
-      cnnLoading.classList.add("hidden");
-      document.body.style.overflow = "";
-      return;
-    }
-
-    document.getElementById("id_category").value = data.category;
-    document.getElementById("cnn-confidence").classList.remove("hidden");
-    document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
-
-    document.getElementById("cnn_raw_prediction").value = data.raw_prediction;
-    document.getElementById("cnn_confidence").value = data.confidence;
-    document.getElementById("cnn_margin").value = data.margin;
-    document.getElementById("flagged_for_review").value = data.flagged_for_review;
-
-    document.getElementById("custom-category-wrapper").classList.toggle("hidden", data.category !== "others");
-    cnnLoading.classList.remove("flex");
-    cnnLoading.classList.add("hidden");
-    document.body.style.overflow = "";
-
-  })
-  .catch(error => {
-    console.error(error);
-    cnnLoading.classList.remove("flex");
-    cnnLoading.classList.add("hidden");
-    document.body.style.overflow = "";
-  });
-};
+          reader.onload = function(e) {
+              preview.src = e.target.result;
+              preview.classList.remove("hidden");
+              uploadContent.classList.add("hidden");
+              status.classList.remove("hidden");
+              cnnLoading.classList.remove("hidden");
+              cnnLoading.classList.add("flex");
+              document.body.style.overflow = "hidden";
 
 
-    reader.readAsDataURL(file);
-  });
+              const formData = new FormData();
+              formData.append("photo", file);
+              formData.append("csrfmiddlewaretoken", document.querySelector("[name=csrfmiddlewaretoken]").value);
+
+              fetch("{% url 'predictCategory' %}", {
+                      method: "POST",
+                      body: formData
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                      if (!data.success) {
+                          cnnLoading.classList.remove("flex");
+                          cnnLoading.classList.add("hidden");
+                          document.body.style.overflow = "";
+                          return;
+                      }
+
+                      document.getElementById("id_category").value = data.category;
+                      document.getElementById("cnn-confidence").classList.remove("hidden");
+                      document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
+
+                      document.getElementById("cnn_raw_prediction").value = data.raw_prediction;
+                      document.getElementById("cnn_confidence").value = data.confidence;
+                      document.getElementById("cnn_margin").value = data.margin;
+                      document.getElementById("flagged_for_review").value = data.flagged_for_review;
+
+                      document.getElementById("custom-category-wrapper").classList.toggle("hidden", data.category !== "others");
+                      cnnLoading.classList.remove("flex");
+                      cnnLoading.classList.add("hidden");
+                      document.body.style.overflow = "";
+
+                  })
+                  .catch(error => {
+                      console.error(error);
+                      cnnLoading.classList.remove("flex");
+                      cnnLoading.classList.add("hidden");
+                      document.body.style.overflow = "";
+                  });
+          };
 
 
-  // ---- Cascading Building -> Floor -> Room logic ----
-  const buildingSelect = document.getElementById("id_building");
-  const floorSelect = document.getElementById("id_floor");
-  const roomSelect = document.getElementById("id_location");
-
-
-  const floorWrapper = document.getElementById("floor-wrapper");
-  const roomWrapper = document.getElementById("room-wrapper");
-  const floorHint = document.getElementById("floor-hint");
-  const roomHint = document.getElementById("room-hint");
-
-
-  function setLocked(select, locked) {
-    select.disabled = locked;
-    select.classList.toggle("pointer-events-none", locked);
-    select.classList.toggle("bg-gray-100", locked);
-    select.classList.toggle("text-gray-400", locked);
-    select.classList.toggle("border-gray-200", locked);
-    select.classList.toggle("cursor-not-allowed", locked);
-  }
-
-
-  // Shows a temporary message under a field, then optionally hides it again.
-  // Used both for the "you tapped a locked field" flash and for
-  // genuine "no results" states (which stay visible, autoHideMs = null).
-  function showTempMessage(hintEl, message, isWarning, autoHideMs) {
-    hintEl.textContent = message;
-    hintEl.classList.remove("hidden");
-    hintEl.classList.toggle("text-red-500", isWarning);
-    hintEl.classList.toggle("text-gray-400", !isWarning);
-
-
-    clearTimeout(hintEl._timer);
-    if (autoHideMs) {
-      hintEl._timer = setTimeout(() => {
-        hintEl.classList.add("hidden");
-        hintEl.textContent = "";
-      }, autoHideMs);
-    }
-  }
-
-
-  function flashLockedWarning(select, hintEl, message) {
-    select.classList.add("border-red-500");
-    showTempMessage(hintEl, message, true, 2000);
-    clearTimeout(select._borderTimer);
-    select._borderTimer = setTimeout(() => {
-      select.classList.remove("border-red-500");
-    }, 2000);
-  }
-
-
-  // Initial state on page load — locked, no visible hint.
-  setLocked(floorSelect, floorSelect.options.length <= 1);
-  setLocked(roomSelect, roomSelect.options.length <= 1);
-
-
-  floorWrapper.addEventListener("click", function () {
-    if (floorSelect.disabled) {
-      flashLockedWarning(floorSelect, floorHint, "⚠ Select a building first.");
-    }
-  });
-
-
-  roomWrapper.addEventListener("click", function () {
-    if (roomSelect.disabled) {
-      // floorSelect.disabled tells us which step is actually blocking Room:
-      // Floor still disabled -> Building hasn't been chosen yet.
-      // Floor enabled (even if empty) -> Building is done, Floor is the blocker.
-      const message = floorSelect.disabled
-        ? "⚠ Select a building first."
-        : "⚠ Select a floor first.";
-      flashLockedWarning(roomSelect, roomHint, message);
-    }
-  });
-
-
-  buildingSelect.addEventListener("change", function () {
-    const buildingId = this.value;
-
-
-    floorSelect.innerHTML = '<option value="">Select a Floor</option>';
-    roomSelect.innerHTML = '<option value="">Select a Room</option>';
-    setLocked(roomSelect, true);
-    roomHint.classList.add("hidden");
-    roomHint.textContent = "";
-
-
-    if (!buildingId) {
-      setLocked(floorSelect, true);
-      floorHint.classList.add("hidden");
-      floorHint.textContent = "";
-      return;
-    }
-
-
-    fetch(`/user/ajax/load-floors/?building=${buildingId}`)
-      .then((response) => response.json())
-      .then((data) => {
-        data.forEach((floor) => {
-          floorSelect.add(new Option(floor.label, floor.id));
-        });
-        setLocked(floorSelect, data.length === 0);
-        if (data.length === 0) {
-          showTempMessage(floorHint, "No floors available.", false, null);
-        } else {
-          floorHint.classList.add("hidden");
-          floorHint.textContent = "";
-        }
+          reader.readAsDataURL(file);
       });
-  });
 
 
-  floorSelect.addEventListener("change", function () {
-    const floorId = this.value;
+      // ---- Cascading Building -> Floor -> Room logic ----
+      const buildingSelect = document.getElementById("id_building");
+      const floorSelect = document.getElementById("id_floor");
+      const roomSelect = document.getElementById("id_location");
 
 
-    roomSelect.innerHTML = '<option value="">Select a Room</option>';
+      const floorWrapper = document.getElementById("floor-wrapper");
+      const roomWrapper = document.getElementById("room-wrapper");
+      const floorHint = document.getElementById("floor-hint");
+      const roomHint = document.getElementById("room-hint");
+      const floorField = document.getElementById("floor-field");
+      const roomField = document.getElementById("room-field");
+      const facilityBuildingIds = [{{ facility_building_ids|join:"," }}];
+
+      function loadRooms(floorId, onDone) {
+          roomSelect.innerHTML = '<option value = "">Select a Room</option>';
+          fetch(`/user/ajax/load-rooms/?floor=${floorId}`)
+              .then(res => res.json())
+              .then((rooms) => {
+                  rooms.forEach((room) => {
+                      roomSelect.add(new Option(room.name, room.id));
+                  });
+                  onDone(rooms);
+              });
+      }
+
+      function setLocked(select, locked) {
+          select.disabled = locked;
+          select.classList.toggle("pointer-events-none", locked);
+          select.classList.toggle("bg-gray-100", locked);
+          select.classList.toggle("text-gray-400", locked);
+          select.classList.toggle("border-gray-200", locked);
+          select.classList.toggle("cursor-not-allowed", locked);
+      }
 
 
-    if (!floorId) {
-      setLocked(roomSelect, true);
-      roomHint.classList.add("hidden");
-      roomHint.textContent = "";
-      return;
-    }
+      // Shows a temporary message under a field, then optionally hides it again.
+      // Used both for the "you tapped a locked field" flash and for
+      // genuine "no results" states (which stay visible, autoHideMs = null).
+      function showTempMessage(hintEl, message, isWarning, autoHideMs) {
+          hintEl.textContent = message;
+          hintEl.classList.remove("hidden");
+          hintEl.classList.toggle("text-red-500", isWarning);
+          hintEl.classList.toggle("text-gray-400", !isWarning);
 
 
-    fetch(`/user/ajax/load-rooms/?floor=${floorId}`)
-      .then((response) => response.json())
-      .then((data) => {
-        data.forEach((room) => {
-          roomSelect.add(new Option(room.name, room.id));
-        });
-        setLocked(roomSelect, data.length === 0);
-        if (data.length === 0) {
-          showTempMessage(roomHint, "No rooms available.", false, null);
-        } else {
+          clearTimeout(hintEl._timer);
+          if (autoHideMs) {
+              hintEl._timer = setTimeout(() => {
+                  hintEl.classList.add("hidden");
+                  hintEl.textContent = "";
+              }, autoHideMs);
+          }
+      }
+
+
+      function flashLockedWarning(select, hintEl, message) {
+          select.classList.add("border-red-500");
+          showTempMessage(hintEl, message, true, 2000);
+          clearTimeout(select._borderTimer);
+          select._borderTimer = setTimeout(() => {
+              select.classList.remove("border-red-500");
+          }, 2000);
+      }
+
+
+      // Initial state on page load — locked, no visible hint.
+      setLocked(floorSelect, floorSelect.options.length <= 1);
+      setLocked(roomSelect, roomSelect.options.length <= 1);
+
+
+      floorWrapper.addEventListener("click", function() {
+          if (floorSelect.disabled) {
+              flashLockedWarning(floorSelect, floorHint, "⚠ Select a building first.");
+          }
+      });
+
+
+      roomWrapper.addEventListener("click", function() {
+          if (roomSelect.disabled) {
+              // floorSelect.disabled tells us which step is actually blocking Room:
+              // Floor still disabled -> Building hasn't been chosen yet.
+              // Floor enabled (even if empty) -> Building is done, Floor is the blocker.
+              const message = floorSelect.disabled ?
+                  "⚠ Select a building first." :
+                  "⚠ Select a floor first.";
+              flashLockedWarning(roomSelect, roomHint, message);
+          }
+      });
+
+
+      buildingSelect.addEventListener("change", function() {
+          const buildingId = this.value;
+
+          floorSelect.innerHTML = '<option value="">Select a Floor</option>';
+          roomSelect.innerHTML = '<option value="">Select a Room</option>';
+          setLocked(roomSelect, true);
           roomHint.classList.add("hidden");
           roomHint.textContent = "";
-        }
+
+          floorField.classList.remove("hidden");
+          roomField.classList.remove("hidden");
+
+          if (!buildingId) {
+              setLocked(floorSelect, true);
+              floorHint.classList.add("hidden");
+              floorHint.textContent = "";
+              return;
+          }
+
+          const isFacility = facilityBuildingIds.includes(parseInt(buildingId));
+
+          fetch(`/user/ajax/load-floors/?building=${buildingId}`)
+              .then((response) => response.json())
+              .then((floors) => {
+                  floors.forEach((floor) => {
+                      floorSelect.add(new Option(floor.label, floor.id));
+                  });
+                  setLocked(floorSelect, floors.length === 0);
+
+                  if (floors.length === 0) {
+                      showTempMessage(floorHint, "No floors available.", false, null);
+                      return;
+                  }
+                  floorHint.classList.add("hidden");
+                  floorHint.textContent = "";
+
+                  // if facility has 1 floor, skip asking the user to pick it
+                  if (isFacility && floors.length === 1) {
+                      floorSelect.value = floors[0].id;
+                      floorField.classList.add("hidden");
+
+                      loadRooms(floors[0].id, (rooms) => {
+                          setLocked(roomSelect, rooms.length === 0);
+                          if (rooms.length === 0) {
+                              showTempMessage(roomHint, "No rooms available.", false, null);
+                              return;
+                          }
+                          // if facility has 1 room, skip asking the user to pick it
+                          if (rooms.length === 1) {
+                              roomSelect.value = rooms[0].id;
+                              roomField.classList.add("hidden");
+                          }
+                      });
+                  }
+              });
       });
-  });
 
-  document.getElementById("id_category").addEventListener("change", function () {
-  document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
-});
 
-const reportForm = document.getElementById("report-form");
-const cnnLoading = document.getElementById("cnn-loading");
-const submitButton = document.getElementById("submit-button");
+      floorSelect.addEventListener("change", function() {
+          const floorId = this.value;
 
-reportForm.addEventListener("submit", function () {
-  submitButton.disabled = true;
-  submitButton.textContent = "Submitting...";
-});
+          if (!floorId) {
+              roomSelect.innerHTML = '<option value="">Select a Room</option>';
+              setLocked(roomSelect, true);
+              roomHint.classList.add("hidden");
+              roomHint.textContent = "";
+              return;
+          }
+
+          loadRooms(floorId, (rooms) => {
+              setLocked(roomSelect, rooms.length === 0);
+              if (rooms.length === 0) {
+                  showTempMessage(roomHint, "No rooms available.", false, null);
+              } else {
+                  roomHint.classList.add("hidden");
+                  roomHint.textContent = "";
+              }
+          });
+      });
+
+      document.getElementById("id_category").addEventListener("change", function() {
+          document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
+      });
+
+      const reportForm = document.getElementById("report-form");
+      const cnnLoading = document.getElementById("cnn-loading");
+      const submitButton = document.getElementById("submit-button");
+
+      reportForm.addEventListener("submit", function() {
+          submitButton.disabled = true;
+          submitButton.textContent = "Submitting...";
+      });
   </script>
 {% endblock %}

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import shutil
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,7 +26,7 @@ SECRET_KEY = 'django-insecure-pc@%c9xf17@)(u%nv)qlfsdiayv!*7s_i_asq5rdw4ro9t6hx4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.100.6']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.100.58']
 
 
 # Application definition
@@ -85,6 +86,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'adm.context_processors.admin_role',
             ],
         },
     },
@@ -126,7 +128,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 TAILWIND_APP_NAME = 'theme'
 
-NPM_BIN_PATH = r"C:\Program Files\nodejs\npm.cmd"
+NPM_BIN_PATH = shutil.which("npm") or r"C:\Program Files\nodejs\npm.cmd"
 
 
 # Internationalization
