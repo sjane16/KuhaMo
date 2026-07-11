@@ -4,7 +4,7 @@ from .models import Building, Floor, Room
 
 @admin.register(Building)
 class BuildingAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code']
+    list_display = ['name', 'code', 'has_floors']
 
 @admin.register(Floor)
 class FloorAdmin(admin.ModelAdmin):
@@ -13,6 +13,6 @@ class FloorAdmin(admin.ModelAdmin):
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'floor', 'x', 'y']
+    list_display = ['name', 'code', 'floor']
     list_filter = ['floor__building', 'floor']
     search_fields = ['name', 'code']

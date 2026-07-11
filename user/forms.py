@@ -5,9 +5,9 @@ from .models import Report
 from adm.models import Building, Floor, Room
 
 class ReportForm(forms.ModelForm):
-    building = forms.ModelChoiceField(queryset=Building.objects.all(), empty_label="Select a Building", required=True)
+    building = forms.ModelChoiceField(queryset=Building.objects.all(), empty_label="Select a Building or Facility", required=True)
     floor = forms.ModelChoiceField(queryset=Floor.objects.none(), empty_label="Select a Floor", required=True)
-    location = forms.ModelChoiceField(queryset=Room.objects.none(), empty_label="Select a Room", required=True)
+    location = forms.ModelChoiceField(queryset=Room.objects.none(), empty_label="Select a Room or an Area", required=True)
     photo = forms.ImageField(required=True)
 
     class Meta:
@@ -57,7 +57,7 @@ class ReportForm(forms.ModelForm):
         if 'floor' in self.data:
             try:
                 floor_id = int(self.data.get('floor'))
-                self.fields['location'].queryset=Room.objects.filter(floor_id=floor_id).order_by('name')
+                self.fields['location'].queryset=Room.objects.filter(floor_id=floor_id).order_by('order')
             except (ValueError, TypeError):
                 pass
 

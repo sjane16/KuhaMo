@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from google import genai
 from .models import Report, SurveyResponse, UserProfile
-from adm.models import Floor, Room
+from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
 from ml.predictor import predict_image
 
@@ -129,9 +129,14 @@ def reportForm(request):
     else:
         form = ReportForm()
 
+    facility_building_ids = list(
+        Building.objects.filter(has_floors=False).values_list('id', flat=True)
+    )
+
     return render(request, 'user/report_form.html', {
         "active_page": "reportForm",
         "form": form,
+        "facility_building_ids": facility_building_ids,
     })
 
 @login_required
@@ -322,7 +327,7 @@ def load_floors(request):
 
 def load_rooms(request):
     floor_id = request.GET.get('floor')
-    rooms = Room.objects.filter(floor_id=floor_id).order_by('name')
+    rooms = Room.objects.filter(floor_id=floor_id).order_by('order')
     return JsonResponse(list(rooms.values('id','name', 'code')), safe=False)
 
 @login_required

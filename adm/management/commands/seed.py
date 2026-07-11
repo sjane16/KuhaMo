@@ -5,28 +5,10 @@ from django.core.management.base import BaseCommand
 from adm.models import Building, Floor, Room
 
 
-
-
 class Command(BaseCommand):
     help = 'Seed buildings, floors and rooms'
 
-
-    def copy_floor_images(self):
-        src = os.path.join(settings.BASE_DIR, 'adm', 'static', 'adm', 'floor_maps')
-        dst = os.path.join(settings.MEDIA_ROOT, 'floor_maps')
-        os.makedirs(dst, exist_ok=True)
-        if os.path.exists(src):
-            for f in os.listdir(src):
-                shutil.copy2(os.path.join(src, f), os.path.join(dst, f))
-            self.stdout.write(self.style.SUCCESS('Floor map images copied!'))
-        else:
-            self.stdout.write(self.style.WARNING('No floor map images found in static folder.'))
-
-
     def handle(self, *args, **kwargs):
-        self.copy_floor_images()
-
-
         # ── Prevent duplicates ──────────────────────────────
         if Building.objects.exists():
             self.stdout.write(self.style.WARNING('Existing data found! Clearing and reseeding...'))
@@ -34,238 +16,261 @@ class Command(BaseCommand):
             Floor.objects.all().delete()
             Building.objects.all().delete()
 
-
         # ── Buildings ───────────────────────────────────────
-        mb  = Building.objects.create(name='Main Building', code='MB')
-        nb  = Building.objects.create(name='New Building', code='NB')
-        llb = Building.objects.create(name='Library and Laboratory Building', code='LLB')
+        mb = Building.objects.create(name='Main Building', code='MB')
+        nb = Building.objects.create(name='New Building', code='NB')
+        ab = Building.objects.create(name='Administrative Building', code='AB')  
 
-
-        # ── LLB Floors ──────────────────────────────────────
-        llb_f1 = Floor.objects.create(
-            building=llb, floor_number=1,
-            label='Ground Floor',
-            map_image='floor_maps/llb_f1.png',
-            image_width=1920, image_height=1080
+        # ── AB Floors ──────────────────────────────────────
+        ab_f1 = Floor.objects.create(
+            building=ab, floor_number=1,
+            label='Ground Floor'
         )
-        llb_f2 = Floor.objects.create(
-            building=llb, floor_number=2,
+        ab_f2 = Floor.objects.create(
+            building=ab, floor_number=2,
             label='Second Floor',
-            map_image='floor_maps/llb_f2.png',
-            image_width=1920, image_height=1080
         )
-
 
         # ── NB Floors ───────────────────────────────────────
         nb_f1 = Floor.objects.create(
             building=nb, floor_number=1,
             label='Ground Floor',
-            map_image='floor_maps/NB-Ground-Floor.png',
-            image_width=1536, image_height=609
         )
         nb_f2 = Floor.objects.create(
             building=nb, floor_number=2,
             label='Second Floor',
-            map_image='floor_maps/NB-2nd-Floor.png',
-            image_width=1920, image_height=1080
         )
         nb_f3 = Floor.objects.create(
             building=nb, floor_number=3,
             label='Third Floor',
-            map_image='floor_maps/NB-3rd-Floor.png',
-            image_width=1920, image_height=1080
         )
         nb_f4 = Floor.objects.create(
             building=nb, floor_number=4,
             label='Fourth Floor',
-            map_image='floor_maps/NB-4th-Floor.png',
-            image_width=1920, image_height=1080
         )
-
+        nb_f5 = Floor.objects.create(
+            building=nb, floor_number=5,
+            label='Roof Deck',
+        )
 
         # ── MB Floors ───────────────────────────────────────
         mb_f1 = Floor.objects.create(
             building=mb, floor_number=1,
             label='Ground Floor',
-            map_image='floor_maps/mb_f1.png',
-            image_width=1920, image_height=1080
         )
         mb_f2 = Floor.objects.create(
             building=mb, floor_number=2,
             label='Second Floor',
-            map_image='floor_maps/mb_f2.png',
-            image_width=1920, image_height=1080
         )
         mb_f3 = Floor.objects.create(
             building=mb, floor_number=3,
             label='Third Floor',
-            map_image='floor_maps/mb_f3.png',
-            image_width=1920, image_height=1080
         )
         mb_f4 = Floor.objects.create(
             building=mb, floor_number=4,
-            label='Fourth Floor',
-            map_image='floor_maps/mb_f4.png',
-            image_width=1920, image_height=1080
+            label='Fourth Floor'
+        )
+        mb_f5 = Floor.objects.create(
+            building=mb, floor_number=5,
+            label='Roof Deck'
         )
 
-
-        # ════════════════════════════════════════════════════
-        # LLB ROOMS
-        # ════════════════════════════════════════════════════
-
+        # ══════════════════════════════════════════════════════
+        # ADMINISTRATIVE BUILDING ROOMS
+        # ══════════════════════════════════════════════════════
 
         # Ground Floor
-        Room.objects.create(floor=llb_f1, name='Clinic', code='LLB_CLINIC', x=0, y=0)
-        Room.objects.create(floor=llb_f1, name='Maintenance and Engineering Office', code='LLB_MEO', x=0, y=0)
-        Room.objects.create(floor=llb_f1, name='Supply and Equipment Office', code='LLB_SEO', x=0, y=0)
-        Room.objects.create(floor=llb_f1, name='Registrar', code='LLB_REG', x=0, y=0)
-        Room.objects.create(floor=llb_f1, name='Cash Management Division', code='LLB_CMD', x=0, y=0)
-        Room.objects.create(floor=llb_f1, name='Administrative Offices', code='LLB_ADMIN', x=0, y=0)
-
+        Room.objects.create(floor=ab_f1, name='University Health Services', code='AB_UHS', order=1)
+        Room.objects.create(floor=ab_f1, name='Maintenance and Engineering Office', code='LLB_MEO', order=2)
+        Room.objects.create(floor=ab_f1, name='Supply and Equipment Office', code='LLB_SEO', order=3)
+        Room.objects.create(floor=ab_f1, name='Registrar', code='LLB_REG', order=4)
+        Room.objects.create(floor=ab_f1, name='Cash Management Division', code='LLB_CMD', order=5)
+        Room.objects.create(floor=ab_f1, name='Administrative Offices', code='LLB_ADMIN', order=6)
 
         # Second Floor
-        Room.objects.create(floor=llb_f2, name='Library', code='LLB_LIB', x=0, y=0)
+        Room.objects.create(floor=ab_f2, name='Library', code='AB_LIB', order=1)
+        Room.objects.create(floor=ab_f2, name='Supreme Student Government', code='AB_SSG', order=2)
+        Room.objects.create(floor=ab_f2, name='National Service Training Program', code='AB_NSTP', order=3)
+        Room.objects.create(floor=ab_f2, name='Athletics and Cultural Engagement Division', code='AB_ACED', order=4)
+        Room.objects.create(floor=ab_f2, name='Records Office', code='AB_RECORDS', order=5)
+        Room.objects.create(floor=ab_f2, name='Student Lounge', code='AB_LOUNGE', order=6)
 
-
-        # ════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════
         # NEW BUILDING ROOMS
-        # ════════════════════════════════════════════════════
-
+        # ══════════════════════════════════════════════════════
 
         # Ground Floor
-        Room.objects.create(floor=nb_f1, name='Faculty Comfort Room', code='NB_FCR', x=150, y=366)
-        Room.objects.create(floor=nb_f1, name='Storage Room', code='NB_STORAGE', x=330, y=380)
-        Room.objects.create(floor=nb_f1, name='Office of the VP for Administration', code='NB_VPA', x=460, y=380)
-        Room.objects.create(floor=nb_f1, name='Office of the VP for Comptrollership', code='NB_VPC', x=630, y=380)
-        Room.objects.create(floor=nb_f1, name='Human Resources Management and Development Division', code='NB_HRMDD', x=945, y=380)
-        Room.objects.create(floor=nb_f1, name='Planning and Budget Division', code='NB_PBD', x=1145, y=380)
-        Room.objects.create(floor=nb_f1, name='Accounting Division', code='NB_ACCTG', x=1310, y=380)
-
+        Room.objects.create(floor=nb_f1, name='ROTC', code='NB_ROTC', order=1)
+        Room.objects.create(floor=nb_f1, name='Dulaan', code='NB_DULAAN', order=2)
+        Room.objects.create(floor=nb_f1, name='Chorale', code='NB_CHORALE', order=3)
+        Room.objects.create(floor=nb_f1, name='Accounting Division', code='NB_ACCTG', order=4)
+        Room.objects.create(floor=nb_f1, name='Planning and Budget Division', code='NB_PBD', order=5)
+        Room.objects.create(floor=nb_f1, name='Payroll', code='NB_PAYROLL', order=6)
+        Room.objects.create(floor=nb_f1, name='PROCUREMENT', code='NB_PROC', order=7)
+        Room.objects.create(floor=nb_f1, name='Human Resources Management and Development Division', code='NB_HRMDD', order=8)
+        Room.objects.create(floor=nb_f1, name='Records', code='NB_REC', order=9)
+        Room.objects.create(floor=nb_f1, name='Office of the VP for Comptrollership', code='NB_VPC', order=10)
+        Room.objects.create(floor=nb_f1, name='Office of the VP for Administration', code='NB_VPA', order=11)
+        Room.objects.create(floor=nb_f1, name='Storage Room', code='NB_STORAGE', order=12)
+        Room.objects.create(floor=nb_f1, name='Employee\'s Comfort Room', code='NB_FCR', order=13)
 
         # Second Floor
-        Room.objects.create(floor=nb_f2, name='NB201', code='NB201', x=1535, y=595)
-        Room.objects.create(floor=nb_f2, name='NB202', code='NB202', x=1320, y=595)
-        Room.objects.create(floor=nb_f2, name='NB203', code='NB203', x=1085, y=595)
-        Room.objects.create(floor=nb_f2, name='NB204', code='NB204', x=845, y=595)
-        Room.objects.create(floor=nb_f2, name='NB205', code='NB205', x=605, y=595)
-
+        Room.objects.create(floor=nb_f2, name='NB201 - CBA FACULTY ROOM', code='NB201', order=1)
+        Room.objects.create(floor=nb_f2, name='NB202', code='NB202', order=2)
+        Room.objects.create(floor=nb_f2, name='NB203', code='NB203', order=3)
+        Room.objects.create(floor=nb_f2, name='NB204', code='NB204', order=4)
+        Room.objects.create(floor=nb_f2, name='NB205', code='NB205', order=5)
+        Room.objects.create(floor=nb_f2, name='NB206 - Registrar\'s Storage Room', code='NB206', order=6)
+        Room.objects.create(floor=nb_f2, name='Male - Comfort Room', code='NBMALECR', order=7)
+        Room.objects.create(floor=nb_f2, name='Female - Comfort Room', code='NBFEMALECR', order=8)
 
         # Third Floor
-        Room.objects.create(floor=nb_f3, name='NB | ICT Office', code='NB_ICTO', x=465, y=610)
-        Room.objects.create(floor=nb_f3, name='NB301', code='NB301', x=1755, y=610)
-        Room.objects.create(floor=nb_f3, name='NB302', code='NB302', x=1545, y=610)
-        Room.objects.create(floor=nb_f3, name='NB303', code='NB303', x=1330, y=610)
-        Room.objects.create(floor=nb_f3, name='NB304', code='NB304', x=1105, y=610)
-        Room.objects.create(floor=nb_f3, name='NB305', code='NB305', x=875, y=610)
-        Room.objects.create(floor=nb_f3, name='NB306', code='NB306', x=650, y=610)
-
+        Room.objects.create(floor=nb_f3, name='NB301 - ', code='NB301', order=1)
+        Room.objects.create(floor=nb_f3, name='NB302', code='NB302', order=2)
+        Room.objects.create(floor=nb_f3, name='NB303', code='NB303', order=3)
+        Room.objects.create(floor=nb_f3, name='NB304', code='NB304', order=4)
+        Room.objects.create(floor=nb_f3, name='NB305', code='NB305', order=5)
+        Room.objects.create(floor=nb_f3, name='NB306', code='NB306', order=6)
+        Room.objects.create(floor=nb_f3, name='NB307 - ICTO', code='NB307', order=7)
 
         # Fourth Floor
-        Room.objects.create(floor=nb_f4, name='NB | Storage Room Floor 4', code='NB_STORAGE4', x=465, y=610)
-        Room.objects.create(floor=nb_f4, name='NB401', code='NB401', x=1755, y=610)
-        Room.objects.create(floor=nb_f4, name='NB402', code='NB402', x=1545, y=610)
-        Room.objects.create(floor=nb_f4, name='NB403', code='NB403', x=1330, y=610)
-        Room.objects.create(floor=nb_f4, name='NB404', code='NB404', x=1105, y=610)
-        Room.objects.create(floor=nb_f4, name='NB405', code='NB405', x=875, y=610)
-        Room.objects.create(floor=nb_f4, name='NB406', code='NB406', x=650, y=610)
+        Room.objects.create(floor=nb_f4, name='NB401 - Computer Lab', code='NB401', order=1)
+        Room.objects.create(floor=nb_f4, name='NB402 - Chemistry Laboratory', code='NB402', order=2)
+        Room.objects.create(floor=nb_f4, name='NB403 - Physics Laboratory', code='NB403', order=3)
+        Room.objects.create(floor=nb_f4, name='NB404', code='NB404', order=4)
+        Room.objects.create(floor=nb_f4, name='NB405 - Storage Room', code='NB405', order=5)
+        Room.objects.create(floor=nb_f4, name='NB406', code='NB406', order=6)
 
+        # Roof Deck
+        Room.objects.create(floor=nb_f5, name='Roof Deck', code='NB_ROOF', order=1)
 
-        # ════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════
         # MAIN BUILDING ROOMS
-        # ════════════════════════════════════════════════════
+        # ══════════════════════════════════════════════════════
 
+        # Ground Floor
+        Room.objects.create(floor=mb_f1, name='Office of the VP for Academic Affairs', code='MB_VPAA', order=1)
+        Room.objects.create(floor=mb_f1, name='Accreditation Room', code='MB_ACCRED', order=2)
+        Room.objects.create(floor=mb_f1, name='Quality Assurance and Accreditation', code='MB_QAA', order=3)
+        Room.objects.create(floor=mb_f1, name='Office of the University President', code='MB_PRES', order=4)
+        Room.objects.create(floor=mb_f1, name='Guidance Counseling and Psychological Services', code='MB_GCPS', order=5)
+        Room.objects.create(floor=mb_f1, name='University Research Extension Linkages', code='MB_URELA', order=6)
+        Room.objects.create(floor=mb_f1, name='Institute of Graduate and Professional Studies', code='MB_IGPS', order=7)
+        Room.objects.create(floor=mb_f1, name='College of Health Sciences', code='MB_CHS', order=8)
+        Room.objects.create(floor=mb_f1, name='College of Computer Studies', code='MB_CCS', order=9)
+        Room.objects.create(floor=mb_f1, name='College of Education', code='MB_CED', order=10)
+        Room.objects.create(floor=mb_f1, name='College of Criminal Justice', code='MB_CCJ', order=11)
+        Room.objects.create(floor=mb_f1, name='Admission Office', code='MB_ADMIT', order=12)
+        Room.objects.create(floor=mb_f1, name='College of Business and Management', code='MB_CBM', order=13)
+        Room.objects.create(floor=mb_f1, name='College of Arts and Sciences', code='MB_CAS', order=14)
+        Room.objects.create(floor=mb_f1, name='Security Office', code='MB_SEC', order=15)
+        Room.objects.create(floor=mb_f1, name='Office of Student Affairs', code='MB_OSA', order=16)
+        Room.objects.create(floor=mb_f1, name='Office of the VP for Student Success and Support Services', code='MB_VPSSSS', order=17)
 
-        # Ground Floor — offices keep MB_ prefix
-        Room.objects.create(floor=mb_f1, name='Office of the VP for Student Success', code='MB_VPSS', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Manny Villar Wing', code='MB_MVW', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='College of Arts and Sciences', code='MB_CAS', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='College of Business and Management', code='MB_CBM', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='College of Criminal Justice', code='MB_CCJ', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='College of Education', code='MB_CED', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='College of Computer Studies', code='MB_CCS', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='College of Health Sciences', code='MB_CHS', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Institute of Graduate and Professional Studies', code='MB_IGPS', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='University Research Extension Linkages', code='MB_URELA', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Admission Office', code='MB_ADMIT', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Guidance Counseling and Psychological Services', code='MB_GCPS', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Security Office', code='MB_SEC', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Office of the University President', code='MB_PRES', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Office of the VP for Academic Affairs', code='MB_VPAA', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Accreditation Room', code='MB_ACCRED', x=0, y=0)
-        Room.objects.create(floor=mb_f1, name='Quality Assurance and Accreditation', code='MB_QAA', x=0, y=0)
-
-
-        # Second Floor — classrooms use M prefix
-        Room.objects.create(floor=mb_f2, name='Palma Hall', code='MB_PALMA', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M201', code='M201', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M202', code='M202', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M203', code='M203', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M204', code='M204', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M205', code='M205', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M206', code='M206', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M207', code='M207', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M208', code='M208', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M209', code='M209', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M210', code='M210', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M211', code='M211', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M212', code='M212', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M213', code='M213', x=0, y=0)
-        Room.objects.create(floor=mb_f2, name='M214', code='M214', x=0, y=0)
-
+        # Second Floor
+        Room.objects.create(floor=mb_f2, name='M201', code='M201', order=1)
+        Room.objects.create(floor=mb_f2, name='M202', code='M202', order=2)
+        Room.objects.create(floor=mb_f2, name='M203', code='M203', order=3)
+        Room.objects.create(floor=mb_f2, name='M204', code='M204', order=4)
+        Room.objects.create(floor=mb_f2, name='M205', code='M205', order=5)
+        Room.objects.create(floor=mb_f2, name='M206', code='M206', order=6)
+        Room.objects.create(floor=mb_f2, name='M207', code='M207', order=7)
+        Room.objects.create(floor=mb_f2, name='Male Comfort Room - Right Wing', code='M_MRW', order=8)
+        Room.objects.create(floor=mb_f2, name='Female Comfort Room - Right Wing', code='M_FRW', order=9)
+        Room.objects.create(floor=mb_f2, name='M208 - Athletics and Cultural', code='M208', order=10)
+        Room.objects.create(floor=mb_f2, name='Palma Hall', code='MB_PALMA', order=11)
+        Room.objects.create(floor=mb_f2, name='M209', code='M209', order=12)
+        Room.objects.create(floor=mb_f2, name='M210', code='M210', order=13)
+        Room.objects.create(floor=mb_f2, name='M211', code='M211', order=14)
+        Room.objects.create(floor=mb_f2, name='M212', code='M212', order=15)
+        Room.objects.create(floor=mb_f2, name='M213', code='M213', order=16)
+        Room.objects.create(floor=mb_f2, name='M214', code='M214', order=17)
+        Room.objects.create(floor=mb_f2, name='Male Comfort Room - Left Wing', code='M2_MLW', order=18)
+        Room.objects.create(floor=mb_f2, name='Female Comfort Room - Left Wing', code='M2_FLW', order=19)
 
         # Third Floor
-        Room.objects.create(floor=mb_f3, name='Psychology Laboratory', code='MB_PSYLAB', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='Office of Student Internship and Placement', code='MB_OSIPP', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='F302', code='F302', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='F309', code='F309', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='College of Law Library', code='MB_LAWLIB', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='Function Hall B', code='MB_FHB', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='Entrepreneurship Laboratory', code='MB_ENTLAB', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='Office of Legal Aid', code='MB_OLA', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='Moot Court', code='MB_MOOT', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='FI Room', code='MB_FI', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M301', code='M301', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M302', code='M302', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M303', code='M303', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M304', code='M304', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M305', code='M305', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M306', code='M306', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M307', code='M307', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M308', code='M308', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M309', code='M309', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M310', code='M310', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M311', code='M311', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M312', code='M312', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M313', code='M313', x=0, y=0)
-        Room.objects.create(floor=mb_f3, name='M314', code='M314', x=0, y=0)
-
+        Room.objects.create(floor=mb_f3, name='M301', code='M301', order=1)
+        Room.objects.create(floor=mb_f3, name='M302', code='M302', order=2)
+        Room.objects.create(floor=mb_f3, name='M303', code='M303', order=3)
+        Room.objects.create(floor=mb_f3, name='M304', code='M304', order=4)
+        Room.objects.create(floor=mb_f3, name='M305 – Computer Lab', code='M305', order=5)
+        Room.objects.create(floor=mb_f3, name='M306 – Computer Lab', code='M306', order=6)
+        Room.objects.create(floor=mb_f3, name='M307 – Computer Lab', code='M307', order=7)
+        Room.objects.create(floor=mb_f3, name='Male Comfort Room - Left Wing', code='M3_MLW', order=8)
+        Room.objects.create(floor=mb_f3, name='Female Comfort Room - Left Wing', code='M3_FLW', order=9)
+        Room.objects.create(floor=mb_f3, name='Moot Court', code='MB_MOOT', order=10)
+        Room.objects.create(floor=mb_f3, name='Field Instruction', code='MB_FI', order=11)
+        Room.objects.create(floor=mb_f3, name='Office of Legal Aid', code='MB_OLA', order=12)
+        Room.objects.create(floor=mb_f3, name='Entrepreneurship Laboratory (Function A)', code='MB_ENTLAB', order=13)
+        Room.objects.create(floor=mb_f3, name='Psychology Laboratory (Function B)', code='MB_PSYLAB', order=14)
+        Room.objects.create(floor=mb_f3, name='M308 – College of Law Library', code='M308', order=15)
+        Room.objects.create(floor=mb_f3, name='Dean College of Law and Administrative Office', code='MDCLAO', order=16)
+        Room.objects.create(floor=mb_f3, name='FH302', code='F302', order=17)
+        Room.objects.create(floor=mb_f3, name='FH309', code='F309', order=18)
+        Room.objects.create(floor=mb_f3, name='Office of Student Internship and Placement', code='MB_OSIPP', order=19)
+        Room.objects.create(floor=mb_f3, name='M309', code='M309', order=20)
+        Room.objects.create(floor=mb_f3, name='M310', code='M310', order=21)
+        Room.objects.create(floor=mb_f3, name='M311', code='M311', order=22)
+        Room.objects.create(floor=mb_f3, name='M312', code='M312', order=23)
+        Room.objects.create(floor=mb_f3, name='M313', code='M313', order=24)
+        Room.objects.create(floor=mb_f3, name='M314', code='M314', order=25)
+        Room.objects.create(floor=mb_f3, name='Male Comfort Room - Right Wing', code='M3_MRW', order=26)
+        Room.objects.create(floor=mb_f3, name='Female Comfort Room - Right Wing', code='M3_FRW', order=27)
 
         # Fourth Floor
-        Room.objects.create(floor=mb_f4, name='NRL CHS Skills Laboratory', code='MB_SKILLSLAB', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='Physical Therapy Laboratory', code='MB_PTLAB', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='La Universidad Official Student Publication', code='MB_OSP', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='Function Hall F', code='MB_FHF', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='Faculty Association', code='MB_FA', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='Laboratory Area', code='MB_LABAREA', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='Forensic Science Laboratory', code='MB_FORENSIC', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M401', code='M401', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M402', code='M402', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M403', code='M403', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M404', code='M404', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M405', code='M405', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M406', code='M406', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M407', code='M407', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M408', code='M408', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M409', code='M409', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M410', code='M410', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M411', code='M411', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M412', code='M412', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M413', code='M413', x=0, y=0)
-        Room.objects.create(floor=mb_f4, name='M414', code='M414', x=0, y=0)
+        Room.objects.create(floor=mb_f4, name='M401', code='M401', order=1)
+        Room.objects.create(floor=mb_f4, name='M402', code='M402', order=2)
+        Room.objects.create(floor=mb_f4, name='M403', code='M403', order=3)
+        Room.objects.create(floor=mb_f4, name='M404', code='M404', order=4)
+        Room.objects.create(floor=mb_f4, name='M405', code='M405', order=5)
+        Room.objects.create(floor=mb_f4, name='M406', code='M406', order=6)
+        Room.objects.create(floor=mb_f4, name='M407', code='M407', order=7)
+        Room.objects.create(floor=mb_f4, name='Male Comfort Room - Left Wing', code='M4_MLW', order=8)
+        Room.objects.create(floor=mb_f4, name='Female Comfort Room - Left Wing', code='M4_FLW', order=9)
+        Room.objects.create(floor=mb_f4, name='Forensic Science Laboratory', code='MB_FORENSIC', order=10)
+        Room.objects.create(floor=mb_f4, name='Laboratory Area', code='MB_LABAREA', order=11)
+        Room.objects.create(floor=mb_f4, name='Faculty Association', code='MB_FA', order=12)
+        Room.objects.create(floor=mb_f4, name='Function Hall F', code='MB_FHF', order=13)
+        Room.objects.create(floor=mb_f4, name='General Education Faculty Room', code='MB_GENED', order=14)
+        Room.objects.create(floor=mb_f4, name='NRL CHS Skills Laboratory', code='MB_SKILLSLAB', order=15)
+        Room.objects.create(floor=mb_f4, name='Physical Therapy Laboratory', code='MB_PTLAB', order=16)
+        Room.objects.create(floor=mb_f4, name='La Universidad Official Student Publication', code='MB_OSP', order=17)
+        Room.objects.create(floor=mb_f4, name='M408 - Department Chair Lounge', code='M408', order=18)
+        Room.objects.create(floor=mb_f4, name='M409', code='M409', order=19)
+        Room.objects.create(floor=mb_f4, name='M410', code='M410', order=20)
+        Room.objects.create(floor=mb_f4, name='M411', code='M411', order=21)
+        Room.objects.create(floor=mb_f4, name='M412', code='M412', order=22)
+        Room.objects.create(floor=mb_f4, name='M413', code='M413', order=23)
+        Room.objects.create(floor=mb_f4, name='M414 - Lounge', code='M414', order=24)
+        Room.objects.create(floor=mb_f4, name='Male Comfort Room - Right Wing', code='M4_MRW', order=25)
+        Room.objects.create(floor=mb_f4, name='Female Comfort Room - Right Wing', code='M4_FRW', order=26)
+
+        # Roof Deck
+        Room.objects.create(floor=mb_f5, name='Roof Deck', code='MB_ROOF', order=1)
+
+        # ════════════════════════════════════════════════════
+        # OTHER FACILITIES
+        # ════════════════════════════════════════════════════
+        canteen = Building.objects.create(name='Canteen', code='CANT', has_floors=False)
+        canteen_f = Floor.objects.create(building=canteen, floor_number=1, label='Main Area')
+        Room.objects.create(floor=canteen_f, name='Canteen', code='CANT_MAIN', order=1)
+
+        court = Building.objects.create(name='Covered Court', code='CCRT', has_floors=False)
+        court_f = Floor.objects.create(building=court, floor_number=1, label='Main Area')
+        Room.objects.create(floor=court_f, name='Covered Court', code='CCRT_MAIN', order=1)
+        Room.objects.create(floor=court_f, name='Gender Neutral Comfort Room', code='CCRT_GNCR', order=2)
+        Room.objects.create(floor=court_f, name='Female Comfort Room', code='CCRT_FCR', order=3)
+        Room.objects.create(floor=court_f, name='Male Comfort Room', code='CCRT_MCR', order=4)
+        Room.objects.create(floor=court_f, name='Faculty Comfort Room', code='CCRT_FACCR', order=5)
+
+        garden = Building.objects.create(name='Inner Garden', code='IGDN', has_floors=False)
+        garden_f = Floor.objects.create(building=garden, floor_number=1, label='Main Area')
+        Room.objects.create(floor=garden_f, name='Inner Garden', code='IGDN_MAIN', order=1)
+
+        parking = Building.objects.create(name='Parking Lot', code='PARK', has_floors=False)
+        parking_f = Floor.objects.create(building=parking, floor_number=1, label='Main Area')
+        Room.objects.create(floor=parking_f, name='Parking Lot - Near Covered Court', code='PARK_COURT', order=1)
+        Room.objects.create(floor=parking_f, name='Parking Lot - Near Exit', code='PARK_EXIT', order=2)
 
 
         self.stdout.write(self.style.SUCCESS('Seed data created successfully!'))
-
-
-
