@@ -42,6 +42,35 @@
             {% if survey.feedback %}
               <p class="text-sm text-gray-400 italic mb-4">"{{ survey.feedback }}"</p>
             {% endif %}
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div class="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <p class="text-[11px] font-semibold uppercase text-gray-400">Date In Progress</p>
+                {% if survey.report.in_progress_at %}
+                  <p class="mt-1 text-sm font-semibold text-gray-800">{{ survey.report.in_progress_at|date:"M d, Y" }}</p>
+                  <p class="text-xs text-gray-400">{{ survey.report.in_progress_at|date:"h:i A" }}</p>
+                {% else %}
+                  <p class="mt-1 text-sm text-gray-400">-</p>
+                {% endif %}
+              </div>
+              <div class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <p class="text-[11px] font-semibold uppercase text-blue-400">Expected Resolution Time</p>
+                {% if survey.report.expected_resolution_at %}
+                  <p class="mt-1 text-sm font-semibold text-blue-700">{{ survey.report.expected_resolution_at|date:"M d, Y" }}</p>
+                  <p class="text-xs text-blue-400">{{ survey.report.expected_resolution_at|date:"h:i A" }}</p>
+                {% else %}
+                  <p class="mt-1 text-sm text-blue-400">-</p>
+                {% endif %}
+              </div>
+              <div class="rounded-xl border {% if survey.report.met_expected_resolution %}border-green-100 bg-green-50{% else %}border-orange-100 bg-orange-50{% endif %} px-4 py-3">
+                <p class="text-[11px] font-semibold uppercase {% if survey.report.met_expected_resolution %}text-green-500{% else %}text-orange-500{% endif %}">Actual Resolution Time</p>
+                {% if survey.report.accomplished_at %}
+                  <p class="mt-1 text-sm font-semibold {% if survey.report.met_expected_resolution %}text-green-700{% else %}text-orange-700{% endif %}">{{ survey.report.accomplished_at|date:"M d, Y" }}</p>
+                  <p class="text-xs {% if survey.report.met_expected_resolution %}text-green-500{% else %}text-orange-500{% endif %}">{{ survey.report.accomplished_at|date:"h:i A" }}</p>
+                {% else %}
+                  <p class="mt-1 text-sm text-gray-400">-</p>
+                {% endif %}
+              </div>
+            </div>
             <!-- Office visit notice -->
             <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3">
               <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0"

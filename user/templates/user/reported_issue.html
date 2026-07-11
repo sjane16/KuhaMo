@@ -1,11 +1,24 @@
-{% extends "user/layouts/base.html" %} {% block title %}Report Issue{% endblock %}
+﻿{% extends "user/layouts/base.html" %}
+{% block title %}Report Issue{% endblock %}
 {% block content %}
+  <style>
+    .reported-issue-desktop-view {
+      display: none;
+    }
+
+    @media (min-width: 1024px) {
+      .reported-issue-mobile-view {
+        display: none;
+      }
+
+      .reported-issue-desktop-view {
+        display: block;
+      }
+    }
+  </style>
   <main class="flex-1 w-full lg:mx-auto">
-    <!-- ═══════════════════════════════════════════
-       MOBILE VIEW
-  ════════════════════════════════════════════ -->
-    <div class="lg:hidden min-h-screen bg-gray-50 px-4 pt-5 pb-28 overflow-y-auto">
-      <!-- Header -->
+    <!-- MOBILE VIEW -->
+    <div class="reported-issue-mobile-view lg:hidden min-h-screen bg-gray-50 px-4 pt-5 pb-28 overflow-y-auto">
       <div class="mb-4">
         <div class="flex items-center gap-2">
           <h1 class="text-xl font-bold text-gray-900 leading-tight">Report {{ report.report_number }}</h1>
@@ -28,7 +41,6 @@
           {% endif %}
         </div>
       </div>
-      <!-- Photo -->
       <div class="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm mb-4">
         {% if report.photo %}
           <img src="{{ report.photo.url }}"
@@ -47,11 +59,9 @@
           </div>
         {% endif %}
       </div>
-      <!-- Details -->
       <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4">
         <h2 class="text-black font-bold mb-4">Details</h2>
         <div class="space-y-3">
-          <!-- Location -->
           <div class="grid grid-cols-2 gap-4 items-start">
             <div class="flex items-start gap-3 text-gray-500 min-w-0">
               <svg xmlns="http://www.w3.org/2000/svg"
@@ -67,7 +77,6 @@
             </div>
             <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.location }}</span>
           </div>
-          <!-- Category -->
           <div class="grid grid-cols-2 gap-4 items-start">
             <div class="flex items-start gap-3 text-gray-500 min-w-0">
               <svg xmlns="http://www.w3.org/2000/svg"
@@ -83,7 +92,6 @@
             </div>
             <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.get_category_display }}</span>
           </div>
-          <!-- Date Submitted -->
           <div class="grid grid-cols-2 gap-4 items-start">
             <div class="flex items-start gap-3 text-gray-500 min-w-0">
               <svg xmlns="http://www.w3.org/2000/svg"
@@ -96,10 +104,25 @@
               </svg>
               <span class="text-sm shrink-0">Date Submitted</span>
             </div>
-            <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.submitted_at|date:"M d, Y · h:i A" }}</span>
+            <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.submitted_at|date:"M d, Y - h:i A" }}</span>
           </div>
-          {% if report.assigned_personnel %}
-            <!-- Assigned Personnel -->
+          <div class="grid grid-cols-2 gap-4 items-start">
+            <div class="flex items-start gap-3 text-gray-500 min-w-0">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="w-5 h-5 mt-0.5 shrink-0"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke-width="1.5"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+              <span class="text-sm shrink-0">Status</span>
+            </div>
+            <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">
+              {{ report.get_status_display }}{% if report.status == 'pending' %}{% if report.pending_awaiting_personnel or report.pending_awaiting_materials or report.pending_awaiting_approval %} - {% if report.pending_awaiting_personnel %}Awaiting Personnel{% endif %}{% if report.pending_awaiting_materials %}{% if report.pending_awaiting_personnel %}, {% endif %}Awaiting Materials{% endif %}{% if report.pending_awaiting_approval %}{% if report.pending_awaiting_personnel or report.pending_awaiting_materials %}, {% endif %}Awaiting Approval{% endif %}{% endif %}{% endif %}
+            </span>
+          </div>
+          {% if report.assigned_personnel_summary %}
             <div class="grid grid-cols-2 gap-4 items-start">
               <div class="flex items-start gap-3 text-gray-500 min-w-0">
                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -112,11 +135,10 @@
                 </svg>
                 <span class="text-sm shrink-0">Assigned Personnel</span>
               </div>
-              <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.assigned_personnel }}</span>
+              <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.assigned_personnel_summary }}</span>
             </div>
           {% endif %}
           {% if report.priority %}
-            <!-- Priority -->
             <div class="grid grid-cols-2 gap-4 items-start">
               <div class="flex items-start gap-3 text-gray-500 min-w-0">
                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -129,50 +151,32 @@
                 </svg>
                 <span class="text-sm shrink-0">Priority</span>
               </div>
-              <span class="text-sm font-semibold text-right leading-5 break-words whitespace-normal min-w-0 {% if report.priority == 'critical' %}text-red-600 {% elif report.priority == 'high' %}text-orange-500 {% elif report.priority == 'standard' %}text-yellow-600 {% elif report.priority == 'awaiting_materials' %}text-purple-600 {% elif report.priority == 'awaiting_approval' %}text-indigo-600 {% endif %}">
+              <span class="text-sm font-semibold text-right leading-5 break-words whitespace-normal min-w-0 {% if report.priority == 'critical' %}text-red-600{% elif report.priority == 'high' %}text-orange-500{% elif report.priority == 'standard' %}text-yellow-600{% endif %}">
                 {{ report.get_priority_display }}
               </span>
             </div>
           {% endif %}
         </div>
       </div>
-      <!-- Description -->
       <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4">
         <h2 class="text-black font-bold mb-3">Description</h2>
         <p class="text-sm text-gray-600 leading-6 italic">{{ report.description }}</p>
       </div>
-      <!-- Progress -->
       <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
         <h2 class="text-black font-bold mb-5">Progress</h2>
-        <div class="relative">
-          <div class="absolute top-4 left-[18%] right-[18%] h-0.5 bg-gray-200"></div>
-          {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
-            <div class="absolute top-4 left-[18%] w-[32%] h-0.5 bg-blue-600"></div>
-          {% endif %}
-          {% if report.status == 'resolved' or report.status == 'closed' %}
-            <div class="absolute top-4 left-[18%] right-[18%] h-0.5 bg-blue-600"></div>
-          {% endif %}
-          <div class="relative grid grid-cols-3 text-center">
-            <!-- Submitted -->
-            <div class="flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="w-5 h-5"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="2.5"
-                     stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
-              </div>
-              <p class="text-xs font-semibold text-gray-900 mt-2">Submitted</p>
-              <p class="text-[11px] text-gray-400 mt-1">{{ report.submitted_at|date:"M d, Y" }}</p>
-              <p class="text-[10px] text-gray-300">{{ report.submitted_at|date:"h:i A" }}</p>
-            </div>
-            <!-- Under Review -->
-            <div class="flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %} flex items-center justify-center">
-                {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
+        <div class="overflow-x-auto pb-2">
+          <div class="relative min-w-[420px] pt-2 pb-2">
+            <div class="absolute top-6 left-[12.5%] right-[12.5%] h-0.5 bg-gray-200"></div>
+            {% if report.status == 'in_progress' %}
+              <div class="absolute top-6 left-[12.5%] w-[25%] h-0.5 bg-blue-600"></div>
+            {% elif report.status == 'resolved' %}
+              <div class="absolute top-6 left-[12.5%] w-[50%] h-0.5 bg-blue-600"></div>
+            {% elif report.status == 'closed' %}
+              <div class="absolute top-6 left-[12.5%] right-[12.5%] h-0.5 bg-blue-600"></div>
+            {% endif %}
+            <div class="relative grid grid-cols-4 text-center">
+              <div class="flex flex-col items-center">
+                <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
                   <svg xmlns="http://www.w3.org/2000/svg"
                        class="w-5 h-5"
                        fill="none"
@@ -181,49 +185,74 @@
                        stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                   </svg>
+                </div>
+                <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">Pending</p>
+                <p class="mt-1 text-[10px] text-gray-400">{{ report.submitted_at|date:"M d, Y" }}</p>
+              </div>
+              <div class="flex flex-col items-center">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+                  {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="2.5"
+                         stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  {% endif %}
+                </div>
+                <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">In Progress</p>
+                <p class="mt-1 text-[10px] text-gray-400">{% if report.in_progress_at %}{{ report.in_progress_at|date:"M d, Y" }}{% else %}-{% endif %}</p>
+              </div>
+              <div class="flex flex-col items-center">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+                  {% if report.status == 'resolved' or report.status == 'closed' %}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="2.5"
+                         stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  {% endif %}
+                </div>
+                <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">Resolved</p>
+                <p class="mt-1 text-[10px] text-gray-400">{% if report.accomplished_at %}{{ report.accomplished_at|date:"M d, Y" }}{% else %}-{% endif %}</p>
+              </div>
+              <div class="flex flex-col items-center">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+                  {% if report.status == 'closed' %}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="2.5"
+                         stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  {% endif %}
+                </div>
+                <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">Closed</p>
+                {% if report.status == 'closed' %}
+                  {% if report.closed_at %}
+                    <p class="mt-1 text-[10px] text-gray-400">{{ report.closed_at|date:"M d, Y" }}</p>
+                    <p class="text-[10px] text-gray-300">{{ report.closed_at|date:"h:i A" }}</p>
+                  {% else %}
+                    <p class="mt-1 text-[10px] text-gray-400">-</p>
+                  {% endif %}
+                {% else %}
+                  <p class="mt-1 text-[10px] text-gray-400">-</p>
                 {% endif %}
               </div>
-              <p class="text-xs font-semibold text-gray-900 mt-2">Under Review</p>
-              {% if report.in_progress_at %}
-                <p class="text-[11px] text-gray-400 mt-1">{{ report.in_progress_at|date:"M d, Y" }}</p>
-                <p class="text-[10px] text-gray-300">{{ report.in_progress_at|date:"h:i A" }}</p>
-              {% else %}
-                <p class="text-[11px] text-gray-400 mt-1">—</p>
-              {% endif %}
-            </div>
-            <!-- Resolved / Closed -->
-            <div class="flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full {% if report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %} flex items-center justify-center">
-                {% if report.status == 'resolved' or report.status == 'closed' %}
-                  <svg xmlns="http://www.w3.org/2000/svg"
-                       class="w-5 h-5"
-                       fill="none"
-                       viewBox="0 0 24 24"
-                       stroke-width="2.5"
-                       stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                {% endif %}
-              </div>
-              <p class="text-xs font-semibold text-gray-900 mt-2">
-                {% if report.status == 'closed' %}Closed{% else %}Resolved{% endif %}
-              </p>
-              {% if report.accomplished_at %}
-                <p class="text-[11px] text-gray-400 mt-1">{{ report.accomplished_at|date:"M d, Y" }}</p>
-                <p class="text-[10px] text-gray-300">{{ report.accomplished_at|date:"h:i A" }}</p>
-              {% else %}
-                <p class="text-[11px] text-gray-400 mt-1">—</p>
-              {% endif %}
             </div>
           </div>
         </div>
       </div>
     </div>
-    <!-- ═══════════════════════════════════════════
-       DESKTOP VIEW
-  ════════════════════════════════════════════ -->
-    <div class="hidden lg:block px-5 pt-6 pb-10 max-w-4xl w-full mx-auto">
-      <!-- Header -->
+    <!-- DESKTOP VIEW -->
+    <div class="reported-issue-desktop-view hidden lg:block px-5 pt-6 pb-10 max-w-4xl w-full mx-auto">
       <div class="mb-6">
         <div class="flex items-center gap-3">
           <h1 class="text-2xl font-bold text-gray-900 leading-tight">Report {{ report.report_number }}</h1>
@@ -246,7 +275,6 @@
           {% endif %}
         </div>
       </div>
-      <!-- Photo -->
       <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm mb-4">
         {% if report.photo %}
           <div class="group relative block w-full overflow-hidden rounded-xl bg-gray-100">
@@ -280,13 +308,10 @@
           </div>
         {% endif %}
       </div>
-      <!-- Details + Description -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <!-- Details -->
         <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
           <h2 class="text-black font-bold mb-4">Details</h2>
           <div class="space-y-3">
-            <!-- Location -->
             <div class="grid grid-cols-2 gap-4 items-start">
               <div class="flex items-start gap-3 text-gray-500 min-w-0">
                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -302,7 +327,6 @@
               </div>
               <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.location }}</span>
             </div>
-            <!-- Category -->
             <div class="grid grid-cols-2 gap-4 items-start">
               <div class="flex items-start gap-3 text-gray-500 min-w-0">
                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -318,7 +342,6 @@
               </div>
               <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.get_category_display }}</span>
             </div>
-            <!-- Date Submitted -->
             <div class="grid grid-cols-2 gap-4 items-start">
               <div class="flex items-start gap-3 text-gray-500 min-w-0">
                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -331,10 +354,25 @@
                 </svg>
                 <span class="text-sm shrink-0">Date Submitted</span>
               </div>
-              <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.submitted_at|date:"M d, Y · h:i A" }}</span>
+              <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.submitted_at|date:"M d, Y - h:i A" }}</span>
             </div>
-            {% if report.assigned_personnel %}
-              <!-- Assigned Personnel -->
+            <div class="grid grid-cols-2 gap-4 items-start">
+              <div class="flex items-start gap-3 text-gray-500 min-w-0">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="w-5 h-5 mt-0.5 shrink-0"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke-width="1.5"
+                     stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <span class="text-sm shrink-0">Status</span>
+              </div>
+              <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">
+                {{ report.get_status_display }}{% if report.status == 'pending' %}{% if report.pending_awaiting_personnel or report.pending_awaiting_materials or report.pending_awaiting_approval %} - {% if report.pending_awaiting_personnel %}Awaiting Personnel{% endif %}{% if report.pending_awaiting_materials %}{% if report.pending_awaiting_personnel %}, {% endif %}Awaiting Materials{% endif %}{% if report.pending_awaiting_approval %}{% if report.pending_awaiting_personnel or report.pending_awaiting_materials %}, {% endif %}Awaiting Approval{% endif %}{% endif %}{% endif %}
+              </span>
+            </div>
+            {% if report.assigned_personnel_summary %}
               <div class="grid grid-cols-2 gap-4 items-start">
                 <div class="flex items-start gap-3 text-gray-500 min-w-0">
                   <svg xmlns="http://www.w3.org/2000/svg"
@@ -347,11 +385,10 @@
                   </svg>
                   <span class="text-sm shrink-0">Assigned Personnel</span>
                 </div>
-                <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.assigned_personnel }}</span>
+                <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.assigned_personnel_summary }}</span>
               </div>
             {% endif %}
             {% if report.priority %}
-              <!-- Priority -->
               <div class="grid grid-cols-2 gap-4 items-start">
                 <div class="flex items-start gap-3 text-gray-500 min-w-0">
                   <svg xmlns="http://www.w3.org/2000/svg"
@@ -360,54 +397,37 @@
                        viewBox="0 0 24 24"
                        stroke-width="1.5"
                        stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h2.25a1.125 1.125 0 0 1 1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
                   </svg>
                   <span class="text-sm shrink-0">Priority</span>
                 </div>
-                <span class="text-sm font-semibold text-right leading-5 break-words whitespace-normal min-w-0 {% if report.priority == 'critical' %}text-red-600 {% elif report.priority == 'high' %}text-orange-500 {% elif report.priority == 'standard' %}text-yellow-600 {% elif report.priority == 'awaiting_materials' %}text-purple-600 {% elif report.priority == 'awaiting_approval' %}text-indigo-600 {% endif %}">
+                <span class="text-sm font-semibold text-right leading-5 break-words whitespace-normal min-w-0 {% if report.priority == 'critical' %}text-red-600{% elif report.priority == 'high' %}text-orange-500{% elif report.priority == 'standard' %}text-yellow-600{% endif %}">
                   {{ report.get_priority_display }}
                 </span>
               </div>
             {% endif %}
           </div>
         </div>
-        <!-- Description -->
         <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
           <h2 class="text-black font-bold mb-4">Description</h2>
           <p class="text-sm text-gray-600 leading-6 italic">{{ report.description }}</p>
         </div>
       </div>
-      <!-- Progress -->
       <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
         <h2 class="text-black font-bold mb-7">Progress</h2>
-        <div class="relative max-w-3xl mx-auto">
-          <div class="absolute top-4 left-[17%] right-[17%] h-0.5 bg-gray-200"></div>
-          {% if report.status == 'in_progress' %}
-            <div class="absolute top-4 left-[17%] w-[33%] h-0.5 bg-blue-600"></div>
-          {% elif report.status == 'resolved' or report.status == 'closed' %}
-            <div class="absolute top-4 left-[17%] right-[17%] h-0.5 bg-blue-600"></div>
-          {% endif %}
-          <div class="relative grid grid-cols-3 text-center">
-            <!-- Submitted -->
-            <div class="flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="w-5 h-5"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="2.5"
-                     stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
-              </div>
-              <p class="mt-3 text-sm font-semibold text-gray-900">Submitted</p>
-              <p class="mt-1 text-xs text-gray-400">{{ report.submitted_at|date:"M d, Y" }}</p>
-              <p class="text-xs text-gray-300">{{ report.submitted_at|date:"h:i A" }}</p>
-            </div>
-            <!-- Under Review -->
-            <div class="flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
-                {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
+        <div class="overflow-x-auto pb-2">
+          <div class="relative min-w-[620px] pt-2 pb-2">
+            <div class="absolute top-7 left-[12.5%] right-[12.5%] h-0.5 bg-gray-200"></div>
+            {% if report.status == 'in_progress' %}
+              <div class="absolute top-7 left-[12.5%] w-[25%] h-0.5 bg-blue-600"></div>
+            {% elif report.status == 'resolved' %}
+              <div class="absolute top-7 left-[12.5%] w-[50%] h-0.5 bg-blue-600"></div>
+            {% elif report.status == 'closed' %}
+              <div class="absolute top-7 left-[12.5%] right-[12.5%] h-0.5 bg-blue-600"></div>
+            {% endif %}
+            <div class="relative grid grid-cols-4 text-center">
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
                   <svg xmlns="http://www.w3.org/2000/svg"
                        class="w-5 h-5"
                        fill="none"
@@ -416,39 +436,78 @@
                        stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                   </svg>
+                </div>
+                <p class="mt-4 text-xs font-bold text-gray-900 uppercase">Pending</p>
+                <p class="mt-1 text-[11px] text-gray-500">{{ report.submitted_at|date:"M d, Y" }}</p>
+                <p class="text-[10px] text-gray-300">{{ report.submitted_at|date:"h:i A" }}</p>
+              </div>
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+                  {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="2.5"
+                         stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  {% endif %}
+                </div>
+                <p class="mt-4 text-xs font-bold text-gray-900 uppercase">In Progress</p>
+                {% if report.in_progress_at %}
+                  <p class="mt-1 text-[11px] text-gray-500">{{ report.in_progress_at|date:"M d, Y" }}</p>
+                  <p class="text-[10px] text-gray-300">{{ report.in_progress_at|date:"h:i A" }}</p>
+                {% else %}
+                  <p class="mt-1 text-[11px] text-gray-400">-</p>
                 {% endif %}
               </div>
-              <p class="mt-3 text-sm font-semibold text-gray-900">Under Review</p>
-              {% if report.in_progress_at %}
-                <p class="mt-1 text-xs text-gray-400">{{ report.in_progress_at|date:"M d, Y" }}</p>
-                <p class="text-xs text-gray-300">{{ report.in_progress_at|date:"h:i A" }}</p>
-              {% else %}
-                <p class="mt-1 text-xs text-gray-400">—</p>
-              {% endif %}
-            </div>
-            <!-- Resolved / Closed -->
-            <div class="flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
-                {% if report.status == 'resolved' or report.status == 'closed' %}
-                  <svg xmlns="http://www.w3.org/2000/svg"
-                       class="w-5 h-5"
-                       fill="none"
-                       viewBox="0 0 24 24"
-                       stroke-width="2.5"
-                       stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'resolved' or report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+                  {% if report.status == 'resolved' or report.status == 'closed' %}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="2.5"
+                         stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  {% endif %}
+                </div>
+                <p class="mt-4 text-xs font-bold text-gray-900 uppercase">Resolved</p>
+                {% if report.accomplished_at %}
+                  <p class="mt-1 text-[11px] text-gray-500">{{ report.accomplished_at|date:"M d, Y" }}</p>
+                  <p class="text-[10px] text-gray-300">{{ report.accomplished_at|date:"h:i A" }}</p>
+                {% else %}
+                  <p class="mt-1 text-[11px] text-gray-400">-</p>
                 {% endif %}
               </div>
-              <p class="mt-3 text-sm font-semibold text-gray-900">
-                {% if report.status == 'closed' %}Closed{% else %}Resolved{% endif %}
-              </p>
-              {% if report.accomplished_at %}
-                <p class="mt-1 text-xs text-gray-400">{{ report.accomplished_at|date:"M d, Y" }}</p>
-                <p class="text-xs text-gray-300">{{ report.accomplished_at|date:"h:i A" }}</p>
-              {% else %}
-                <p class="mt-1 text-xs text-gray-400">—</p>
-              {% endif %}
+              <div class="flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+                  {% if report.status == 'closed' %}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="2.5"
+                         stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  {% endif %}
+                </div>
+                <p class="mt-4 text-xs font-bold text-gray-900 uppercase">Closed</p>
+                {% if report.status == 'closed' %}
+                  {% if report.closed_at %}
+                    <p class="mt-1 text-[11px] text-gray-500">{{ report.closed_at|date:"M d, Y" }}</p>
+                    <p class="text-[10px] text-gray-300">{{ report.closed_at|date:"h:i A" }}</p>
+                  {% else %}
+                    <p class="mt-1 text-[11px] text-gray-400">-</p>
+                  {% endif %}
+                {% else %}
+                  <p class="mt-1 text-[11px] text-gray-400">-</p>
+                {% endif %}
+              </div>
             </div>
           </div>
         </div>
@@ -456,7 +515,6 @@
     </div>
   </main>
   {% if show_survey %}
-    <!-- Resolved Notification Popup -->
     <div id="resolved-notif"
          class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">
       <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 flex flex-col items-center text-center">
@@ -478,10 +536,9 @@
         </button>
       </div>
     </div>
-    <!-- Survey Form Popup -->
     <div id="survey-form"
          class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-xl p-6 sm:p-8">
+      <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl  p-6 sm:p-8">
         <h2 class="text-xl font-bold text-gray-900 mb-1 text-center">Satisfaction Survey</h2>
         <p class="text-sm text-gray-400 text-center mb-8">Report {{ report.report_number }}</p>
         <p class="text-base font-semibold text-gray-700 mb-5 text-center">How satisfied are you with the resolution?</p>
@@ -493,9 +550,7 @@
                     class="emoji-btn min-w-0 flex flex-col items-center justify-start px-1 py-3 rounded-xl transition-all">
               <span class="text-3xl sm:text-4xl leading-none mb-2">{{ emoji }}</span>
               <span class="text-xs font-semibold text-gray-600 text-center leading-none mb-1">{{ val }}</span>
-              <span class="text-[9px] sm:text-xs text-gray-400 text-center leading-tight min-h-[30px] flex items-start justify-center">
-                {{ label }}
-              </span>
+              <span class="text-[9px] sm:text-xs text-gray-400 text-center leading-tight min-h-[30px] flex items-start justify-center">{{ label }}</span>
             </button>
           {% endfor %}
         </div>
@@ -514,195 +569,157 @@
       </div>
     </div>
     <script>
-  let selectedRating = null;
-  function lockPageScroll() {
-  document.documentElement.style.overflow = "hidden";
-  document.body.style.overflow = "hidden";
-  document.body.style.touchAction = "none";
-  document.body.style.overscrollBehavior = "none";
+    let selectedRating = null;
 
-  const navElements = document.querySelectorAll(
-    "nav, aside, [class*='bottom-nav'], [class*='mobile-nav']"
-  );
+    function lockPageScroll() {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+      document.body.style.overscrollBehavior = "none";
 
-  navElements.forEach((nav) => {
-    nav.style.pointerEvents = "none";
-  });
-}
-
-function unlockPageScroll() {
-  document.documentElement.style.overflow = "";
-  document.body.style.overflow = "";
-  document.body.style.touchAction = "";
-  document.body.style.overscrollBehavior = "";
-
-  const navElements = document.querySelectorAll(
-    "nav, aside, [class*='bottom-nav'], [class*='mobile-nav']"
-  );
-
-  navElements.forEach((nav) => {
-    nav.style.pointerEvents = "";
-  });
-}
-
-  function openSurveyForm() {
-    const resolvedNotif = document.getElementById("resolved-notif");
-    const surveyForm = document.getElementById("survey-form");
-
-    if (resolvedNotif) {
-      resolvedNotif.remove();
+      const navElements = document.querySelectorAll("nav, aside, [class*='bottom-nav'], [class*='mobile-nav']");
+      navElements.forEach((nav) => {
+        nav.style.pointerEvents = "none";
+      });
     }
 
-    if (surveyForm) {
-      surveyForm.classList.remove("hidden");
+    function unlockPageScroll() {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+      document.body.style.overscrollBehavior = "";
+
+      const navElements = document.querySelectorAll("nav, aside, [class*='bottom-nav'], [class*='mobile-nav']");
+      navElements.forEach((nav) => {
+        nav.style.pointerEvents = "";
+      });
     }
 
-    lockPageScroll();
-  }
+    function openSurveyForm() {
+      const resolvedNotif = document.getElementById("resolved-notif");
+      const surveyForm = document.getElementById("survey-form");
 
-  function selectRating(val) {
-    selectedRating = val;
-
-    const surveyError = document.getElementById("survey-error");
-
-    if (surveyError) {
-      surveyError.classList.add("hidden");
-    }
-
-    document.querySelectorAll(".emoji-btn").forEach((btn) => {
-      btn.classList.remove(
-        "bg-blue-50",
-        "ring-2",
-        "ring-blue-400"
-      );
-    });
-
-    const selectedEmoji = document.getElementById("emoji-" + val);
-
-    if (selectedEmoji) {
-      selectedEmoji.classList.add(
-        "bg-blue-50",
-        "ring-2",
-        "ring-blue-400"
-      );
-    }
-  }
-
-  function submitSurvey() {
-    const surveyError = document.getElementById("survey-error");
-
-    if (!selectedRating) {
-      if (surveyError) {
-        surveyError.textContent =
-          "Please select a rating before submitting.";
-
-        surveyError.classList.remove("hidden");
+      if (resolvedNotif) {
+        resolvedNotif.remove();
       }
 
-      return;
+      if (surveyForm) {
+        surveyForm.classList.remove("hidden");
+      }
+
+      lockPageScroll();
     }
 
-    const feedback =
-      document.getElementById("survey-feedback").value;
+    function selectRating(val) {
+      selectedRating = val;
 
-    const csrfToken = "{{ csrf_token }}";
+      const surveyError = document.getElementById("survey-error");
+      if (surveyError) {
+        surveyError.classList.add("hidden");
+      }
 
-    fetch("{% url 'submitSurvey' report.id %}", {
-      method: "POST",
+      document.querySelectorAll(".emoji-btn").forEach((btn) => {
+        btn.classList.remove("bg-blue-50", "ring-2", "ring-blue-400");
+      });
 
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      const selectedEmoji = document.getElementById("emoji-" + val);
+      if (selectedEmoji) {
+        selectedEmoji.classList.add("bg-blue-50", "ring-2", "ring-blue-400");
+      }
+    }
 
-      body:
-        `rating=${selectedRating}` +
-        `&feedback=${encodeURIComponent(feedback)}` +
-        `&csrfmiddlewaretoken=${encodeURIComponent(csrfToken)}`,
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          const surveyForm =
-            document.getElementById("survey-form");
+    function submitSurvey() {
+      const surveyError = document.getElementById("survey-error");
 
-          if (surveyForm) {
-            surveyForm.remove();
+      if (!selectedRating) {
+        if (surveyError) {
+          surveyError.textContent = "Please select a rating before submitting.";
+          surveyError.classList.remove("hidden");
+        }
+        return;
+      }
+
+      const feedback = document.getElementById("survey-feedback").value;
+      const csrfToken = "{{ csrf_token }}";
+
+      fetch("{% url 'submitSurvey' report.id %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body:
+          `rating=${selectedRating}` +
+          `&feedback=${encodeURIComponent(feedback)}` +
+          `&csrfmiddlewaretoken=${encodeURIComponent(csrfToken)}`,
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            const surveyForm = document.getElementById("survey-form");
+            if (surveyForm) {
+              surveyForm.remove();
+            }
+
+            showSuccessMessage();
+            return;
           }
 
-          showSuccessMessage();
-
-          return;
-        }
-
-        if (surveyError) {
-          surveyError.textContent =
-            data.error || "Unable to submit survey.";
-
-          surveyError.classList.remove("hidden");
-        }
-      })
-      .catch(() => {
-        if (surveyError) {
-          surveyError.textContent =
-            "Something went wrong. Please try again.";
-
-          surveyError.classList.remove("hidden");
-        }
-      });
-  }
-
-  function showSuccessMessage() {
-    lockPageScroll();
-
-    const modal = document.createElement("div");
-
-    modal.className =
-  "fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto overscroll-none";
-
-    modal.innerHTML = `
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 flex flex-col items-center text-center">
-        <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
-          <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-        </div>
-
-        <h2 class="text-base font-bold text-gray-900 mb-2">
-          Thank you for your feedback!
-        </h2>
-
-        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3 text-left mb-6">
-          <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-          </svg>
-
-          <p class="text-xs text-blue-700 leading-relaxed">
-            Please visit the
-            <span class="font-semibold">
-              Maintenance and Engineering Division office
-            </span>
-            during office hours to sign the Job Order form for this report.
-          </p>
-        </div>
-
-        <button type="button" id="survey-success-close" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
-          Got it
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    const closeButton =
-      document.getElementById("survey-success-close");
-
-    if (closeButton) {
-      closeButton.addEventListener("click", function () {
-        modal.remove();
-        unlockPageScroll();
-      });
+          if (surveyError) {
+            surveyError.textContent = data.error || "Unable to submit survey.";
+            surveyError.classList.remove("hidden");
+          }
+        })
+        .catch(() => {
+          if (surveyError) {
+            surveyError.textContent = "Something went wrong. Please try again.";
+            surveyError.classList.remove("hidden");
+          }
+        });
     }
-  }
+
+    function showSuccessMessage() {
+      lockPageScroll();
+
+      const modal = document.createElement("div");
+      modal.className = "fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto overscroll-none";
+
+      modal.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 flex flex-col items-center text-center">
+          <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
+            <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </div>
+
+          <h2 class="text-base font-bold text-gray-900 mb-2">Thank you for your feedback!</h2>
+
+          <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3 text-left mb-6">
+            <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+            </svg>
+            <p class="text-xs text-blue-700 leading-relaxed">
+              Please visit the <span class="font-semibold">Maintenance and Engineering Division office</span>
+              during office hours to sign the Job Order form for this report.
+            </p>
+          </div>
+
+          <button type="button" id="survey-success-close" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
+            Got it
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      const closeButton = document.getElementById("survey-success-close");
+      if (closeButton) {
+        closeButton.addEventListener("click", function () {
+          modal.remove();
+          unlockPageScroll();
+          window.location.reload();
+        });
+      }
+    }
     </script>
   {% endif %}
 {% endblock %}
