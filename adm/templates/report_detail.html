@@ -459,16 +459,16 @@
   <div id="photoModal"
        class="hidden fixed inset-0 z-50 items-center justify-center bg-black/70 p-4"
        onclick="closePhotoModal(event)">
-    <div class="relative max-w-3xl w-full">
+    <div class="relative max-w-[90vw] max-h-[90vh]">
       <button type="button"
               onclick="closePhotoModal(event)"
-              class="absolute -top-10 right-0 text-white/80 hover:text-white transition-colors"
+              class="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-white text-gray-700 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
               aria-label="Close">
         <svg xmlns="http://www.w3.org/2000/svg"
-             class="w-7 h-7"
+             class="w-5 h-5"
              fill="none"
              viewBox="0 0 24 24"
-             stroke-width="2"
+             stroke-width="2.5"
              stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
         </svg>
@@ -476,54 +476,52 @@
       <img id="photoModalImg"
            src=""
            alt="Concern photo (enlarged)"
-           class="w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+           class="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-2xl shadow-2xl" />
     </div>
   </div>
   <script>
-  // ── Photo lightbox ──
-  function openPhotoModal(url) {
-    const modal = document.getElementById('photoModal');
-    const img   = document.getElementById('photoModalImg');
-    img.src = url;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closePhotoModal(e) {
-    if (e.target.id === 'photoModal' || e.target.closest('button[aria-label="Close"]')) {
-      const modal = document.getElementById('photoModal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      document.body.style.overflow = '';
-    }
-  }
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      const modal = document.getElementById('photoModal');
-      if (!modal.classList.contains('hidden')) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.style.overflow = '';
+      // ── Photo lightbox ──
+      function openPhotoModal(url) {
+          const modal = document.getElementById('photoModal');
+          const img = document.getElementById('photoModalImg');
+          img.src = url;
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          document.body.style.overflow = 'hidden';
       }
-    }
-  });
 
-  const categorySelect = document.querySelector('select[name="category"]');
-  if (categorySelect) {
-    categorySelect.addEventListener("change", function () {
-      document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
-    });
-  }
+      function closePhotoModal(e) {
+          if (e.target.id === 'photoModal' || e.target.closest('button[aria-label="Close"]')) {
+              const modal = document.getElementById('photoModal');
+              modal.classList.add('hidden');
+              modal.classList.remove('flex');
+              document.body.style.overflow = '';
+          }
+      }
 
-  const otherPersonnelCheckbox = document.getElementById("include-other-personnel");
-  if (otherPersonnelCheckbox) {
-    otherPersonnelCheckbox.addEventListener("change", function () {
-      document.getElementById("other-personnel-wrapper").classList.toggle("hidden", !this.checked);
-    });
-  }
+      document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+              const modal = document.getElementById('photoModal');
+              if (!modal.classList.contains('hidden')) {
+                  modal.classList.add('hidden');
+                  modal.classList.remove('flex');
+                  document.body.style.overflow = '';
+              }
+          }
+      });
 
+      const categorySelect = document.querySelector('select[name="category"]');
+      if (categorySelect) {
+          categorySelect.addEventListener("change", function() {
+              document.getElementById("custom-category-wrapper").classList.toggle("hidden", this.value !== "others");
+          });
+      }
 
+      const otherPersonnelCheckbox = document.getElementById("include-other-personnel");
+      if (otherPersonnelCheckbox) {
+          otherPersonnelCheckbox.addEventListener("change", function() {
+              document.getElementById("other-personnel-wrapper").classList.toggle("hidden", !this.checked);
+          });
+      }
   </script>
 {% endblock %}

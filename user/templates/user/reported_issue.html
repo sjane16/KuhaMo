@@ -2,19 +2,19 @@
 {% block title %}Report Issue{% endblock %}
 {% block content %}
   <style>
-    .reported-issue-desktop-view {
-      display: none;
-    }
-
-    @media (min-width: 1024px) {
-      .reported-issue-mobile-view {
-        display: none;
-      }
-
       .reported-issue-desktop-view {
-        display: block;
+          display: none;
       }
-    }
+
+      @media (min-width: 1024px) {
+          .reported-issue-mobile-view {
+              display: none;
+          }
+
+          .reported-issue-desktop-view {
+              display: block;
+          }
+      }
   </style>
   <main class="flex-1 w-full lg:mx-auto">
     <!-- MOBILE VIEW -->
@@ -45,7 +45,8 @@
         {% if report.photo %}
           <img src="{{ report.photo.url }}"
                alt="Report Photo"
-               class="w-full h-52 object-cover rounded-xl bg-gray-100" />
+               onclick="openImageLightbox('{{ report.photo.url }}')"
+               class="w-full h-52 object-cover rounded-xl bg-gray-100 cursor-pointer" />
         {% else %}
           <div class="w-full h-52 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
             <svg xmlns="http://www.w3.org/2000/svg"
@@ -277,7 +278,8 @@
       </div>
       <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm mb-4">
         {% if report.photo %}
-          <div class="group relative block w-full overflow-hidden rounded-xl bg-gray-100">
+          <div class="group relative block w-full overflow-hidden rounded-xl bg-gray-100 cursor-pointer"
+               onclick="openImageLightbox('{{ report.photo.url }}')">
             <img src="{{ report.photo.url }}"
                  alt="Report Photo"
                  class="w-full h-[360px] object-cover transition duration-300 group-hover:scale-[1.01]" />
@@ -514,6 +516,42 @@
       </div>
     </div>
   </main>
+  <script>
+      function openImageLightbox(url) {
+          const overlay = document.createElement("div");
+          overlay.id = "image-lightbox-overlay";
+          overlay.className = "fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4 py-4";
+          overlay.onclick = function(e) {
+              if (e.target === overlay) {
+                  closeImageLightbox();
+              }
+          };
+
+          overlay.innerHTML = `
+        <div class="relative max-w-[90vw] max-h-[90vh]">
+          <img src="${url}" alt="Full Report Photo" class="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl" />
+          <button type="button" onclick="closeImageLightbox()" class="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-white text-gray-700 flex items-center justify-center shadow-lg hover:bg-gray-100">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      `;
+
+          document.body.appendChild(overlay);
+          document.documentElement.style.overflow = "hidden";
+          document.body.style.overflow = "hidden";
+      }
+
+      function closeImageLightbox() {
+          const overlay = document.getElementById("image-lightbox-overlay");
+          if (overlay) {
+              overlay.remove();
+          }
+          document.documentElement.style.overflow = "";
+          document.body.style.overflow = "";
+      }
+  </script>
   {% if show_survey %}
     <div id="resolved-notif"
          class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">
@@ -569,121 +607,120 @@
       </div>
     </div>
     <script>
-    let selectedRating = null;
+        let selectedRating = null;
 
-    function lockPageScroll() {
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-      document.body.style.overscrollBehavior = "none";
+        function lockPageScroll() {
+            document.documentElement.style.overflow = "hidden";
+            document.body.style.overflow = "hidden";
+            document.body.style.touchAction = "none";
+            document.body.style.overscrollBehavior = "none";
 
-      const navElements = document.querySelectorAll("nav, aside, [class*='bottom-nav'], [class*='mobile-nav']");
-      navElements.forEach((nav) => {
-        nav.style.pointerEvents = "none";
-      });
-    }
-
-    function unlockPageScroll() {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-      document.body.style.overscrollBehavior = "";
-
-      const navElements = document.querySelectorAll("nav, aside, [class*='bottom-nav'], [class*='mobile-nav']");
-      navElements.forEach((nav) => {
-        nav.style.pointerEvents = "";
-      });
-    }
-
-    function openSurveyForm() {
-      const resolvedNotif = document.getElementById("resolved-notif");
-      const surveyForm = document.getElementById("survey-form");
-
-      if (resolvedNotif) {
-        resolvedNotif.remove();
-      }
-
-      if (surveyForm) {
-        surveyForm.classList.remove("hidden");
-      }
-
-      lockPageScroll();
-    }
-
-    function selectRating(val) {
-      selectedRating = val;
-
-      const surveyError = document.getElementById("survey-error");
-      if (surveyError) {
-        surveyError.classList.add("hidden");
-      }
-
-      document.querySelectorAll(".emoji-btn").forEach((btn) => {
-        btn.classList.remove("bg-blue-50", "ring-2", "ring-blue-400");
-      });
-
-      const selectedEmoji = document.getElementById("emoji-" + val);
-      if (selectedEmoji) {
-        selectedEmoji.classList.add("bg-blue-50", "ring-2", "ring-blue-400");
-      }
-    }
-
-    function submitSurvey() {
-      const surveyError = document.getElementById("survey-error");
-
-      if (!selectedRating) {
-        if (surveyError) {
-          surveyError.textContent = "Please select a rating before submitting.";
-          surveyError.classList.remove("hidden");
+            const navElements = document.querySelectorAll("nav, aside, [class*='bottom-nav'], [class*='mobile-nav']");
+            navElements.forEach((nav) => {
+                nav.style.pointerEvents = "none";
+            });
         }
-        return;
-      }
 
-      const feedback = document.getElementById("survey-feedback").value;
-      const csrfToken = "{{ csrf_token }}";
+        function unlockPageScroll() {
+            document.documentElement.style.overflow = "";
+            document.body.style.overflow = "";
+            document.body.style.touchAction = "";
+            document.body.style.overscrollBehavior = "";
 
-      fetch("{% url 'submitSurvey' report.id %}", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body:
-          `rating=${selectedRating}` +
-          `&feedback=${encodeURIComponent(feedback)}` +
-          `&csrfmiddlewaretoken=${encodeURIComponent(csrfToken)}`,
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
+            const navElements = document.querySelectorAll("nav, aside, [class*='bottom-nav'], [class*='mobile-nav']");
+            navElements.forEach((nav) => {
+                nav.style.pointerEvents = "";
+            });
+        }
+
+        function openSurveyForm() {
+            const resolvedNotif = document.getElementById("resolved-notif");
             const surveyForm = document.getElementById("survey-form");
-            if (surveyForm) {
-              surveyForm.remove();
+
+            if (resolvedNotif) {
+                resolvedNotif.remove();
             }
 
-            showSuccessMessage();
-            return;
-          }
+            if (surveyForm) {
+                surveyForm.classList.remove("hidden");
+            }
 
-          if (surveyError) {
-            surveyError.textContent = data.error || "Unable to submit survey.";
-            surveyError.classList.remove("hidden");
-          }
-        })
-        .catch(() => {
-          if (surveyError) {
-            surveyError.textContent = "Something went wrong. Please try again.";
-            surveyError.classList.remove("hidden");
-          }
-        });
-    }
+            lockPageScroll();
+        }
 
-    function showSuccessMessage() {
-      lockPageScroll();
+        function selectRating(val) {
+            selectedRating = val;
 
-      const modal = document.createElement("div");
-      modal.className = "fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto overscroll-none";
+            const surveyError = document.getElementById("survey-error");
+            if (surveyError) {
+                surveyError.classList.add("hidden");
+            }
 
-      modal.innerHTML = `
+            document.querySelectorAll(".emoji-btn").forEach((btn) => {
+                btn.classList.remove("bg-blue-50", "ring-2", "ring-blue-400");
+            });
+
+            const selectedEmoji = document.getElementById("emoji-" + val);
+            if (selectedEmoji) {
+                selectedEmoji.classList.add("bg-blue-50", "ring-2", "ring-blue-400");
+            }
+        }
+
+        function submitSurvey() {
+            const surveyError = document.getElementById("survey-error");
+
+            if (!selectedRating) {
+                if (surveyError) {
+                    surveyError.textContent = "Please select a rating before submitting.";
+                    surveyError.classList.remove("hidden");
+                }
+                return;
+            }
+
+            const feedback = document.getElementById("survey-feedback").value;
+            const csrfToken = "{{ csrf_token }}";
+
+            fetch("{% url 'submitSurvey' report.id %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: `rating=${selectedRating}` +
+                        `&feedback=${encodeURIComponent(feedback)}` +
+                        `&csrfmiddlewaretoken=${encodeURIComponent(csrfToken)}`,
+                })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.success) {
+                        const surveyForm = document.getElementById("survey-form");
+                        if (surveyForm) {
+                            surveyForm.remove();
+                        }
+
+                        showSuccessMessage();
+                        return;
+                    }
+
+                    if (surveyError) {
+                        surveyError.textContent = data.error || "Unable to submit survey.";
+                        surveyError.classList.remove("hidden");
+                    }
+                })
+                .catch(() => {
+                    if (surveyError) {
+                        surveyError.textContent = "Something went wrong. Please try again.";
+                        surveyError.classList.remove("hidden");
+                    }
+                });
+        }
+
+        function showSuccessMessage() {
+            lockPageScroll();
+
+            const modal = document.createElement("div");
+            modal.className = "fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto overscroll-none";
+
+            modal.innerHTML = `
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 flex flex-col items-center text-center">
           <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
             <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -709,17 +746,17 @@
         </div>
       `;
 
-      document.body.appendChild(modal);
+            document.body.appendChild(modal);
 
-      const closeButton = document.getElementById("survey-success-close");
-      if (closeButton) {
-        closeButton.addEventListener("click", function () {
-          modal.remove();
-          unlockPageScroll();
-          window.location.reload();
-        });
-      }
-    }
+            const closeButton = document.getElementById("survey-success-close");
+            if (closeButton) {
+                closeButton.addEventListener("click", function() {
+                    modal.remove();
+                    unlockPageScroll();
+                    window.location.reload();
+                });
+            }
+        }
     </script>
   {% endif %}
 {% endblock %}

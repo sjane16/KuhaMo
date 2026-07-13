@@ -53,8 +53,22 @@
           {% endif %}
         </div>
         <div class="mb-5">
-          <label class="block text-sm font-semibold text-gray-800 mb-2">Recommended Category</label>
-          {{ form.category }}
+          <label class="block text-sm font-semibold text-gray-800 mb-2">AI Recommended Category</label>
+          <div class="relative" id="category-wrapper">
+            {{ form.category }}
+            <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="w-5 h-5 text-gray-400"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke-width="2"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </div>
+          </div>
+          <p id="category-hint"
+             class="hidden mt-1.5 text-xs text-blue-600 flex items-center gap-2"></p>
           <p id="cnn-confidence" class="hidden text-xs text-blue-600 mt-2"></p>
         </div>
         <div id="custom-category-wrapper" class="mb-5 hidden">
@@ -243,6 +257,14 @@
                       }
 
                       document.getElementById("id_category").value = data.category;
+                      categoryLocked = true;
+
+                      categoryField.classList.add(
+                          "bg-gray-100",
+                          "cursor-not-allowed",
+                          "pointer-events-none",
+                          "text-gray-700"
+                      );
                       document.getElementById("cnn-confidence").classList.remove("hidden");
                       document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
 
@@ -274,10 +296,13 @@
       const buildingSelect = document.getElementById("id_building");
       const floorSelect = document.getElementById("id_floor");
       const roomSelect = document.getElementById("id_location");
-
+      let categoryLocked = false;
 
       const floorWrapper = document.getElementById("floor-wrapper");
       const roomWrapper = document.getElementById("room-wrapper");
+      const categoryField = document.getElementById("id_category");
+      const categoryWrapper = document.getElementById("category-wrapper");
+      const categoryHint = document.getElementById("category-hint");
       const floorHint = document.getElementById("floor-hint");
       const roomHint = document.getElementById("room-hint");
       const floorField = document.getElementById("floor-field");
@@ -335,6 +360,27 @@
           }, 2000);
       }
 
+      function flashCategoryInfo() {
+
+          categoryField.classList.add("border-blue-500");
+
+          categoryHint.innerHTML = `
+        <span class="flex items-center gap-2 text-blue-600">
+            <span class="w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                i
+            </span>
+            Category is automatically assigned by the AI model.
+        </span>
+    `;
+
+          categoryHint.classList.remove("hidden");
+          clearTimeout(categoryHint._timer);
+
+          categoryHint._timer = setTimeout(() => {
+              categoryHint.classList.add("hidden");
+              categoryField.classList.remove("border-blue-500");
+          }, 2500);
+      }
 
       // Initial state on page load — locked, no visible hint.
       setLocked(floorSelect, floorSelect.options.length <= 1);
@@ -452,6 +498,14 @@
       reportForm.addEventListener("submit", function() {
           submitButton.disabled = true;
           submitButton.textContent = "Submitting...";
+      });
+
+      categoryWrapper.addEventListener("click", function() {
+
+          if (categoryLocked) {
+              flashCategoryInfo();
+          }
+
       });
   </script>
 {% endblock %}
