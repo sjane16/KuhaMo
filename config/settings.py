@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import shutil
 from pathlib import Path
+from decouple import config 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,10 +45,12 @@ INSTALLED_APPS = [
     'accounts',
     'user',
     'adm',
+    'security',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'security.middleware.HoneypotProbeMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -125,6 +128,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+GEMINI_API_KEY = config('GEMINI_API_KEY')
 
 TAILWIND_APP_NAME = 'theme'
 
