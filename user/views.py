@@ -86,15 +86,40 @@ def base(request):
 @login_required
 def userDashboard(request):
     total_reports = Report.objects.filter(user=request.user).count()
-    resolved_reports = Report.objects.filter(user=request.user, status='resolved').count()
-    recent_reports = Report.objects.filter(user=request.user).order_by('-submitted_at')[:3]
+
+    pending_reports = Report.objects.filter(
+        user=request.user,
+        status='pending'
+    ).count()
+
+    in_progress_reports = Report.objects.filter(
+        user=request.user,
+        status='in_progress'
+    ).count()
+
+    resolved_reports = Report.objects.filter(
+        user=request.user,
+        status='resolved'
+    ).count()
+
+    closed_reports = Report.objects.filter(
+        user=request.user,
+        status='closed'
+    ).count()
+
+    recent_reports = Report.objects.filter(
+        user=request.user
+    ).order_by('-submitted_at')[:3]
+
     return render(request, 'user/user_dashboard.html', {
         "active_page": "userDashboard",
         "total_reports": total_reports,
+        "pending_reports": pending_reports,
+        "in_progress_reports": in_progress_reports,
         "resolved_reports": resolved_reports,
+        "closed_reports": closed_reports,
         "recent_reports": recent_reports,
     })
-
 
 @login_required
 def reportForm(request):

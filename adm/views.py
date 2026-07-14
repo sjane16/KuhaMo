@@ -342,8 +342,13 @@ def report_save(request, report_id):
         if not awaiting_approval:
             report.pending_awaiting_approval_at = None
 
-        if report.status == 'pending' and (report.priority or report.assigned_personnel):
+        if (
+            report.status == 'pending'
+            and report.priority
+            and assignments
+        ):
             report.status = 'in_progress'
+
             if not report.in_progress_at:
                 report.in_progress_at = now
 

@@ -96,13 +96,29 @@ class Report(models.Model):
 
     @property
     def expected_resolution_hours(self):
+        """
+        Expected resolution time based on Maintenance & Engineering Division policy.
+
+        Critical / Urgent:
+            2–3 hours(system uses 3 hours)
+
+        High Priority:
+            Within the same day
+
+        Standard:
+            Typically resolved within 2–3 days(system uses 72 hours)
+        """
+
         if self.priority == 'critical':
-            return 24
+            return 3
+
         if self.priority == 'high':
-            return 48
+            return 24
+
         if self.priority == 'standard':
             return 72
-        return 72
+
+        return None
 
     @property
     def expected_resolution_at(self):
