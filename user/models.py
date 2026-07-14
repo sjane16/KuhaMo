@@ -209,3 +209,36 @@ class SurveyResponse(models.Model):
 
     def __str__(self):
         return f"Survey for Report {self.report.report_number or f'#{self.report.id:04d}'}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='notifications')
+    message = models.CharField(max_length=255)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.message[:40]}"
+
+    @property
+    def time_ago(self):
+        diff = timezone.now() - self.created_at
+        seconds = diff.total_seconds()
+
+        if seconds < 60:
+            return "Just now"
+
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{int(minutes)}m"
+
+        hours = minutes // 60
+        if hours < 24:
+            return f"{int(hours)}h"
+
+        days = hours // 24
+        return f"{int(days)}d"

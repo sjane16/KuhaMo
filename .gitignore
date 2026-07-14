@@ -235,3 +235,6 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 da3106941901b9d9515a12371faf016d14d70dea
+
+#images
+media/reports

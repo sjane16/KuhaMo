@@ -7,7 +7,7 @@ import os
 from django.http import JsonResponse
 from django.conf import settings
 from google import genai
-from .models import Report, SurveyResponse, UserProfile
+from .models import Report, SurveyResponse, UserProfile, Notification
 from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
 from ml.predictor import predict_image
@@ -390,3 +390,46 @@ def predictCategory(request):
         'flagged_for_review': prediction['flagged_for_review'],
         'raw_prediction': prediction['raw_label']
     })
+
+@login_required
+def userNotifications(request):
+    notifications = Notification.objects.filter(user=request.user)
+
+    return render(request, 'user/user_notifications.html', {
+        "active_page": "userNotifications",
+        "notifications": notifications,
+    })
+
+
+@login_required
+def get_notifications_ajax(request):
+    notifications = Notification.objects.filter(user=request.user)[:10]
+
+    data = [
+        {
+            "id": n.id,
+            "message": n.message,
+            "is_read": n.is_read,
+            "time_ago": n.time_ago,
+            "report_id": n.report.id,
+        }
+        for n in notifications
+    ]
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+
+    return JsonResponse({
+        "notifications": data,
+        "unread_count": unread_count,
+    })
+
+
+@login_required
+def view_notification(request, notification_id):
+    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+
+    return redirect('reportedIssue', report_id=notification.report.id)

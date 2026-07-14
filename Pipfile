@@ -12,6 +12,7 @@ tensorflow-cpu = "*"
 django-axes = "*"
 django-ratelimit = "*"
 django-tailwind = "*"
+python-decouple = "*"
 
 [dev-packages]
 djlint = "*"
