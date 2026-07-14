@@ -4,6 +4,9 @@ venv/
 ENV/
 Pipfile.lock
 
+# Environment variables 
+.env
+
 # Django Specific
 db.sqlite3
 *.log

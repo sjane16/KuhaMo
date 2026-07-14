@@ -18,6 +18,17 @@ class StudentLogin(forms.Form):
         })
     )
 
+    website = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'autocomplete': 'off', 'tabindex': '-1'})
+    )
+
+    def clean_website(self):
+        value = self.cleaned_data.get('website')
+        if value:
+            raise forms.ValidationError("Something went wrong. Please try again")
+        return value
+
 class AdminLogin(forms.Form):
 
     admin_id = forms.CharField(
@@ -35,3 +46,14 @@ class AdminLogin(forms.Form):
             'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
         })
     )
+
+    website = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'autocomplete': 'off', 'tabindex': '-1'})
+    )
+
+    def clean_website(self):
+        value = self.cleaned_data.get('website')
+        if value:
+            raise forms.ValidationError("Something went wrong. Please try again")
+        return value

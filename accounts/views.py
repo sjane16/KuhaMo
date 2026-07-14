@@ -7,6 +7,8 @@ from axes.decorators import axes_dispatch
 from axes.utils import reset_request
 from django.core.exceptions import PermissionDenied
 from django_ratelimit.core import is_ratelimited
+from security.models import HoneypotHit
+from security.utils import is_ip_flagged
 
 def splash_screen(request):
     return render(request, 'accounts/index.html')
@@ -15,6 +17,27 @@ def splash_screen(request):
 def student_login(request):
 
     if request.method == 'POST':
+        ip = request.META.get('REMOTE_ADDR')
+
+        if is_ip_flagged(ip):
+            storage = get_messages(request)
+            storage.used = True
+            messages.error(request, "Invalid student ID or password")
+            return render(request, 'accounts/student_login.html', {'form': StudentLogin()})
+
+        if request.POST.get('website'):
+            HoneypotHit.objects.create(
+                trigger_type = 'form_field',
+                path=request.path,
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                extra_info=f"Bot filled honeypot field with: {request.POST.get('website')}"
+            )
+            storage = get_messages(request)
+            storage.used = True
+            messages.error(request, "Invalid student ID or password")
+            return render(request, 'accounts/student_login.html', {'form': StudentLogin()})
+
         if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=student_login):
             messages.error(request, "Too many login attempts. Please try again later")
             return render(request, 'accounts/student_login.html', {'form': StudentLogin()})
@@ -57,6 +80,29 @@ def student_login(request):
 def admin_login(request):
 
     if request.method == 'POST':
+        ip = request.META.get('REMOTE_ADDR')
+
+        if is_ip_flagged(ip):
+            storage = get_messages(request)
+            storage.used = True
+            messages.error(request, "Invalid administrator credentials")
+            return render(request, 'accounts/admin_login.html', {'form': AdminLogin()})
+
+
+        if request.POST.get('website'):
+            HoneypotHit.objects.create(
+                trigger_type = 'form_field',
+                path=request.path,
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                extra_info=f"Bot filled honeypot field with: {request.POST.get('website')}"
+            )
+            storage = get_messages(request)
+            storage.used = True
+            messages.error(request, "Invalid administrator credentials")
+            return render(request, 'accounts/admin_login.html', {'form': AdminLogin()})
+
+
         if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=admin_login):
             messages.error(request, "Too many login attempts. Please try again later")
             return render(request, 'accounts/admin_login.html', {'form': AdminLogin()})
