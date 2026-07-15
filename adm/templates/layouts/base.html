@@ -12,25 +12,27 @@
           type="image/png"
           href="{% static 'adm/images/Fac-Check-Logo.png' %}?v=2" />
     <style>
-      :root {
-        color-scheme: light;
-      }
+        :root {
+            color-scheme: light;
+        }
 
-      html,
-      body {
-        min-height: 100%;
-        width: 100%;
-        margin: 0;
-        background: #f9fafb;
-      }
+        html,
+        body {
+            min-height: 100%;
+            width: 100%;
+            margin: 0;
+            background: #f9fafb;
+        }
 
-      body {
-        min-height: 100vh;
-        overflow-x: hidden;
-      }
+        body {
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
     </style>
   </head>
   <body class="bg-gray-50 font-[Poppins] min-h-screen w-full">
+    <!-- DESKTOP FLOATING NOTIFICATION BELL -->
+    {% include "components/desktop_notif.html" %}
     <div class="flex min-h-screen w-full bg-gray-50">
       <!-- DESKTOP SIDEBAR -->
       {% include "components/sidebar.html" %}
@@ -83,24 +85,24 @@
     </div>
     <!-- Logout Modal Script -->
     <script>
-      function openLogoutModal() {
-        const modal = document.getElementById("logout_modal");
-        modal.classList.remove("hidden");
-        modal.classList.add("flex");
-      }
+        function openLogoutModal() {
+            const modal = document.getElementById("logout_modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        }
 
-      function closeLogoutModal() {
-        const modal = document.getElementById("logout_modal");
-        modal.classList.add("hidden");
-        modal.classList.remove("flex");
-      }
+        function closeLogoutModal() {
+            const modal = document.getElementById("logout_modal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
 
-      // Close modal when clicking outside
-      document
-        .getElementById("logout_modal")
-        .addEventListener("click", function (e) {
-          if (e.target === this) closeLogoutModal();
-        });
+        // Close modal when clicking outside
+        document
+            .getElementById("logout_modal")
+            .addEventListener("click", function(e) {
+                if (e.target === this) closeLogoutModal();
+            });
     </script>
   </body>
 </html>

@@ -167,7 +167,7 @@ def dashboard(request):
     def filter_periods(qs):
         if start_date:
             return qs.filter(submitted_at__gte=start_date)
-        return qs
+        return qs.all()
     
     pending = filter_periods(Report.objects.filter(status='pending')).count()
     in_progress = filter_periods(Report.objects.filter(status='in_progress')).count()
@@ -448,3 +448,44 @@ def calendar_view(request):
 
 def survey_analysis(request):
     return render(request, 'survey_analysis.html', build_survey_analysis_context())
+
+
+def adminNotifications(request):
+    notifications = Notification.objects.filter(user=request.user)
+
+    return render(request, 'notifications.html', {
+        "active_page": "adminNotifications",
+        "notifications": notifications,
+    })
+
+
+def get_notifications_ajax_admin(request):
+    notifications = Notification.objects.filter(user=request.user)[:10]
+
+    data = [
+        {
+            "id": n.id,
+            "message": n.message,
+            "is_read": n.is_read,
+            "time_ago": n.time_ago,
+            "report_id": n.report.id,
+        }
+        for n in notifications
+    ]
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+
+    return JsonResponse({
+        "notifications": data,
+        "unread_count": unread_count,
+    })
+
+
+def view_notification_admin(request, notification_id):
+    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+
+    return redirect('adm_report_detail', report_id=notification.report.id)

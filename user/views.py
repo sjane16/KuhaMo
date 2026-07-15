@@ -7,6 +7,7 @@ import os
 from django.http import JsonResponse
 from django.conf import settings
 from google import genai
+from django.contrib.auth.models import User
 from .models import Report, SurveyResponse, UserProfile, Notification
 from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
@@ -143,8 +144,19 @@ def reportForm(request):
 
             report.save()
 
+            admin_user = get_admin_user()
+            if admin_user:
+                Notification.objects.create(
+                    user=admin_user,
+                    report=report,
+                    message=f"New report submitted: {report.report_number}"
+                )
+
             messages.success(request, "Your concern has been submitted successfully.")
             return redirect('userReports')
+
+
+
 
         if 'photo' in form.errors:
             messages.error(request, "Please upload a photo of the concern.")
@@ -274,6 +286,14 @@ def submitSurvey(request, report_id):
 
     report.status = 'closed'
     report.save(update_fields=['status'])
+
+    admin_user = get_admin_user()
+    if admin_user:
+        Notification.objects.create(
+            user=admin_user,
+            report=report,
+            message=f"Report {report.report_number} is now closed — client survey received."
+        )
 
     return JsonResponse({
         'success': True
@@ -433,3 +453,7 @@ def view_notification(request, notification_id):
         notification.save(update_fields=['is_read'])
 
     return redirect('reportedIssue', report_id=notification.report.id)
+
+
+def get_admin_user():
+    return User.objects.filter(is_superuser=True).first() or User.objects.filter(is_staff=True).first()

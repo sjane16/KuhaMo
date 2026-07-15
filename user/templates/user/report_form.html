@@ -495,7 +495,60 @@
       const cnnLoading = document.getElementById("cnn-loading");
       const submitButton = document.getElementById("submit-button");
 
-      reportForm.addEventListener("submit", function() {
+      function showClientToast(message, type) {
+          const colors = {
+              success: "bg-green-50 border-green-200 text-green-700",
+              error: "bg-red-50 border-red-200 text-red-700",
+              warning: "bg-yellow-50 border-yellow-200 text-yellow-700",
+              info: "bg-blue-50 border-blue-200 text-blue-700",
+          };
+
+          let container = document.getElementById("client-toast-container");
+          if (!container) {
+              container = document.createElement("div");
+              container.id = "client-toast-container";
+              container.className = "fixed top-5 right-5 z-[9999] w-80 space-y-3 max-lg:left-4 max-lg:right-4 max-lg:w-auto";
+              document.body.appendChild(container);
+          }
+
+          const toast = document.createElement("div");
+          toast.className = `toast-message flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-md ${colors[type] || colors.error}`;
+          toast.innerHTML = `
+              <div class="min-w-0 flex-1 text-sm font-medium break-words">${message}</div>
+              <button type="button" onclick="this.closest('.toast-message').remove()" class="shrink-0 text-current opacity-60 hover:opacity-100">✕</button>
+          `;
+          container.appendChild(toast);
+
+          setTimeout(() => toast.remove(), 3500);
+      }
+
+      reportForm.addEventListener("submit", function(e) {
+          const missing = [];
+
+          if (!input.files.length) {
+              missing.push("a photo");
+          }
+          if (!buildingSelect.value) {
+              missing.push("a building/facility");
+          }
+          if (!floorField.classList.contains("hidden") && !floorSelect.disabled && !floorSelect.value) {
+              missing.push("a floor");
+          }
+          if (!roomField.classList.contains("hidden") && !roomSelect.disabled && !roomSelect.value) {
+              missing.push("a room/area");
+          }
+
+          const descriptionField = reportForm.querySelector('[name="description"]');
+          if (!descriptionField.value.trim()) {
+              missing.push("a description");
+          }
+
+          if (missing.length > 0) {
+              e.preventDefault();
+              showClientToast(`Please provide ${missing.join(", ")} before submitting.`, "error");
+              return;
+          }
+
           submitButton.disabled = true;
           submitButton.textContent = "Submitting...";
       });
