@@ -256,7 +256,7 @@
                 {% endif %}
                 <div class="min-w-0">
                   <p class="text-sm font-semibold text-gray-900 truncate">{{ report.get_category_display }}</p>
-                  <p class="text-xs text-gray-400">ID: {{ report.report_number }}</p>
+                  <p class="text-xs text-gray-400">Job Order ID: {{ report.job_order_id }}</p>
                 </div>
               </div>
               <!-- LOCATION -->
@@ -338,147 +338,150 @@
     </div>
   </main>
   <script>
-document.addEventListener("DOMContentLoaded", function () {
+      document.addEventListener("DOMContentLoaded", function() {
 
-  const mobileStatusFilter = document.getElementById("mobileStatusFilter");
-  const desktopStatusFilter = document.getElementById("desktopStatusFilter");
-  const mobileSearchButton = document.getElementById("mobileSearchButton");
-  const mobileSearchContainer = document.getElementById("mobileSearchContainer");
-  const mobileSearchInput = document.getElementById("mobileSearchInput");
-  const mobileSearchClose = document.getElementById("mobileSearchClose");
-  const desktopSearchInput = document.getElementById("desktopSearchInput");
-  const mobileRows = document.querySelectorAll(".mobile-report-row");
-  const desktopRows = document.querySelectorAll(".desktop-report-row");
-  const mobileEmptyState = document.getElementById("mobileEmptyState");
-  const desktopEmptyState = document.getElementById("desktopEmptyState");
-  const mobileFilterRow = document.getElementById("mobileFilterRow");
-
-
-
-  function changeStatus(status) {
-
-    const url = new URL(window.location.href);
-
-    if (status === "all") {
-      url.searchParams.set("status", "all");
-    } else {
-      url.searchParams.set("status", status);
-    }
-
-    window.location.href = url.toString();
-  }
+          const mobileStatusFilter = document.getElementById("mobileStatusFilter");
+          const desktopStatusFilter = document.getElementById("desktopStatusFilter");
+          const mobileSearchButton = document.getElementById("mobileSearchButton");
+          const mobileSearchContainer = document.getElementById("mobileSearchContainer");
+          const mobileSearchInput = document.getElementById("mobileSearchInput");
+          const mobileSearchClose = document.getElementById("mobileSearchClose");
+          const desktopSearchInput = document.getElementById("desktopSearchInput");
+          const mobileRows = document.querySelectorAll(".mobile-report-row");
+          const desktopRows = document.querySelectorAll(".desktop-report-row");
+          const mobileEmptyState = document.getElementById("mobileEmptyState");
+          const desktopEmptyState = document.getElementById("desktopEmptyState");
+          const mobileFilterRow = document.getElementById("mobileFilterRow");
 
 
-  if (mobileStatusFilter) {
-    mobileStatusFilter.addEventListener("change", function () {
-      changeStatus(this.value);
-    });
-  }
+
+          function changeStatus(status) {
+
+              const url = new URL(window.location.href);
+
+              if (status === "all") {
+                  url.searchParams.set("status", "all");
+              } else {
+                  url.searchParams.set("status", status);
+              }
+
+              window.location.href = url.toString();
+          }
 
 
-  if (desktopStatusFilter) {
-    desktopStatusFilter.addEventListener("change", function () {
-      changeStatus(this.value);
-    });
-  }
+          if (mobileStatusFilter) {
+              mobileStatusFilter.addEventListener("change", function() {
+                  changeStatus(this.value);
+              });
+          }
 
 
-  if (mobileSearchButton) {
-    mobileSearchButton.addEventListener("click", function () {
-      mobileFilterRow.classList.add("hidden");
-      mobileSearchContainer.classList.remove("hidden");
-
-      setTimeout(function () {
-        mobileSearchInput.focus();
-      }, 50);
-    });
-  }
-
-  if (mobileSearchClose) {
-    mobileSearchClose.addEventListener("click", function () {
-      mobileSearchContainer.classList.add("hidden");
-      mobileFilterRow.classList.remove("hidden");
-
-      mobileSearchInput.value = "";
-
-      filterRows(
-        "",
-        mobileRows,
-        mobileEmptyState
-      );
-    });
-  }
+          if (desktopStatusFilter) {
+              desktopStatusFilter.addEventListener("change", function() {
+                  changeStatus(this.value);
+              });
+          }
 
 
-  function filterRows(query, rows, emptyState) {
+          if (mobileSearchButton) {
+              mobileSearchButton.addEventListener("click", function() {
+                  mobileFilterRow.classList.add("hidden");
+                  mobileSearchContainer.classList.remove("hidden");
 
-    const searchQuery =
-      query.toLowerCase().trim();
+                  setTimeout(function() {
+                      mobileSearchInput.focus();
+                  }, 50);
+              });
+          }
 
-    let visible = 0;
+          if (mobileSearchClose) {
+              mobileSearchClose.addEventListener("click", function() {
+                  mobileSearchContainer.classList.add("hidden");
+                  mobileFilterRow.classList.remove("hidden");
 
-    rows.forEach(function (row) {
+                  mobileSearchInput.value = "";
 
-      const text =
-        row.innerText.toLowerCase();
-
-      const matches =
-        !searchQuery ||
-        text.includes(searchQuery);
-
-      row.classList.toggle(
-        "hidden",
-        !matches
-      );
-
-      if (matches) {
-        visible++;
-      }
-
-    });
-
-
-    if (emptyState) {
-      emptyState.classList.toggle(
-        "hidden",
-        visible > 0
-      );
-    }
-
-  }
+                  filterRows(
+                      "",
+                      mobileRows,
+                      mobileEmptyState
+                  );
+              });
+          }
 
 
-  if (mobileSearchInput) {
-    mobileSearchInput.addEventListener(
-      "input",
-      function () {
+          function filterRows(query, rows, emptyState) {
 
-        filterRows(
-          this.value,
-          mobileRows,
-          mobileEmptyState
-        );
+              if (rows.length === 0) {
+                  return;
+              }
 
-      }
-    );
-  }
+              const searchQuery =
+                  query.toLowerCase().trim();
+
+              let visible = 0;
+
+              rows.forEach(function(row) {
+
+                  const text =
+                      row.innerText.toLowerCase();
+
+                  const matches = !searchQuery ||
+                      text.includes(searchQuery);
+
+                  row.classList.toggle(
+                      "hidden",
+                      !matches
+                  );
+
+                  if (matches) {
+                      visible++;
+                  }
+
+              });
 
 
-  if (desktopSearchInput) {
-    desktopSearchInput.addEventListener(
-      "input",
-      function () {
+              if (emptyState) {
+                  emptyState.classList.toggle(
+                      "hidden",
+                      visible > 0
+                  );
+              }
 
-        filterRows(
-          this.value,
-          desktopRows,
-          desktopEmptyState
-        );
+          }
 
-      }
-    );
-  }
 
-});
+          if (mobileSearchInput) {
+              mobileSearchInput.addEventListener(
+                  "input",
+                  function() {
+
+                      filterRows(
+                          this.value,
+                          mobileRows,
+                          mobileEmptyState
+                      );
+
+                  }
+              );
+          }
+
+
+          if (desktopSearchInput) {
+              desktopSearchInput.addEventListener(
+                  "input",
+                  function() {
+
+                      filterRows(
+                          this.value,
+                          desktopRows,
+                          desktopEmptyState
+                      );
+
+                  }
+              );
+          }
+
+      });
   </script>
 {% endblock %}

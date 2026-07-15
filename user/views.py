@@ -149,7 +149,7 @@ def reportForm(request):
                 Notification.objects.create(
                     user=admin_user,
                     report=report,
-                    message=f"New report submitted: {report.report_number}"
+                    message=f"New report submitted: {report.job_order_id}"
                 )
 
             messages.success(request, "Your concern has been submitted successfully.")
@@ -292,7 +292,7 @@ def submitSurvey(request, report_id):
         Notification.objects.create(
             user=admin_user,
             report=report,
-            message=f"Report {report.report_number} is now closed — client survey received."
+            message=f"Report {report.job_order_id} is now closed — client survey received."
         )
 
     return JsonResponse({

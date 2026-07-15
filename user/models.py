@@ -40,7 +40,7 @@ class Report(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
-    report_number = models.CharField(max_length=30, unique=True, blank=True, null=True)
+    job_order_id = models.CharField(max_length=30, unique=True, blank=True, null=True)
     photo = models.ImageField(upload_to='reports/')
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     custom_category = models.CharField(max_length=100, blank=True, null=True)
@@ -148,7 +148,7 @@ class Report(models.Model):
             return self.accomplished_at
 
     def save(self, *args, **kwargs):
-        if self.report_number:
+        if self.job_order_id:
             return super().save(*args, **kwargs)
 
         with transaction.atomic():
@@ -162,14 +162,14 @@ class Report(models.Model):
             sequence.last_number += 1
             sequence.save(update_fields=['last_number'])
 
-            self.report_number = (
+            self.job_order_id = (
                 f"{REPORT_PREFIX}-{report_date.year}-"
                 f"{report_date.month:02d}-{sequence.last_number:06d}"
             )
-            super().save(update_fields=['report_number'])
+            super().save(update_fields=['job_order_id'])
 
     def __str__(self):
-        return f"{self.report_number or f'#{self.id:04d}'} - {self.get_category_display()} ({self.location})"
+        return f"{self.job_order_id or f'#{self.id:04d}'} - {self.get_category_display()} ({self.location})"
 
 
 class UserProfile(models.Model):
@@ -208,7 +208,7 @@ class SurveyResponse(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Survey for Report {self.report.report_number or f'#{self.report.id:04d}'}"
+        return f"Survey for Report {self.report.job_order_id or f'#{self.report.id:04d}'}"
 
 
 class Notification(models.Model):

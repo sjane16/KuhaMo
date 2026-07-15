@@ -361,10 +361,11 @@ def report_save(request, report_id):
             Notification.objects.create(
                 user=report.user,
                 report=report,
-                message=f"Your report {report.report_number} is now In Progress."
+                message=f"Your report {report.job_order_id} is now In Progress."
             )
 
     return redirect('adm_report_detail', report_id=report_id)
+
 
 
 def report_status(request, report_id):
@@ -379,7 +380,7 @@ def report_status(request, report_id):
             Notification.objects.create(
                 user=report.user,
                 report=report,
-                message=f"Your report {report.report_number} is now In Progress."
+                message=f"Your report {report.job_order_id} is now In Progress."
             )
         elif new_status == 'resolved':
             report.status = new_status
@@ -388,7 +389,7 @@ def report_status(request, report_id):
             Notification.objects.create(
                 user=report.user,
                 report=report,
-                message=f"Your report {report.report_number} has been Resolved. Please take the Client Satisfaction Survey."
+                message=f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey."
             )
         elif new_status == 'closed':
             return redirect('adm_report_detail', report_id=report_id)

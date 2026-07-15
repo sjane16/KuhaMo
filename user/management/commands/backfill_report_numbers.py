@@ -11,7 +11,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         reports = Report.objects.filter(
-            report_number__isnull=True
+            job_order_id__isnull=True
         ).order_by('submitted_at', 'id')
 
         assigned = 0
@@ -25,12 +25,12 @@ class Command(BaseCommand):
             sequence.last_number += 1
             sequence.save(update_fields=['last_number'])
 
-            report.report_number = (
+            report.job_order_id = (
                 f"{REPORT_PREFIX}-{report_date.year}-"
                 f"{report_date.month:02d}-{sequence.last_number:06d}"
             )
             Report.objects.filter(pk=report.pk).update(
-                report_number=report.report_number
+                job_order_id=report.job_order_id
             )
             assigned += 1
 
