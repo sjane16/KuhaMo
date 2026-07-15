@@ -134,12 +134,12 @@ class Command(BaseCommand):
         Room.objects.create(floor=nb_f3, name='NB307 - ICTO', code='NB307', order=7)
 
         # Fourth Floor
-        Room.objects.create(floor=nb_f4, name='NB401 - Computer Lab', code='NB401', order=1)
-        Room.objects.create(floor=nb_f4, name='NB402 - Chemistry Laboratory', code='NB402', order=2)
-        Room.objects.create(floor=nb_f4, name='NB403 - Physics Laboratory', code='NB403', order=3)
+        Room.objects.create(floor=nb_f4, name='NB401 - Broadcasting', code='NB401', order=1)
+        Room.objects.create(floor=nb_f4, name='NB402', code='NB402', order=2)
+        Room.objects.create(floor=nb_f4, name='NB403', code='NB403', order=3)
         Room.objects.create(floor=nb_f4, name='NB404', code='NB404', order=4)
-        Room.objects.create(floor=nb_f4, name='NB405 - Storage Room', code='NB405', order=5)
-        Room.objects.create(floor=nb_f4, name='NB406', code='NB406', order=6)
+        Room.objects.create(floor=nb_f4, name='NB405 - Physics Laboratory', code='NB405', order=5)
+        Room.objects.create(floor=nb_f4, name='NB406 - Chemistry Laboratory', code='NB406', order=6)
 
         # Roof Deck
         Room.objects.create(floor=nb_f5, name='Roof Deck', code='NB_ROOF', order=1)
@@ -196,11 +196,11 @@ class Command(BaseCommand):
         Room.objects.create(floor=mb_f3, name='M305 – Computer Lab', code='M305', order=5)
         Room.objects.create(floor=mb_f3, name='M306 – Computer Lab', code='M306', order=6)
         Room.objects.create(floor=mb_f3, name='M307 – Computer Lab', code='M307', order=7)
-        Room.objects.create(floor=mb_f3, name='Male Comfort Room - Left Wing', code='M3_MLW', order=8)
-        Room.objects.create(floor=mb_f3, name='Female Comfort Room - Left Wing', code='M3_FLW', order=9)
+        Room.objects.create(floor=mb_f3, name='Male Comfort Room - Left Wing', code='M3_MLW', order=26)
+        Room.objects.create(floor=mb_f3, name='Female Comfort Room - Left Wing', code='M3_FLW', order=27)
         Room.objects.create(floor=mb_f3, name='Moot Court', code='MB_MOOT', order=10)
-        Room.objects.create(floor=mb_f3, name='Field Instruction', code='MB_FI', order=11)
-        Room.objects.create(floor=mb_f3, name='Office of Legal Aid', code='MB_OLA', order=12)
+        Room.objects.create(floor=mb_f3, name='Field Instruction', code='MB_FI', order=12)
+        Room.objects.create(floor=mb_f3, name='Office of Legal Aid', code='MB_OLA', order=11)
         Room.objects.create(floor=mb_f3, name='Entrepreneurship Laboratory (Function A)', code='MB_ENTLAB', order=13)
         Room.objects.create(floor=mb_f3, name='Psychology Laboratory (Function B)', code='MB_PSYLAB', order=14)
         Room.objects.create(floor=mb_f3, name='M308 – College of Law Library', code='M308', order=15)
@@ -214,8 +214,8 @@ class Command(BaseCommand):
         Room.objects.create(floor=mb_f3, name='M312', code='M312', order=23)
         Room.objects.create(floor=mb_f3, name='M313', code='M313', order=24)
         Room.objects.create(floor=mb_f3, name='M314', code='M314', order=25)
-        Room.objects.create(floor=mb_f3, name='Male Comfort Room - Right Wing', code='M3_MRW', order=26)
-        Room.objects.create(floor=mb_f3, name='Female Comfort Room - Right Wing', code='M3_FRW', order=27)
+        Room.objects.create(floor=mb_f3, name='Male Comfort Room - Right Wing', code='M3_MRW', order=8)
+        Room.objects.create(floor=mb_f3, name='Female Comfort Room - Right Wing', code='M3_FRW', order=9)
 
         # Fourth Floor
         Room.objects.create(floor=mb_f4, name='M401', code='M401', order=1)
@@ -225,8 +225,8 @@ class Command(BaseCommand):
         Room.objects.create(floor=mb_f4, name='M405', code='M405', order=5)
         Room.objects.create(floor=mb_f4, name='M406', code='M406', order=6)
         Room.objects.create(floor=mb_f4, name='M407', code='M407', order=7)
-        Room.objects.create(floor=mb_f4, name='Male Comfort Room - Left Wing', code='M4_MLW', order=8)
-        Room.objects.create(floor=mb_f4, name='Female Comfort Room - Left Wing', code='M4_FLW', order=9)
+        Room.objects.create(floor=mb_f4, name='Male Comfort Room - Left Wing', code='M4_MLW', order=25)
+        Room.objects.create(floor=mb_f4, name='Female Comfort Room - Left Wing', code='M4_FLW', order=26)
         Room.objects.create(floor=mb_f4, name='Forensic Science Laboratory', code='MB_FORENSIC', order=10)
         Room.objects.create(floor=mb_f4, name='Laboratory Area', code='MB_LABAREA', order=11)
         Room.objects.create(floor=mb_f4, name='Faculty Association', code='MB_FA', order=12)
@@ -242,8 +242,8 @@ class Command(BaseCommand):
         Room.objects.create(floor=mb_f4, name='M412', code='M412', order=22)
         Room.objects.create(floor=mb_f4, name='M413', code='M413', order=23)
         Room.objects.create(floor=mb_f4, name='M414 - Lounge', code='M414', order=24)
-        Room.objects.create(floor=mb_f4, name='Male Comfort Room - Right Wing', code='M4_MRW', order=25)
-        Room.objects.create(floor=mb_f4, name='Female Comfort Room - Right Wing', code='M4_FRW', order=26)
+        Room.objects.create(floor=mb_f4, name='Male Comfort Room - Right Wing', code='M4_MRW', order=8)
+        Room.objects.create(floor=mb_f4, name='Female Comfort Room - Right Wing', code='M4_FRW', order=9)
 
         # Roof Deck
         Room.objects.create(floor=mb_f5, name='Roof Deck', code='MB_ROOF', order=1)

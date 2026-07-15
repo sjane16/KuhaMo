@@ -12,6 +12,7 @@ db.sqlite3
 *.log
 __pycache__/
 *.pyc
+media/
 
 # Frontend / Node
 node_modules/

@@ -161,3 +161,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+#Just accept this part. Nagsslow kasi yung development sakin hehe -j
+try:
+    from .local_settings import INSTALLED_APPS_EXTRA
+    INSTALLED_APPS += INSTALLED_APPS_EXTRA
+except ImportError:
+    pass
+
