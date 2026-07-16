@@ -63,7 +63,7 @@
         <!-- Edit Information -->
         <div class="bg-white border border-gray-200 rounded-3xl shadow-sm p-6">
           <h2 class="text-base font-bold text-gray-800 mb-4">Edit Information</h2>
-          <form method="POST">
+          <form method="POST" id="edit_info_form">
             {% csrf_token %}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-4">
               <div class="mb-3.5">
@@ -90,7 +90,9 @@
             </div>
             <button type="submit"
                     name="save_info"
-                    class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2.5 rounded-xl hover:bg-blue-600 transition-colors">
+                    id="save_info_btn"
+                    disabled
+                    class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2.5 rounded-xl hover:bg-blue-600 transition-colors opacity-50 cursor-not-allowed">
               Save Changes
             </button>
           </form>
@@ -98,7 +100,9 @@
         <!-- Change Password -->
         <div class="bg-white border border-gray-200 rounded-3xl shadow-sm p-6">
           <h2 class="text-base font-bold text-gray-800 mb-4">Change Password</h2>
-          <form method="POST">
+          <form method="POST"
+                id="password_form"
+                onsubmit="return handlePasswordFormSubmit(event)">
             {% csrf_token %}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-4">
               <!-- Current Password -->
@@ -109,7 +113,8 @@
                          name="old_password"
                          id="old_password"
                          placeholder="Enter current password"
-                         class="min-w-0 flex-1 bg-transparent text-sm text-gray-700 focus:outline-none" />
+                         class="min-w-0 flex-1 bg-transparent text-sm text-gray-700 focus:outline-none"
+                         oninput="validateSamePassword()" />
                   <button type="button"
                           onclick="togglePasswordVisibility('old_password')"
                           class="shrink-0 focus:outline-none cursor-pointer select-none flex items-center justify-center ml-2">
@@ -144,7 +149,7 @@
                          id="new_password1"
                          placeholder="Enter new password"
                          class="min-w-0 flex-1 bg-transparent text-sm text-gray-700 focus:outline-none"
-                         oninput="validatePassword(); validatePasswordMatch();" />
+                         oninput="validatePassword(); validatePasswordMatch(); validateSamePassword();" />
                   <button type="button"
                           onclick="togglePasswordVisibility('new_password1')"
                           class="shrink-0 focus:outline-none cursor-pointer select-none flex items-center justify-center ml-2">
@@ -171,6 +176,10 @@
                 </div>
                 <div id="password-validation" class="text-xs text-red-500 mt-1 hidden">
                   Password must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 symbol.
+                </div>
+                <div id="password-same-validation"
+                     class="text-xs text-red-500 mt-1 hidden">
+                  New password must be different from your current password.
                 </div>
               </div>
               <!-- Confirm Password -->
@@ -213,7 +222,9 @@
             </div>
             <button type="submit"
                     name="change_password"
-                    class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2.5 rounded-xl hover:bg-blue-600 transition-colors">
+                    id="change_password_btn"
+                    disabled
+                    class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2.5 rounded-xl hover:bg-blue-600 transition-colors opacity-50 cursor-not-allowed">
               Update Password
             </button>
           </form>
@@ -221,63 +232,196 @@
       </div>
     </div>
   </main>
+  <!-- Password Change Confirmation Modal -->
+  <div id="password_confirm_modal"
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-80 mx-4">
+      <div class="flex flex-col items-center text-center gap-3 mb-5">
+        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+          <svg class="w-6 h-6 text-blue-500"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="1.8"
+               viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+          </svg>
+        </div>
+        <h2 class="text-base font-bold text-gray-900">Change Password?</h2>
+        <p class="text-sm text-gray-500">Are you sure you want to change your password? You'll need to use the new password the next time you log in.</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <button type="button"
+                onclick="submitPasswordForm()"
+                class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2 rounded-xl hover:bg-blue-600 transition-colors">
+          Yes, change password
+        </button>
+        <button type="button"
+                onclick="closePasswordConfirmModal()"
+                class="w-full text-sm font-semibold text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
   <script>
-  function togglePasswordVisibility(fieldId) {
-    const input = document.getElementById(fieldId);
-    const slashEye = document.getElementById(fieldId + "_slash");
-    const openEye = document.getElementById(fieldId + "_open");
+      (function() {
+          const passwordForm = document.getElementById("password_form");
+          const changePasswordBtn = document.getElementById("change_password_btn");
+          if (!passwordForm || !changePasswordBtn) return;
+
+          function enableChangePasswordBtn() {
+              changePasswordBtn.disabled = false;
+              changePasswordBtn.classList.remove("opacity-50", "cursor-not-allowed");
+          }
+
+          passwordForm.querySelectorAll("input").forEach((field) => {
+              field.addEventListener("input", enableChangePasswordBtn);
+          });
+      })();
+
+      (function() {
+          const editForm = document.getElementById("edit_info_form");
+          const saveBtn = document.getElementById("save_info_btn");
+          if (!editForm || !saveBtn) return;
+
+          function enableSaveBtn() {
+              saveBtn.disabled = false;
+              saveBtn.classList.remove("opacity-50", "cursor-not-allowed");
+          }
+
+          editForm.querySelectorAll("input, select").forEach((field) => {
+              field.addEventListener("input", enableSaveBtn);
+              field.addEventListener("change", enableSaveBtn);
+          });
+      })();
+
+      function togglePasswordVisibility(fieldId) {
+          const input = document.getElementById(fieldId);
+          const slashEye = document.getElementById(fieldId + "_slash");
+          const openEye = document.getElementById(fieldId + "_open");
 
 
-    if (!slashEye.classList.contains("hidden")) {
-      input.type = "text";
-      slashEye.classList.add("hidden");
-      openEye.classList.remove("hidden");
-    } else {
-      input.type = "password";
-      openEye.classList.add("hidden");
-      slashEye.classList.remove("hidden");
-    }
-  }
+          if (!slashEye.classList.contains("hidden")) {
+              input.type = "text";
+              slashEye.classList.add("hidden");
+              openEye.classList.remove("hidden");
+          } else {
+              input.type = "password";
+              openEye.classList.add("hidden");
+              slashEye.classList.remove("hidden");
+          }
+      }
 
 
-  function validatePassword() {
-    const password = document.getElementById("new_password1");
-    const validation = document.getElementById("password-validation");
+      function validatePassword() {
+          const password = document.getElementById("new_password1");
+          const validation = document.getElementById("password-validation");
 
 
-    if (password.value.length === 0) {
-      validation.classList.add("hidden");
-      return;
-    }
+          if (password.value.length === 0) {
+              validation.classList.add("hidden");
+              return;
+          }
 
+          const regex =
+              /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;'])[^\s]{8,}$/;
+          if (regex.test(password.value)) {
+              validation.classList.add("hidden");
+          } else {
+              validation.classList.remove("hidden");
+          }
+      }
 
-    const regex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;'])[^\s]{8,}$/;
-    if (regex.test(password.value)) {
-      validation.classList.add("hidden");
-    } else {
-      validation.classList.remove("hidden");
-    }
-  }
+      function validateSamePassword() {
+          const oldPassword = document.getElementById("old_password");
+          const newPassword1 = document.getElementById("new_password1");
+          const sameValidation = document.getElementById("password-same-validation");
 
+          if (oldPassword.value.length === 0 || newPassword1.value.length === 0) {
+              sameValidation.classList.add("hidden");
+              return;
+          }
 
-  function validatePasswordMatch() {
-    const password1 = document.getElementById("new_password1");
-    const password2 = document.getElementById("new_password2");
-    const matchValidation = document.getElementById("password-match-validation");
+          if (oldPassword.value === newPassword1.value) {
+              sameValidation.classList.remove("hidden");
+          } else {
+              sameValidation.classList.add("hidden");
+          }
+      }
 
+      function handlePasswordFormSubmit(event) {
+          const oldPassword = document.getElementById("old_password").value.trim();
+          const newPassword1 = document.getElementById("new_password1").value.trim();
+          const newPassword2 = document.getElementById("new_password2").value.trim();
 
-    if (password2.value.length === 0) {
-      matchValidation.classList.add("hidden");
-      return;
-    }
+          if (!oldPassword || !newPassword1 || !newPassword2) {
+              // let it submit — backend will show the specific "please fill in" message
+              return true;
+          }
 
+          const strengthRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;'])[^\s]{8,}$/;
 
-    if (password1.value === password2.value) {
-      matchValidation.classList.add("hidden");
-    } else {
-      matchValidation.classList.remove("hidden");
-    }
-  }
+          if (!strengthRegex.test(newPassword1)) {
+              event.preventDefault();
+              document.getElementById("password-validation").classList.remove("hidden");
+              return false;
+          }
+
+          if (newPassword1 !== newPassword2) {
+              event.preventDefault();
+              document.getElementById("password-match-validation").classList.remove("hidden");
+              return false;
+          }
+
+          if (oldPassword === newPassword1) {
+              event.preventDefault();
+              document.getElementById("password-same-validation").classList.remove("hidden");
+              return false;
+          }
+
+          event.preventDefault();
+          openPasswordConfirmModal();
+          return false;
+      }
+
+      function openPasswordConfirmModal() {
+          const modal = document.getElementById("password_confirm_modal");
+          modal.classList.remove("hidden");
+          modal.classList.add("flex");
+      }
+
+      function closePasswordConfirmModal() {
+          const modal = document.getElementById("password_confirm_modal");
+          modal.classList.add("hidden");
+          modal.classList.remove("flex");
+      }
+
+      function submitPasswordForm() {
+          document.getElementById("password_form").submit();
+      }
+
+      // Close modal when clicking outside
+      document
+          .getElementById("password_confirm_modal")
+          .addEventListener("click", function(e) {
+              if (e.target === this) closePasswordConfirmModal();
+          });
+
+      function validatePasswordMatch() {
+          const password1 = document.getElementById("new_password1");
+          const password2 = document.getElementById("new_password2");
+          const matchValidation = document.getElementById("password-match-validation");
+
+          if (password1.value.length === 0 || password2.value.length === 0) {
+              matchValidation.classList.add("hidden");
+              return;
+          }
+
+          if (password1.value === password2.value) {
+              matchValidation.classList.add("hidden");
+          } else {
+              matchValidation.classList.remove("hidden");
+          }
+      }
   </script>
 {% endblock %}

@@ -1,3 +1,4 @@
+import os
 from django import forms
 from django.contrib.auth.models import User
 from .models import UserProfile
@@ -72,6 +73,8 @@ class UserProfileForm(forms.ModelForm):
         fields = ['department', 'phone']
 
 class ProfilePhotoForm(forms.ModelForm):
+    ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png']
+
     class Meta:
         model = UserProfile
         fields = ['profile_photo']
@@ -79,6 +82,10 @@ class ProfilePhotoForm(forms.ModelForm):
     def clean_profile_photo(self):
         photo = self.cleaned_data.get('profile_photo')
         if photo:
+            ext = os.path.splitext(photo.name)[1].lower()
+            if ext not in self.ALLOWED_EXTENSIONS:
+                raise forms.ValidationError("Unsupported file type. Please upload a JPG or PNG image.")
+            
             if photo.size > 5 * 1024 * 1024:
                 raise forms.ValidationError("Profile photo size should not exceed 5MB.")
         return photo
