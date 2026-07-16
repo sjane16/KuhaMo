@@ -6,26 +6,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Fac-Check{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    {% tailwind_css %}
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
           rel="stylesheet" />
     <link rel="icon"
           type="image/png"
           href="{% static 'user/images/Fac-Check-Logo.png' %}" />
     <style>
-      :root {
-        color-scheme: light;
-      }
+        :root {
+            color-scheme: light;
+        }
     </style>
   </head>
   <body class="bg-gray-50 font-[Poppins]">
     <!-- REUSABLE TOAST / DIALOGUE BOX -->
     {% include "user/components/toast.html" %}
+    <!-- DESKTOP FLOATING NOTIFICATION BELL -->
+    {% include "user/components/desktop_notif.html" %} 
     <div class="flex min-h-screen">
       <!-- DESKTOP SIDEBAR -->
       {% include "user/components/sidebar.html" %}
       <!-- MAIN WRAPPER -->
-      <div class="flex-1 lg:ml-64 flex flex-col">
+      <div class="flex-1 lg:ml-64 flex flex-col min-w-0">
         <!-- MOBILE HEADER -->
         {% include "user/components/mobile_header.html" %}
         <!-- PAGE CONTENT -->
@@ -73,24 +75,24 @@
     </div>
     <!-- Logout Modal Script -->
     <script>
-      function openLogoutModal() {
-        const modal = document.getElementById("logout_modal");
-        modal.classList.remove("hidden");
-        modal.classList.add("flex");
-      }
+        function openLogoutModal() {
+            const modal = document.getElementById("logout_modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        }
 
-      function closeLogoutModal() {
-        const modal = document.getElementById("logout_modal");
-        modal.classList.add("hidden");
-        modal.classList.remove("flex");
-      }
+        function closeLogoutModal() {
+            const modal = document.getElementById("logout_modal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
 
-      // Close modal when clicking outside
-      document
-        .getElementById("logout_modal")
-        .addEventListener("click", function (e) {
-          if (e.target === this) closeLogoutModal();
-        });
+        // Close modal when clicking outside
+        document
+            .getElementById("logout_modal")
+            .addEventListener("click", function(e) {
+                if (e.target === this) closeLogoutModal();
+            });
     </script>
     {% include 'user/components/chatbot.html' %}
   </body>

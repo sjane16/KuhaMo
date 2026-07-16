@@ -15,4 +15,9 @@ urlpatterns = [
     path('universitymap/', admin_required(views.universitymap), name='universitymap'),
     path('survey-analysis/', admin_required(views.survey_analysis), name='survey_analysis'),
     path('calendar/', admin_required(views.calendar_view), name='calendar_view'),
+    path('notifications/', admin_required(views.adminNotifications), name='adminNotifications'),
+    path('ajax/notifications/', admin_required(views.get_notifications_ajax_admin), name='get_notifications_ajax_admin'),
+    path('notifications/<int:notification_id>/view/', admin_required(views.view_notification_admin), name='view_notification_admin'),
+    path('ajax/reports/', admin_required(views.adm_reports_ajax), name='adm_reports_ajax'),
+
 ]

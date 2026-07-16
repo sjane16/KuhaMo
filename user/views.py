@@ -6,12 +6,17 @@ from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
 import os
 from django.http import JsonResponse
 from django.conf import settings
+from django.core.paginator import Paginator
+from django.template.loader import render_to_string
+from django.db.models import Q
 from google import genai
-from .models import Report, SurveyResponse, UserProfile
+from django.contrib.auth.models import User
+from .models import Report, SurveyResponse, UserProfile, Notification
 from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
 from ml.predictor import predict_image
 
+REPORTS_PAGE_SIZE = 5
 
 @login_required
 def menu(request):
@@ -151,8 +156,19 @@ def reportForm(request):
 
             report.save()
 
+            admin_user = get_admin_user()
+            if admin_user:
+                Notification.objects.create(
+                    user=admin_user,
+                    report=report,
+                    message=f"New report submitted: {report.job_order_id}"
+                )
+
             messages.success(request, "Your concern has been submitted successfully.")
             return redirect('userReports')
+
+
+
 
         if 'photo' in form.errors:
             messages.error(request, "Please upload a photo of the concern.")
@@ -172,16 +188,65 @@ def reportForm(request):
         "facility_building_ids": facility_building_ids,
     })
 
+def _filter_user_reports(request, status_filter, search_query):
+    reports = Report.objects.filter(user=request.user).order_by('-submitted_at')
+
+    if status_filter != 'all':
+        reports = reports.filter(status=status_filter)
+
+    if search_query:
+        reports = reports.filter(
+            Q(job_order_id__icontains=search_query) |
+            Q(location__icontains=search_query) |
+            Q(category__icontains=search_query) |
+            Q(custom_category__icontains=search_query)
+        )
+
+    return reports
+
+
 @login_required
 def userReports(request):
     status_filter = request.GET.get('status', 'all')
-    reports = Report.objects.filter(user=request.user).order_by('-submitted_at')
-    if status_filter != 'all':
-        reports = reports.filter(status=status_filter)
+    reports = _filter_user_reports(request, status_filter, '')
+
+    paginator = Paginator(reports, REPORTS_PAGE_SIZE)
+    page_obj = paginator.get_page(1)
+
     return render(request, 'user/user_reports.html', {
         "active_page": "userReports",
-        "reports": reports,
+        "reports": page_obj,
         "status_filter": status_filter,
+    })
+
+
+@login_required
+def userReportsAjax(request):
+    status_filter = request.GET.get('status', 'all')
+    search_query = request.GET.get('search', '').strip()
+    page_number = request.GET.get('page', 1)
+
+    reports = _filter_user_reports(request, status_filter, search_query)
+
+    paginator = Paginator(reports, REPORTS_PAGE_SIZE)
+    page_obj = paginator.get_page(page_number)
+
+    mobile_html = render_to_string('user/partials/_reports_mobile_rows.html', {
+        "reports": page_obj,
+    }, request=request)
+
+    desktop_html = render_to_string('user/partials/_reports_desktop_rows.html', {
+        "reports": page_obj,
+    }, request=request)
+
+    return JsonResponse({
+        "mobile_html": mobile_html,
+        "desktop_html": desktop_html,
+        "current_page": page_obj.number,
+        "total_pages": paginator.num_pages,
+        "has_previous": page_obj.has_previous(),
+        "has_next": page_obj.has_next(),
+        "total_count": paginator.count,
     })
 
 
@@ -282,6 +347,14 @@ def submitSurvey(request, report_id):
 
     report.status = 'closed'
     report.save(update_fields=['status'])
+
+    admin_user = get_admin_user()
+    if admin_user:
+        Notification.objects.create(
+            user=admin_user,
+            report=report,
+            message=f"Report {report.job_order_id} is now closed — client survey received."
+        )
 
     return JsonResponse({
         'success': True
@@ -398,3 +471,50 @@ def predictCategory(request):
         'flagged_for_review': prediction['flagged_for_review'],
         'raw_prediction': prediction['raw_label']
     })
+
+@login_required
+def userNotifications(request):
+    notifications = Notification.objects.filter(user=request.user)
+
+    return render(request, 'user/user_notifications.html', {
+        "active_page": "userNotifications",
+        "notifications": notifications,
+    })
+
+
+@login_required
+def get_notifications_ajax(request):
+    notifications = Notification.objects.filter(user=request.user)[:10]
+
+    data = [
+        {
+            "id": n.id,
+            "message": n.message,
+            "is_read": n.is_read,
+            "time_ago": n.time_ago,
+            "report_id": n.report.id,
+        }
+        for n in notifications
+    ]
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+
+    return JsonResponse({
+        "notifications": data,
+        "unread_count": unread_count,
+    })
+
+
+@login_required
+def view_notification(request, notification_id):
+    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+
+    return redirect('reportedIssue', report_id=notification.report.id)
+
+
+def get_admin_user():
+    return User.objects.filter(is_superuser=True).first() or User.objects.filter(is_staff=True).first()

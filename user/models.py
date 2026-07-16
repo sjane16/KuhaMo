@@ -41,7 +41,7 @@ class Report(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
-    report_number = models.CharField(max_length=30, unique=True, blank=True, null=True)
+    job_order_id = models.CharField(max_length=30, unique=True, blank=True, null=True)
     photo = CloudinaryField('Photo', folder='reports/', null=True, blank=True)
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     custom_category = models.CharField(max_length=100, blank=True, null=True)
@@ -149,7 +149,7 @@ class Report(models.Model):
             return self.accomplished_at
 
     def save(self, *args, **kwargs):
-        if self.report_number:
+        if self.job_order_id:
             return super().save(*args, **kwargs)
 
         with transaction.atomic():
@@ -163,14 +163,14 @@ class Report(models.Model):
             sequence.last_number += 1
             sequence.save(update_fields=['last_number'])
 
-            self.report_number = (
+            self.job_order_id = (
                 f"{REPORT_PREFIX}-{report_date.year}-"
                 f"{report_date.month:02d}-{sequence.last_number:06d}"
             )
-            super().save(update_fields=['report_number'])
+            super().save(update_fields=['job_order_id'])
 
     def __str__(self):
-        return f"{self.report_number or f'#{self.id:04d}'} - {self.get_category_display()} ({self.location})"
+        return f"{self.job_order_id or f'#{self.id:04d}'} - {self.get_category_display()} ({self.location})"
 
 
 class UserProfile(models.Model):
@@ -209,4 +209,37 @@ class SurveyResponse(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Survey for Report {self.report.report_number or f'#{self.report.id:04d}'}"
+        return f"Survey for Report {self.report.job_order_id or f'#{self.report.id:04d}'}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='notifications')
+    message = models.CharField(max_length=255)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.message[:40]}"
+
+    @property
+    def time_ago(self):
+        diff = timezone.now() - self.created_at
+        seconds = diff.total_seconds()
+
+        if seconds < 60:
+            return "Just now"
+
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{int(minutes)}m"
+
+        hours = minutes // 60
+        if hours < 24:
+            return f"{int(hours)}h"
+
+        days = hours // 24
+        return f"{int(days)}d"

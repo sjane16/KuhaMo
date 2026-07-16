@@ -18,4 +18,9 @@ urlpatterns = [
     path('ajax/load-floors/', user_required(views.load_floors), name='ajax_load_floors'),
     path('ajax/load-rooms/', user_required(views.load_rooms), name='ajax_load_rooms'),
     path('ajax/predict-category/', user_required(views.predictCategory), name='predictCategory'),
+    path('notifications/', user_required(views.userNotifications), name='userNotifications'),
+    path('ajax/notifications/', user_required(views.get_notifications_ajax), name='get_notifications_ajax'),
+    path('notifications/<int:notification_id>/view/', user_required(views.view_notification), name='view_notification'),
+    path('ajax/user-reports/', user_required(views.userReportsAjax), name='userReportsAjax'),
+
 ]

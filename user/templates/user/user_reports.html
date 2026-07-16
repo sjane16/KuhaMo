@@ -37,7 +37,7 @@
               </select>
               <span id="mobileReportCount"
                     class="text-[11px] text-gray-400 whitespace-nowrap">
-                Showing {{ reports|length }} report{{ reports|length|pluralize }}
+                {{ reports.paginator.count }} total report{{ reports.paginator.count|pluralize }} found
               </span>
             </div>
             <!-- SEARCH BUTTON -->
@@ -89,82 +89,22 @@
         </div>
         <!-- MOBILE REPORT CARDS -->
         <div id="mobileReportsContainer" class="flex flex-col gap-2.5">
-          {% for report in reports %}
-            <a href="{% url 'reportedIssue' report.id %}"
-               class="mobile-report-row bg-white border border-gray-100 rounded-2xl px-4 py-3.5 flex items-start gap-3 shadow-sm">
-              <!-- IMAGE -->
-              <div class="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden mt-0.5">
-                {% if report.photo %}
-                  <img src="{{ report.photo.url }}"
-                       alt="{{ report.get_category_display }}"
-                       class="w-full h-full object-cover" />
-                {% else %}
-                  <div class="w-full h-full flex items-center justify-center text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="w-5 h-5"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="1.5"
-                         stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 18h16.5M3 9.75h18" />
-                    </svg>
-                  </div>
-                {% endif %}
-              </div>
-              <!-- REPORT INFO -->
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-gray-900 leading-snug break-words">{{ report.get_category_display }}</p>
-                <p class="text-xs text-gray-400 mt-0.5 leading-relaxed whitespace-normal break-words">
-                  {{ report.room_location }} | {{ report.submitted_at|date:"M d, Y" }}
-                </p>
-              </div>
-              <!-- STATUS + ACTION -->
-              <div class="flex items-center gap-1.5 flex-shrink-0 self-center">
-                {% if report.status == 'pending' %}
-                  <span class="inline-flex items-center justify-center px-3 py-1 rounded-full border border-orange-200 bg-orange-50 text-xs font-semibold text-orange-500 whitespace-nowrap">
-                    Pending
-                  </span>
-                {% elif report.status == 'in_progress' %}
-                  <span class="inline-flex items-center justify-center px-3 py-1 rounded-full border border-blue-200 bg-blue-50 text-xs font-semibold text-blue-500 whitespace-nowrap">
-                    In Progress
-                  </span>
-                {% elif report.status == 'resolved' %}
-                  <span class="inline-flex items-center justify-center px-3 py-1 rounded-full border border-green-300 bg-green-50 text-xs font-semibold text-green-600 whitespace-nowrap">
-                    Resolved
-                  </span>
-                {% elif report.status == 'closed' %}
-                  <span class="inline-flex items-center justify-center px-3 py-1 rounded-full border border-gray-300 bg-gray-100 text-xs font-semibold text-gray-500 whitespace-nowrap">
-                    Closed
-                  </span>
-                {% endif %}
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="w-4 h-4 text-gray-400 flex-shrink-0"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="2.5"
-                     stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
-              </div>
-            </a>
-          {% empty %}
-            <div class="text-center py-16 text-gray-400">
-              <p class="text-sm font-medium">No reports found.</p>
-              <p class="text-xs mt-1">Submit a concern to see it here.</p>
-            </div>
-          {% endfor %}
+          {% include "user/partials/_reports_mobile_rows.html" with reports=reports %}
         </div>
-        <!-- MOBILE SEARCH EMPTY STATE -->
-        <div id="mobileEmptyState" class="hidden text-center py-16 text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               class="w-9 h-9 mx-auto mb-3 text-gray-300"
-               fill="none"
-               viewBox="0 0 24 24"
-               stroke-width="1.5"
-               stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
-          <p class="text-sm font-medium">No reports match your search.</p>
+        <!-- MOBILE PAGINATION -->
+        <div id="mobilePagination"
+             class="flex items-center justify-between mt-4 px-1">
+          <button type="button"
+                  id="mobilePrevBtn"
+                  class="text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+            Previous
+          </button>
+          <span id="mobilePageInfo" class="text-[11px] text-gray-400">Page {{ reports.number }} of {{ reports.paginator.num_pages }}</span>
+          <button type="button"
+                  id="mobileNextBtn"
+                  class="text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+            Next
+          </button>
         </div>
       </div>
     </div>
@@ -202,7 +142,7 @@
           </select>
           <span id="desktopReportCount"
                 class="text-[11px] text-gray-400 whitespace-nowrap">
-            Showing {{ reports|length }} report{{ reports|length|pluralize }}
+            {{ reports.paginator.count }} total report{{ reports.paginator.count|pluralize }} found
           </span>
         </div>
         <!-- DESKTOP SEARCH -->
@@ -233,252 +173,185 @@
           <div class="col-span-1 text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">Action</div>
         </div>
         <!-- TABLE ROWS -->
-        <div id="desktopReportsContainer">
-          {% for report in reports %}
-            <div class="desktop-report-row grid grid-cols-12 px-6 py-4 border-b border-gray-50 items-center hover:bg-gray-50 transition-colors last:border-b-0">
-              <!-- CONCERN -->
-              <div class="col-span-4 flex items-center gap-3 min-w-0">
-                {% if report.photo %}
-                  <img src="{{ report.photo.url }}"
-                       alt="{{ report.category }}"
-                       class="w-14 h-12 rounded-lg object-cover flex-shrink-0" />
-                {% else %}
-                  <div class="w-14 h-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="w-5 h-5"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="1.5"
-                         stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 18h16.5M3 9.75h18" />
-                    </svg>
-                  </div>
-                {% endif %}
-                <div class="min-w-0">
-                  <p class="text-sm font-semibold text-gray-900 truncate">{{ report.get_category_display }}</p>
-                  <p class="text-xs text-gray-400">ID: {{ report.report_number }}</p>
-                </div>
-              </div>
-              <!-- LOCATION -->
-              <div class="col-span-3 flex items-center min-w-0 pr-6">
-                <p class="text-sm text-gray-700 leading-relaxed whitespace-normal break-words line-clamp-3">{{ report.room_location }}</p>
-              </div>
-              <!-- DATE SUBMITTED -->
-              <div class="col-span-2 flex items-center justify-center min-w-0">
-                <div class="inline-flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg"
-                       class="w-4 h-4 text-gray-500 flex-shrink-0"
-                       fill="none"
-                       viewBox="0 0 24 24"
-                       stroke-width="1.8"
-                       stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M4.5 6h15A1.5 1.5 0 0121 7.5v12A1.5 1.5 0 0119.5 21h-15A1.5 1.5 0 013 19.5v-12A1.5 1.5 0 014.5 6z" />
-                  </svg>
-                  <div class="text-center min-w-0">
-                    <p class="text-sm text-gray-700 whitespace-nowrap">{{ report.submitted_at|date:"M d, Y" }}</p>
-                    <p class="text-xs text-gray-400 whitespace-nowrap">{{ report.submitted_at|date:"h:i A" }}</p>
-                  </div>
-                </div>
-              </div>
-              <!-- STATUS -->
-              <div class="col-span-2 flex items-center justify-center text-center">
-                {% if report.status == 'pending' %}
-                  <span class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-semibold text-orange-500">
-                    Pending
-                  </span>
-                {% elif report.status == 'in_progress' %}
-                  <span class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-500 whitespace-nowrap">
-                    In Progress
-                  </span>
-                {% elif report.status == 'resolved' %}
-                  <span class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-300 text-xs font-semibold text-green-600">
-                    Resolved
-                  </span>
-                {% elif report.status == 'closed' %}
-                  <span class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-300 text-xs font-semibold text-gray-500">
-                    Closed
-                  </span>
-                {% endif %}
-              </div>
-              <!-- ACTION -->
-              <div class="col-span-1 flex items-center justify-center">
-                <a href="{% url 'reportedIssue' report.id %}"
-                   class="inline-flex items-center justify-center text-gray-400 hover:text-gray-600">
-                  <svg xmlns="http://www.w3.org/2000/svg"
-                       class="w-5 h-5"
-                       fill="none"
-                       viewBox="0 0 24 24"
-                       stroke-width="2.5"
-                       stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-          {% empty %}
-            <div class="text-center py-16 text-gray-400">
-              <p class="text-sm font-medium">No reports found.</p>
-              <p class="text-xs mt-1">Submit a concern to see it here.</p>
-            </div>
-          {% endfor %}
-        </div>
-        <!-- DESKTOP SEARCH EMPTY STATE -->
-        <div id="desktopEmptyState" class="hidden text-center py-16 text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               class="w-10 h-10 mx-auto mb-3 text-gray-200"
-               fill="none"
-               viewBox="0 0 24 24"
-               stroke-width="1.5"
-               stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
-          No reports match your search.
+        <div id="desktopReportsContainer">{% include "user/partials/_reports_desktop_rows.html" with reports=reports %}</div>
+        <!-- DESKTOP PAGINATION -->
+        <div id="desktopPagination"
+             class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <button type="button"
+                  id="desktopPrevBtn"
+                  class="text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+            Previous
+          </button>
+          <span id="desktopPageInfo" class="text-xs text-gray-400">Page {{ reports.number }} of {{ reports.paginator.num_pages }}</span>
+          <button type="button"
+                  id="desktopNextBtn"
+                  class="text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+            Next
+          </button>
         </div>
       </div>
     </div>
   </main>
   <script>
-document.addEventListener("DOMContentLoaded", function () {
+      document.addEventListener("DOMContentLoaded", function() {
 
-  const mobileStatusFilter = document.getElementById("mobileStatusFilter");
-  const desktopStatusFilter = document.getElementById("desktopStatusFilter");
-  const mobileSearchButton = document.getElementById("mobileSearchButton");
-  const mobileSearchContainer = document.getElementById("mobileSearchContainer");
-  const mobileSearchInput = document.getElementById("mobileSearchInput");
-  const mobileSearchClose = document.getElementById("mobileSearchClose");
-  const desktopSearchInput = document.getElementById("desktopSearchInput");
-  const mobileRows = document.querySelectorAll(".mobile-report-row");
-  const desktopRows = document.querySelectorAll(".desktop-report-row");
-  const mobileEmptyState = document.getElementById("mobileEmptyState");
-  const desktopEmptyState = document.getElementById("desktopEmptyState");
-  const mobileFilterRow = document.getElementById("mobileFilterRow");
+          const mobileStatusFilter = document.getElementById("mobileStatusFilter");
+          const desktopStatusFilter = document.getElementById("desktopStatusFilter");
+          const mobileSearchButton = document.getElementById("mobileSearchButton");
+          const mobileSearchContainer = document.getElementById("mobileSearchContainer");
+          const mobileSearchInput = document.getElementById("mobileSearchInput");
+          const mobileSearchClose = document.getElementById("mobileSearchClose");
+          const desktopSearchInput = document.getElementById("desktopSearchInput");
+          const mobileFilterRow = document.getElementById("mobileFilterRow");
 
+          const mobileReportsContainer = document.getElementById("mobileReportsContainer");
+          const desktopReportsContainer = document.getElementById("desktopReportsContainer");
+          const mobileReportCount = document.getElementById("mobileReportCount");
+          const desktopReportCount = document.getElementById("desktopReportCount");
 
+          const mobilePrevBtn = document.getElementById("mobilePrevBtn");
+          const mobileNextBtn = document.getElementById("mobileNextBtn");
+          const mobilePageInfo = document.getElementById("mobilePageInfo");
+          const desktopPrevBtn = document.getElementById("desktopPrevBtn");
+          const desktopNextBtn = document.getElementById("desktopNextBtn");
+          const desktopPageInfo = document.getElementById("desktopPageInfo");
 
-  function changeStatus(status) {
+          let currentStatus = mobileStatusFilter ? mobileStatusFilter.value : "all";
+          let currentSearch = "";
+          let currentPage = 1;
+          let searchDebounceTimer = null;
 
-    const url = new URL(window.location.href);
+          function fetchReports() {
+              const url = new URL("{% url 'userReportsAjax' %}", window.location.origin);
+              url.searchParams.set("status", currentStatus);
+              url.searchParams.set("search", currentSearch);
+              url.searchParams.set("page", currentPage);
 
-    if (status === "all") {
-      url.searchParams.set("status", "all");
-    } else {
-      url.searchParams.set("status", status);
-    }
+              fetch(url)
+                  .then(function(response) {
+                      return response.json();
+                  })
+                  .then(function(data) {
+                      mobileReportsContainer.innerHTML = data.mobile_html;
+                      desktopReportsContainer.innerHTML = data.desktop_html;
 
-    window.location.href = url.toString();
-  }
+                      currentPage = data.current_page;
 
+                      const countText = `${data.total_count} total report${data.total_count === 1 ? "" : "s"} found`;
+                      if (mobileReportCount) mobileReportCount.textContent = countText;
+                      if (desktopReportCount) desktopReportCount.textContent = countText;
 
-  if (mobileStatusFilter) {
-    mobileStatusFilter.addEventListener("change", function () {
-      changeStatus(this.value);
-    });
-  }
+                      const pageText = `Page ${data.total_count ? data.current_page : 1} of ${data.total_pages}`;
+                      if (mobilePageInfo) mobilePageInfo.textContent = pageText;
+                      if (desktopPageInfo) desktopPageInfo.textContent = pageText;
 
+                      if (mobilePrevBtn) mobilePrevBtn.disabled = !data.has_previous;
+                      if (mobileNextBtn) mobileNextBtn.disabled = !data.has_next;
+                      if (desktopPrevBtn) desktopPrevBtn.disabled = !data.has_previous;
+                      if (desktopNextBtn) desktopNextBtn.disabled = !data.has_next;
+                  })
+                  .catch(function(error) {
+                      console.error("Failed to load reports:", error);
+                  });
+          }
 
-  if (desktopStatusFilter) {
-    desktopStatusFilter.addEventListener("change", function () {
-      changeStatus(this.value);
-    });
-  }
+          function handleStatusChange(value) {
+              currentStatus = value;
+              currentPage = 1;
 
+              if (mobileStatusFilter) mobileStatusFilter.value = value;
+              if (desktopStatusFilter) desktopStatusFilter.value = value;
 
-  if (mobileSearchButton) {
-    mobileSearchButton.addEventListener("click", function () {
-      mobileFilterRow.classList.add("hidden");
-      mobileSearchContainer.classList.remove("hidden");
+              fetchReports();
+          }
 
-      setTimeout(function () {
-        mobileSearchInput.focus();
-      }, 50);
-    });
-  }
+          function handleSearchInput(value) {
+              currentSearch = value;
+              currentPage = 1;
 
-  if (mobileSearchClose) {
-    mobileSearchClose.addEventListener("click", function () {
-      mobileSearchContainer.classList.add("hidden");
-      mobileFilterRow.classList.remove("hidden");
+              if (mobileSearchInput && mobileSearchInput.value !== value) mobileSearchInput.value = value;
+              if (desktopSearchInput && desktopSearchInput.value !== value) desktopSearchInput.value = value;
 
-      mobileSearchInput.value = "";
+              clearTimeout(searchDebounceTimer);
+              searchDebounceTimer = setTimeout(fetchReports, 300);
+          }
 
-      filterRows(
-        "",
-        mobileRows,
-        mobileEmptyState
-      );
-    });
-  }
+          if (mobileStatusFilter) {
+              mobileStatusFilter.addEventListener("change", function() {
+                  handleStatusChange(this.value);
+              });
+          }
 
+          if (desktopStatusFilter) {
+              desktopStatusFilter.addEventListener("change", function() {
+                  handleStatusChange(this.value);
+              });
+          }
 
-  function filterRows(query, rows, emptyState) {
+          if (mobileSearchButton) {
+              mobileSearchButton.addEventListener("click", function() {
+                  mobileFilterRow.classList.add("hidden");
+                  mobileSearchContainer.classList.remove("hidden");
 
-    const searchQuery =
-      query.toLowerCase().trim();
+                  setTimeout(function() {
+                      mobileSearchInput.focus();
+                  }, 50);
+              });
+          }
 
-    let visible = 0;
+          if (mobileSearchClose) {
+              mobileSearchClose.addEventListener("click", function() {
+                  mobileSearchContainer.classList.add("hidden");
+                  mobileFilterRow.classList.remove("hidden");
 
-    rows.forEach(function (row) {
+                  handleSearchInput("");
+              });
+          }
 
-      const text =
-        row.innerText.toLowerCase();
+          if (mobileSearchInput) {
+              mobileSearchInput.addEventListener("input", function() {
+                  handleSearchInput(this.value);
+              });
+          }
 
-      const matches =
-        !searchQuery ||
-        text.includes(searchQuery);
+          if (desktopSearchInput) {
+              desktopSearchInput.addEventListener("input", function() {
+                  handleSearchInput(this.value);
+              });
+          }
 
-      row.classList.toggle(
-        "hidden",
-        !matches
-      );
+          if (mobilePrevBtn) {
+              mobilePrevBtn.addEventListener("click", function() {
+                  if (currentPage > 1) {
+                      currentPage -= 1;
+                      fetchReports();
+                  }
+              });
+          }
 
-      if (matches) {
-        visible++;
-      }
+          if (mobileNextBtn) {
+              mobileNextBtn.addEventListener("click", function() {
+                  currentPage += 1;
+                  fetchReports();
+              });
+          }
 
-    });
+          if (desktopPrevBtn) {
+              desktopPrevBtn.addEventListener("click", function() {
+                  if (currentPage > 1) {
+                      currentPage -= 1;
+                      fetchReports();
+                  }
+              });
+          }
 
+          if (desktopNextBtn) {
+              desktopNextBtn.addEventListener("click", function() {
+                  currentPage += 1;
+                  fetchReports();
+              });
+          }
 
-    if (emptyState) {
-      emptyState.classList.toggle(
-        "hidden",
-        visible > 0
-      );
-    }
-
-  }
-
-
-  if (mobileSearchInput) {
-    mobileSearchInput.addEventListener(
-      "input",
-      function () {
-
-        filterRows(
-          this.value,
-          mobileRows,
-          mobileEmptyState
-        );
-
-      }
-    );
-  }
-
-
-  if (desktopSearchInput) {
-    desktopSearchInput.addEventListener(
-      "input",
-      function () {
-
-        filterRows(
-          this.value,
-          desktopRows,
-          desktopEmptyState
-        );
-
-      }
-    );
-  }
-
-});
+      });
   </script>
 {% endblock %}

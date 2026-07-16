@@ -15,6 +15,7 @@ django-tailwind = "*"
 psycopg2-binary = "*"
 dj-database-url = "*"
 python-decouple = "*"
+django-cloudinary-storage = "*"
 
 [dev-packages]
 djlint = "*"

@@ -237,4 +237,8 @@ __marimo__/
 .streamlit/secrets.toml
 da3106941901b9d9515a12371faf016d14d70dea
 
-theme/static/css/dist/styles.css
+#images
+media/
+
+# Tailwind compiled output
+theme/static/css/dist/

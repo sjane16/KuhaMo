@@ -1,0 +1,99 @@
+<!-- ============================= -->
+<!-- DESKTOP FLOATING NOTIFICATION -->
+<!-- ============================= -->
+<div class="hidden lg:block fixed top-6 right-8 z-50">
+    <button type="button" onclick="toggleNotifDropdown()" class="relative">
+        <svg id="notif_bell_icon"
+             class="w-7 h-7 text-gray-500 transition-colors"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="1.8"
+             viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+        </svg>
+        {% if unread_notifications_count > 0 %}
+            <span id="desktop_notif_badge"
+                  class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {{ unread_notifications_count }}
+            </span>
+        {% endif %}
+    </button>
+    <!-- Dropdown -->
+    <div id="notif_dropdown"
+         class="hidden absolute right-0 top-10 w-80 bg-white rounded-2xl shadow-xl border border-gray-100">
+        <div class="px-4 py-3 border-b border-gray-100">
+            <h3 class="text-sm font-bold text-gray-900">Notifications</h3>
+        </div>
+        <div id="notif_list"
+             class="max-h-96 overflow-y-auto divide-y divide-gray-100">
+            <div class="px-4 py-6 text-center text-sm text-gray-400">Loading...</div>
+        </div>
+    </div>
+</div>
+<script>
+    const notifDropdown = document.getElementById("notif_dropdown");
+    const notifList = document.getElementById("notif_list");
+
+    const notifBellIcon = document.getElementById("notif_bell_icon");
+
+    function toggleNotifDropdown() {
+        notifDropdown.classList.toggle("hidden");
+        const isOpen = !notifDropdown.classList.contains("hidden");
+
+        if (isOpen) {
+            loadNotifications();
+            notifBellIcon.classList.remove("text-gray-500");
+            notifBellIcon.classList.add("text-blue-600");
+        } else {
+            notifBellIcon.classList.remove("text-blue-600");
+            notifBellIcon.classList.add("text-gray-500");
+        }
+    }
+
+    function loadNotifications() {
+        fetch("{% url 'get_notifications_ajax' %}")
+            .then((res) => res.json())
+            .then((data) => {
+                notifList.innerHTML = "";
+
+                if (data.notifications.length === 0) {
+                    notifList.innerHTML =
+                        '<div class="px-4 py-6 text-center text-sm text-gray-400">No notifications yet.</div>';
+                    return;
+                }
+
+                data.notifications.forEach((notif) => {
+                    const item = document.createElement("a");
+                    item.href = `/user/notifications/${notif.id}/view/`;
+                    item.className = `block px-4 py-3 hover:bg-gray-50 transition-colors ${
+            notif.is_read ? "bg-white" : "bg-blue-50"
+          }`;
+                    item.innerHTML = `
+            <p class="text-sm text-gray-800 ${notif.is_read ? "" : "font-semibold"}">${notif.message}</p>
+            <p class="text-xs text-gray-400 mt-1">${notif.time_ago}</p>
+          `;
+                    notifList.appendChild(item);
+                });
+
+                const badge = document.getElementById("desktop_notif_badge");
+                if (badge && data.unread_count === 0) {
+                    badge.remove();
+                } else if (badge) {
+                    badge.textContent = data.unread_count;
+                }
+            });
+    }
+
+    document.addEventListener("click", function(e) {
+        if (
+            notifDropdown &&
+            !notifDropdown.classList.contains("hidden") &&
+            !e.target.closest("#notif_dropdown") &&
+            !e.target.closest("button[onclick='toggleNotifDropdown()']")
+        ) {
+            notifDropdown.classList.add("hidden");
+            notifBellIcon.classList.remove("text-blue-600");
+            notifBellIcon.classList.add("text-gray-500");
+        }
+    });
+</script>
