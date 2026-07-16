@@ -1,325 +1,333 @@
 {% load static tailwind_tags %}
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
-  <head>
-    {% tailwind_css %}
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fac-Check</title>
-    <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet" />
-    <style>
-        :root {
-            --fc-blue: #2563eb;
-            --fc-blue-dark: #1d4ed8;
-            --fc-cyan: #06b6d4;
-            --fc-grid-line: rgba(37, 99, 235, 0.08);
-        }
+    <head>
+        {% tailwind_css %}
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Fac-Check</title>
+        <!-- HTMX -->
+        <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+              rel="stylesheet" />
+        <style>
+            :root {
+                --fc-blue: #2563eb;
+                --fc-blue-dark: #1d4ed8;
+                --fc-cyan: #06b6d4;
+                --fc-grid-line: rgba(37, 99, 235, 0.08);
+            }
 
-        body {
-            position: relative;
-            background-color: #eef4ff;
-            background-image:
-                radial-gradient(ellipse 80% 55% at 50% -10%, rgba(37, 99, 235, 0.14), transparent 60%),
-                linear-gradient(180deg, #eef4ff 0%, #e3edff 45%, #eef4ff 100%);
-            overflow-x: hidden;
-        }
+            html,
+            body {
+                overflow-x: hidden;
+                width: 100%;
+            }
 
-        /* Blueprint grid overlay -- evokes floor-plan / architectural drafting,
+            body {
+                position: relative;
+                background-color: #eef4ff;
+                background-image:
+                    radial-gradient(ellipse 80% 55% at 50% -10%, rgba(37, 99, 235, 0.14), transparent 60%),
+                    linear-gradient(180deg, #eef4ff 0%, #e3edff 45%, #eef4ff 100%);
+                overflow-x: hidden;
+            }
+
+            /* Blueprint grid overlay -- evokes floor-plan / architectural drafting,
          a deliberate nod to the building/floor/room data this app is built on. */
-        .fc-grid {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            pointer-events: none;
-            background-image:
-                linear-gradient(var(--fc-grid-line) 1px, transparent 1px),
-                linear-gradient(90deg, var(--fc-grid-line) 1px, transparent 1px);
-            background-size: 44px 44px;
-            -webkit-mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
-            mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
-        }
+            .fc-grid {
+                position: absolute;
+                inset: 0;
+                z-index: 0;
+                pointer-events: none;
+                background-image:
+                    linear-gradient(var(--fc-grid-line) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--fc-grid-line) 1px, transparent 1px);
+                background-size: 44px 44px;
+                -webkit-mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
+                mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
+            }
 
-        .fc-blob {
-            position: absolute;
-            z-index: 0;
-            pointer-events: none;
-            border-radius: 9999px;
-            filter: blur(70px);
-            opacity: 0.55;
-        }
+            .fc-blob {
+                position: absolute;
+                z-index: 0;
+                pointer-events: none;
+                border-radius: 9999px;
+                filter: blur(70px);
+                opacity: 0.55;
+            }
 
-        .fc-blob-a {
-            top: -120px;
-            left: -80px;
-            width: 420px;
-            height: 420px;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.35), transparent 70%);
-        }
+            .fc-blob-a {
+                top: -120px;
+                left: -80px;
+                width: 420px;
+                height: 420px;
+                background: radial-gradient(circle, rgba(37, 99, 235, 0.35), transparent 70%);
+            }
 
-        .fc-blob-b {
-            top: 40px;
-            right: -140px;
-            width: 460px;
-            height: 460px;
-            background: radial-gradient(circle, rgba(6, 182, 212, 0.28), transparent 70%);
-        }
+            .fc-blob-b {
+                top: 40px;
+                right: -140px;
+                width: 460px;
+                height: 460px;
+                background: radial-gradient(circle, rgba(6, 182, 212, 0.28), transparent 70%);
+            }
 
-        /* Architectural registration marks framing the hero, like corner crop
+            /* Architectural registration marks framing the hero, like corner crop
          marks on a technical drawing / blueprint sheet. */
-        .fc-crop {
-            position: absolute;
-            width: 28px;
-            height: 28px;
-            z-index: 1;
-            opacity: 0.45;
-        }
+            .fc-crop {
+                position: absolute;
+                width: 28px;
+                height: 28px;
+                z-index: 1;
+                opacity: 0.45;
+            }
 
-        .fc-crop-tl {
-            top: 18px;
-            left: 18px;
-            border-top: 2px solid var(--fc-blue);
-            border-left: 2px solid var(--fc-blue);
-        }
+            .fc-crop-tl {
+                top: 18px;
+                left: 18px;
+                border-top: 2px solid var(--fc-blue);
+                border-left: 2px solid var(--fc-blue);
+            }
 
-        .fc-crop-tr {
-            top: 18px;
-            right: 18px;
-            border-top: 2px solid var(--fc-blue);
-            border-right: 2px solid var(--fc-blue);
-        }
+            .fc-crop-tr {
+                top: 18px;
+                right: 18px;
+                border-top: 2px solid var(--fc-blue);
+                border-right: 2px solid var(--fc-blue);
+            }
 
-        .fc-crop-bl {
-            bottom: 18px;
-            left: 18px;
-            border-bottom: 2px solid var(--fc-blue);
-            border-left: 2px solid var(--fc-blue);
-        }
+            .fc-crop-bl {
+                bottom: 18px;
+                left: 18px;
+                border-bottom: 2px solid var(--fc-blue);
+                border-left: 2px solid var(--fc-blue);
+            }
 
-        .fc-crop-br {
-            bottom: 18px;
-            right: 18px;
-            border-bottom: 2px solid var(--fc-blue);
-            border-right: 2px solid var(--fc-blue);
-        }
+            .fc-crop-br {
+                bottom: 18px;
+                right: 18px;
+                border-bottom: 2px solid var(--fc-blue);
+                border-right: 2px solid var(--fc-blue);
+            }
 
-        .fc-title-gradient {
-            background: linear-gradient(120deg, var(--fc-blue-dark) 0%, var(--fc-blue) 55%, var(--fc-cyan) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            color: transparent;
-        }
+            .fc-title-gradient {
+                background: linear-gradient(120deg, var(--fc-blue-dark) 0%, var(--fc-blue) 55%, var(--fc-cyan) 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                color: transparent;
+            }
 
-        /* Divider flanking "Choose your role to continue" -- pure decoration,
+            /* Divider flanking "Choose your role to continue" -- pure decoration,
          no added copy. */
-        .fc-flanked {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-        }
+            .fc-flanked {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.75rem;
+            }
 
-        .fc-flanked::before,
-        .fc-flanked::after {
-            content: "";
-            height: 1px;
-            width: 36px;
-            background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.35));
-        }
+            .fc-flanked::before,
+            .fc-flanked::after {
+                content: "";
+                height: 1px;
+                width: 36px;
+                background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.35));
+            }
 
-        .fc-flanked::after {
-            background: linear-gradient(90deg, rgba(37, 99, 235, 0.35), transparent);
-        }
+            .fc-flanked::after {
+                background: linear-gradient(90deg, rgba(37, 99, 235, 0.35), transparent);
+            }
 
-        .fc-pill {
-            position: relative;
-            z-index: 1;
-            backdrop-filter: blur(6px);
-        }
+            .fc-pill {
+                position: relative;
+                z-index: 1;
+                backdrop-filter: blur(6px);
+            }
 
-        .fc-pill:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 24px -12px rgba(37, 99, 235, 0.35);
-        }
+            .fc-pill:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 24px -12px rgba(37, 99, 235, 0.35);
+            }
 
-        .fc-card {
-            position: relative;
-            overflow: hidden;
-        }
+            .fc-card {
+                position: relative;
+                overflow: hidden;
+            }
 
-        .fc-card::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--fc-blue), var(--fc-cyan));
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.35s ease;
-        }
+            .fc-card::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, var(--fc-blue), var(--fc-cyan));
+                transform: scaleX(0);
+                transform-origin: left;
+                transition: transform 0.35s ease;
+            }
 
-        .fc-card:hover::before {
-            transform: scaleX(1);
-        }
+            .fc-card:hover::before {
+                transform: scaleX(1);
+            }
 
-        .fc-card-corner {
-            position: absolute;
-            top: 14px;
-            left: 14px;
-            width: 16px;
-            height: 16px;
-            border-top: 2px solid rgba(37, 99, 235, 0.4);
-            border-left: 2px solid rgba(37, 99, 235, 0.4);
-            z-index: 2;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .fc-card:hover .fc-card-corner {
-            opacity: 1;
-        }
-
-        @keyframes fc-rise {
-            from {
+            .fc-card-corner {
+                position: absolute;
+                top: 14px;
+                left: 14px;
+                width: 16px;
+                height: 16px;
+                border-top: 2px solid rgba(37, 99, 235, 0.4);
+                border-left: 2px solid rgba(37, 99, 235, 0.4);
+                z-index: 2;
                 opacity: 0;
-                transform: translateY(14px);
+                transition: opacity 0.3s ease;
             }
 
-            to {
+            .fc-card:hover .fc-card-corner {
                 opacity: 1;
-                transform: translateY(0);
             }
-        }
 
-        .fc-rise {
-            animation: fc-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-        }
+            @keyframes fc-rise {
+                from {
+                    opacity: 0;
+                    transform: translateY(14px);
+                }
 
-        .fc-delay-1 {
-            animation-delay: 0.05s;
-        }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
 
-        .fc-delay-2 {
-            animation-delay: 0.15s;
-        }
-
-        .fc-delay-3 {
-            animation-delay: 0.25s;
-        }
-
-        .fc-delay-4 {
-            animation-delay: 0.35s;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
             .fc-rise {
-                animation: none;
+                animation: fc-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
             }
-        }
 
-        a:focus-visible,
-        label:focus-visible {
-            outline: 2px solid var(--fc-blue-dark);
-            outline-offset: 3px;
-            border-radius: 8px;
-        }
-    </style>
-  </head>
-  <body class="min-h-screen text-gray-800 font-[Poppins]">
-    <div class="fc-grid"></div>
-    <div class="fc-blob fc-blob-a"></div>
-    <div class="fc-blob fc-blob-b"></div>
-    <!-- SLOGAN -->
-    <section class="relative text-center pt-12 pb-10 px-6">
-      <div class="fc-crop fc-crop-tl"></div>
-      <div class="fc-crop fc-crop-tr"></div>
-      <h1 class="fc-rise text-5xl md:text-7xl font-bold mt-16 leading-tight fc-title-gradient">Fac-Check</h1>
-      <p class="fc-rise fc-delay-1 mt-3 text-xl md:text-2xl font-bold text-blue-600 tracking-wide">Your Campus, Cared for.</p>
-      <p class="fc-rise fc-delay-2 mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-        See something off? Snap it, send it, sorted. A clear, reliable way to report facility concerns and see them through to resolution.
-      </p>
-    </section>
-    <!-- PILL SECTION -->
-    <section class="fc-rise fc-delay-3 relative flex flex-wrap justify-center gap-4 px-6">
-      <div class="fc-pill flex items-center gap-2 border border-gray-200 bg-white/90 rounded-full px-4 py-2 shadow-sm transition-all duration-300">
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="w-5 h-5 text-blue-600"
-             fill="none"
-             viewBox="0 0 24 24"
-             stroke="currentColor"
-             stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        <p class="text-sm font-medium">Report an Issue</p>
-      </div>
-      <div class="fc-pill flex items-center gap-2 border border-gray-200 bg-white/90 rounded-full px-4 py-2 shadow-sm transition-all duration-300">
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="w-5 h-5 text-blue-600"
-             fill="none"
-             viewBox="0 0 24 24"
-             stroke="currentColor"
-             stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-        </svg>
-        <p class="text-sm font-medium">AI Assistance</p>
-      </div>
-      <div class="fc-pill flex items-center gap-2 border border-gray-200 bg-white/90 rounded-full px-4 py-2 shadow-sm transition-all duration-300">
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="w-5 h-5 text-blue-600"
-             fill="none"
-             viewBox="0 0 24 24"
-             stroke="currentColor"
-             stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p class="text-sm font-medium">Track to resolved</p>
-      </div>
-    </section>
-    <p class="fc-rise fc-delay-4 fc-flanked text-sm text-gray-500 mt-10 text-center">Choose your role to continue</p>
-    <!-- ROLE SELECTION -->
-    <section class="relative flex flex-wrap justify-center gap-2 md:gap-2 lg:gap-10 mx-5 my-5">
-      <!-- USER ROLE -->
-      <div class="fc-rise fc-delay-3 fc-card bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl mt-10 w-full max-w-[560px] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-        <div class="grid grid-cols-2 gap-4">
-          <img src="{% static 'accounts/images/UserImg.png' %}"
-               class="w-full h-full object-contain"
-               alt="User dashboard illustration" />
-          <div class="flex flex-col gap-2 justify-end px-4 py-4">
-            <h2 class="text-xl font-bold">User Dashboard</h2>
-            <p class="text-sm">Report issues, track status, and get AI assistance.</p>
-            <a href="{% url 'student_login' %}"
-               class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition">
-              Enter as User
-              <span class="transition-transform group-hover:translate-x-1">→</span>
-            </a>
-          </div>
-        </div>
-      </div>
-      <!-- ADMIN ROLE -->
-      <div class="fc-rise fc-delay-4 fc-card bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl mt-10 w-full max-w-[560px] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-        <div class="grid grid-cols-2 gap-4">
-          <img src="{% static 'accounts/images/AdminImg.png' %}"
-               class="w-full h-full object-contain"
-               alt="Admin dashboard illustration" />
-          <div class="flex flex-col gap-2 justify-end px-4 py-4">
-            <h2 class="text-xl font-bold">Admin Dashboard</h2>
-            <p class="text-sm">Monitor reports, analyze trends, and manage operations.</p>
-            <a href="{% url 'admin_login' %}"
-               class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition">
-              Enter as Admin
-              <span class="transition-transform group-hover:translate-x-1">→</span>
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-    <div class="fc-crop fc-crop-bl"></div>
-    <div class="fc-crop fc-crop-br"></div>
-  </body>
+            .fc-delay-1 {
+                animation-delay: 0.05s;
+            }
+
+            .fc-delay-2 {
+                animation-delay: 0.15s;
+            }
+
+            .fc-delay-3 {
+                animation-delay: 0.25s;
+            }
+
+            .fc-delay-4 {
+                animation-delay: 0.35s;
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .fc-rise {
+                    animation: none;
+                }
+            }
+
+            a:focus-visible,
+            label:focus-visible {
+                outline: 2px solid var(--fc-blue-dark);
+                outline-offset: 3px;
+                border-radius: 8px;
+            }
+        </style>
+    </head>
+    <body class="min-h-screen flex flex-col text-gray-800 font-[Poppins]">
+        <div class="fc-grid"></div>
+        <div class="fc-blob fc-blob-a"></div>
+        <div class="fc-blob fc-blob-b"></div>
+        <div class="fc-crop fc-crop-tl"></div>
+        <div class="fc-crop fc-crop-tr"></div>
+        <!-- SLOGAN -->
+        <main class="relative z-10 flex-1 flex flex-col justify-center px-4 pb-4 md:pb-6">
+            <section class="relative text-center pt-6 pb-6">
+                <h1 class="fc-rise text-5xl md:text-7xl font-bold mt-4 leading-tight fc-title-gradient">Fac-Check</h1>
+                <p class="fc-rise fc-delay-1 mt-3 text-xl md:text-2xl font-bold text-blue-600 tracking-wide">Your Campus, Cared for.</p>
+                <p class="fc-rise fc-delay-2 mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+                    See something off? Snap it, send it, sorted. A clear, reliable way to report facility concerns and see them through to resolution.
+                </p>
+            </section>
+            <!-- PILL SECTION -->
+            <section class="fc-rise fc-delay-3 relative flex flex-wrap justify-center gap-4 px-6">
+                <div class="fc-pill flex items-center gap-2 border border-gray-200 bg-white/90 rounded-full px-4 py-2 shadow-sm transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5 text-blue-600"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <p class="text-sm font-medium">Report an Issue</p>
+                </div>
+                <div class="fc-pill flex items-center gap-2 border border-gray-200 bg-white/90 rounded-full px-4 py-2 shadow-sm transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5 text-blue-600"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                    </svg>
+                    <p class="text-sm font-medium">AI Assistance</p>
+                </div>
+                <div class="fc-pill flex items-center gap-2 border border-gray-200 bg-white/90 rounded-full px-4 py-2 shadow-sm transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="w-5 h-5 text-blue-600"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-sm font-medium">Track to resolved</p>
+                </div>
+            </section>
+            <p class="fc-rise fc-delay-4 fc-flanked text-sm text-gray-500 mt-6 text-center">Choose your role to continue</p>
+            <!-- ROLE SELECTION -->
+            <section class="relative flex flex-wrap justify-center gap-2 md:gap-2 lg:gap-10 mx-5 my-2 pb-6">
+                <!-- USER ROLE -->
+                <div class="fc-rise fc-delay-3 fc-card bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl mt-10 w-full max-w-[560px] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <img src="{% static 'accounts/images/UserImg.png' %}"
+                             class="w-full h-48 sm:h-full object-contain"
+                             alt="User dashboard illustration" />
+                        <div class="flex flex-col gap-2 justify-end px-4 py-4">
+                            <h2 class="text-xl font-bold">User Dashboard</h2>
+                            <p class="text-sm">Report issues, track status, and get AI assistance.</p>
+                            <a href="{% url 'student_login' %}"
+                               class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition">
+                                Enter as User
+                                <span class="transition-transform group-hover:translate-x-1">→</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <!-- ADMIN ROLE -->
+                <div class="fc-rise fc-delay-4 fc-card bg-white/80 backdrop-blur-md border border-gray-200 rounded-2xl mt-10 w-full max-w-[560px] shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <img src="{% static 'accounts/images/AdminImg.png' %}"
+                             class="w-full h-48 sm:h-full object-contain"
+                             alt="Admin dashboard illustration" />
+                        <div class="flex flex-col gap-2 justify-end px-4 py-4">
+                            <h2 class="text-xl font-bold">Admin Dashboard</h2>
+                            <p class="text-sm">Monitor reports, analyze trends, and manage operations.</p>
+                            <a href="{% url 'admin_login' %}"
+                               class="group mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-sm inline-flex w-full justify-between items-center transition">
+                                Enter as Admin
+                                <span class="transition-transform group-hover:translate-x-1">→</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <div class="fc-crop fc-crop-bl"></div>
+        <div class="fc-crop fc-crop-br"></div>
+    </body>
 </html>

@@ -482,17 +482,24 @@ def ProfileMenu(request):
             return redirect('ProfileMenu')
 
         elif 'change_password' in request.POST:
-            old_password = request.POST.get('old_password')
-            new_password1 = request.POST.get('new_password1')
-            new_password2 = request.POST.get('new_password2')
+            old_password = request.POST.get('old_password', '').strip()
+            new_password1 = request.POST.get('new_password1', '').strip()
+            new_password2 = request.POST.get('new_password2', '').strip()
 
-            if not request.user.check_password(old_password):
+            if not old_password and not new_password1 and not new_password2:
+                messages.error(request, "Please fill in the required fields.")
+            elif not old_password:
+                messages.error(request, "Please enter your current password.")
+            elif not new_password1 or not new_password2:
+                messages.error(request, "Please fill in both new password fields.")
+            elif not request.user.check_password(old_password):
                 messages.error(request, "Old password is incorrect.")
             elif new_password1 != new_password2:
                 messages.error(request, "New passwords do not match.")
+            elif new_password1 == old_password:
+                messages.error(request, "New Password must be different from your current password.")
             else:
                 password_errors = validate_password_strength(new_password1)
-
                 if password_errors:
                     for err in password_errors:
                         messages.error(request, err)

@@ -12,6 +12,8 @@ tensorflow-cpu = "*"
 django-axes = "*"
 django-ratelimit = "*"
 django-tailwind = "*"
+psycopg2-binary = "*"
+dj-database-url = "*"
 python-decouple = "*"
 
 [dev-packages]

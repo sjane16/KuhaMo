@@ -2,6 +2,7 @@ from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
+from cloudinary.models import CloudinaryField
 
 
 REPORT_PREFIX = "MED-JO"
@@ -40,8 +41,8 @@ class Report(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
-    job_order_id = models.CharField(max_length=30, unique=True, blank=True, null=True)
-    photo = models.ImageField(upload_to='reports/')
+    report_number = models.CharField(max_length=30, unique=True, blank=True, null=True)
+    photo = CloudinaryField('Photo', folder='reports/', null=True, blank=True)
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     custom_category = models.CharField(max_length=100, blank=True, null=True)
     location = models.CharField(max_length=100)
