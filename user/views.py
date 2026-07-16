@@ -6,6 +6,9 @@ from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
 import os
 from django.http import JsonResponse
 from django.conf import settings
+from django.core.paginator import Paginator
+from django.template.loader import render_to_string
+from django.db.models import Q
 from google import genai
 from django.contrib.auth.models import User
 from .models import Report, SurveyResponse, UserProfile, Notification
@@ -13,6 +16,7 @@ from adm.models import Floor, Room, Building
 from .validators import validate_password_strength
 from ml.predictor import predict_image
 
+REPORTS_PAGE_SIZE = 5
 
 @login_required
 def menu(request):
@@ -176,16 +180,65 @@ def reportForm(request):
         "facility_building_ids": facility_building_ids,
     })
 
+def _filter_user_reports(request, status_filter, search_query):
+    reports = Report.objects.filter(user=request.user).order_by('-submitted_at')
+
+    if status_filter != 'all':
+        reports = reports.filter(status=status_filter)
+
+    if search_query:
+        reports = reports.filter(
+            Q(job_order_id__icontains=search_query) |
+            Q(location__icontains=search_query) |
+            Q(category__icontains=search_query) |
+            Q(custom_category__icontains=search_query)
+        )
+
+    return reports
+
+
 @login_required
 def userReports(request):
     status_filter = request.GET.get('status', 'all')
-    reports = Report.objects.filter(user=request.user).order_by('-submitted_at')
-    if status_filter != 'all':
-        reports = reports.filter(status=status_filter)
+    reports = _filter_user_reports(request, status_filter, '')
+
+    paginator = Paginator(reports, REPORTS_PAGE_SIZE)
+    page_obj = paginator.get_page(1)
+
     return render(request, 'user/user_reports.html', {
         "active_page": "userReports",
-        "reports": reports,
+        "reports": page_obj,
         "status_filter": status_filter,
+    })
+
+
+@login_required
+def userReportsAjax(request):
+    status_filter = request.GET.get('status', 'all')
+    search_query = request.GET.get('search', '').strip()
+    page_number = request.GET.get('page', 1)
+
+    reports = _filter_user_reports(request, status_filter, search_query)
+
+    paginator = Paginator(reports, REPORTS_PAGE_SIZE)
+    page_obj = paginator.get_page(page_number)
+
+    mobile_html = render_to_string('user/partials/_reports_mobile_rows.html', {
+        "reports": page_obj,
+    }, request=request)
+
+    desktop_html = render_to_string('user/partials/_reports_desktop_rows.html', {
+        "reports": page_obj,
+    }, request=request)
+
+    return JsonResponse({
+        "mobile_html": mobile_html,
+        "desktop_html": desktop_html,
+        "current_page": page_obj.number,
+        "total_pages": paginator.num_pages,
+        "has_previous": page_obj.has_previous(),
+        "has_next": page_obj.has_next(),
+        "total_count": paginator.count,
     })
 
 

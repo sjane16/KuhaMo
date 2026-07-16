@@ -1,15 +1,17 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from user.models import Report, SurveyResponse, Notification
-from django.db.models import Count, Avg
+from django.db.models import Count, Avg, Q
 from datetime import timedelta
 import json
 from collections import defaultdict
 from django.contrib import messages
 from django.http import JsonResponse
-from .models import Building, Floor, Room
-from django.contrib.auth import update_session_auth_hash
-from user.validators import validate_password_strength
+from django.core.paginator import Paginator
+from django.template.loader import render_to_string
+
+
+REPORTS_PAGE_SIZE = 5
 
 PERSONNEL_OPTIONS = [
     {"slug": "remigio", "name": "Mr. Remigio"},
@@ -259,17 +261,94 @@ def base(request):
     return render(request, 'layouts/base.html', {"active_page": "base"})
 
 
-def reports(request):
-    status_filter = request.GET.get('status', '')
+def _filter_admin_reports(status_filter, search_query):
     reports_qs = Report.objects.all().order_by('-submitted_at')
+
     if status_filter:
         reports_qs = reports_qs.filter(status=status_filter)
+
+    if search_query:
+        query = search_query.strip()
+
+        q_filter = (
+            Q(job_order_id__icontains=query)
+            | Q(location__icontains=query)
+            | Q(category__icontains=query)
+            | Q(custom_category__icontains=query)
+            | Q(assigned_personnel__icontains=query)
+        )
+
+        matching_statuses = [
+            code for code, label in Report.STATUS_CHOICES
+            if query.lower() in label.lower()
+        ]
+        if matching_statuses:
+            q_filter |= Q(status__in=matching_statuses)
+
+        matching_priorities = [
+            code for code, label in Report.PRIORITY_CHOICES
+            if query.lower() in label.lower()
+        ]
+        if matching_priorities:
+            q_filter |= Q(priority__in=matching_priorities)
+
+        matching_categories = [
+            code for code, label in Report.CATEGORY_CHOICES
+            if query.lower() in label.lower()
+        ]
+        if matching_categories:
+            q_filter |= Q(category__in=matching_categories)
+
+        reports_qs = reports_qs.filter(q_filter)
+
+    return reports_qs
+
+
+def reports(request):
+    status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('search', '').strip()
+
+    reports_qs = _filter_admin_reports(status_filter, search_query)
+
+    paginator = Paginator(reports_qs, REPORTS_PAGE_SIZE)
+    page_obj = paginator.get_page(1)
+
     return render(request, 'reports.html', {
         "active_page": "reports",
-        "reports": reports_qs,
+        "reports": page_obj,
         "status_filter": status_filter,
+        "search_query": search_query,
         "total_count": Report.objects.count(),
-        "filtered_count": reports_qs.count(),
+        "filtered_count": paginator.count,
+    })
+
+
+def adm_reports_ajax(request):
+    status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('search', '').strip()
+    page_number = request.GET.get('page', 1)
+
+    reports_qs = _filter_admin_reports(status_filter, search_query)
+
+    paginator = Paginator(reports_qs, REPORTS_PAGE_SIZE)
+    page_obj = paginator.get_page(page_number)
+
+    mobile_html = render_to_string('partials/_reports_mobile_rows.html', {
+        'reports': page_obj,
+    }, request=request)
+
+    desktop_html = render_to_string('partials/_reports_desktop_rows.html', {
+        'reports': page_obj,
+    }, request=request)
+
+    return JsonResponse({
+        'mobile_html': mobile_html,
+        'desktop_html': desktop_html,
+        'current_page': page_obj.number,
+        'total_pages': paginator.num_pages,
+        'has_previous': page_obj.has_previous(),
+        'has_next': page_obj.has_next(),
+        'total_count': paginator.count,
     })
 
 
@@ -348,6 +427,9 @@ def report_save(request, report_id):
             report.status == 'pending'
             and report.priority
             and assignments
+            and not awaiting_personnel
+            and not awaiting_materials
+            and not awaiting_approval
         ):
             report.status = 'in_progress'
             became_in_progress = True
@@ -372,17 +454,7 @@ def report_status(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     if request.method == 'POST':
         new_status = request.POST.get('status')
-        if new_status == 'in_progress' and report.status == 'pending':
-            report.status = new_status
-            if not report.in_progress_at:
-                report.in_progress_at = timezone.now()
-
-            Notification.objects.create(
-                user=report.user,
-                report=report,
-                message=f"Your report {report.job_order_id} is now In Progress."
-            )
-        elif new_status == 'resolved':
+        if new_status == 'resolved':
             report.status = new_status
             report.accomplished_at = timezone.now()
 
