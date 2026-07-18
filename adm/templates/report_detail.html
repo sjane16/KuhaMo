@@ -179,6 +179,23 @@
         ═══════════════════════════════════════════════════════════ -->
           <form method="POST" action="{% url 'adm_report_save' report.id %}">
             {% csrf_token %}
+            {% if is_locked %}
+              <div class="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="w-4 h-4 shrink-0"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke-width="2"
+                     stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+                {% if report.status == 'resolved' %}
+                  This report has been resolved and can no longer be edited.
+                {% else %}
+                  This report is closed and can no longer be edited.
+                {% endif %}
+              </div>
+            {% endif %}
             <!-- ═══════════════════════════════════
      CNN RECOMMENDATION
 ════════════════════════════════════ -->
@@ -259,7 +276,8 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Concern Category</label>
                 <div class="relative">
                   <select name="category"
-                          class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10">
+                          {% if is_locked %}disabled{% endif %}
+                          class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 disabled:bg-gray-100 disabled:text-gray-400">
                     {% for value, label in report.CATEGORY_CHOICES %}
                       <option value="{{ value }}"
                               {% if report.category == value %}selected{% endif %}>{{ label }}</option>
@@ -287,7 +305,8 @@
                          name="custom_category"
                          value="{{ report.custom_category|default:'' }}"
                          placeholder="Specify category"
-                         class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                         {% if is_locked %}disabled{% endif %}
+                         class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
                 </div>
               </div>
             </div>
@@ -302,7 +321,8 @@
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Priority Level</label>
                   <div class="relative">
                     <select name="priority"
-                            class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10">
+                            {% if is_locked %}disabled{% endif %}
+                            class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 disabled:bg-gray-100 disabled:text-gray-400">
                       <option value="" {% if not report.priority %}selected{% endif %}>Select priority</option>
                       <option value="critical"
                               {% if report.priority == 'critical' %}selected{% endif %}>3 - Critical / Urgent</option>
@@ -332,6 +352,7 @@
                                name="personnel_names"
                                value="{{ personnel.slug }}"
                                {% if personnel.checked %}checked{% endif %}
+                               {% if is_locked %}disabled{% endif %}
                                class="personnel-checkbox w-4 h-4 rounded border-gray-300 text-blue-600">
                         {{ personnel.name }}
                       </label>
@@ -341,17 +362,50 @@
                              id="include-other-personnel"
                              name="include_other_personnel"
                              value="1"
-                             {% if other_personnel.name %}checked{% endif %}
+                             {% if other_personnel %}checked{% endif %}
+                             {% if is_locked %}disabled{% endif %}
                              class="w-4 h-4 rounded border-gray-300 text-blue-600">
                       Others
                     </label>
                     <div id="other-personnel-wrapper"
-                         class="{% if not other_personnel.name %}hidden{% endif %}">
-                      <input type="text"
-                             name="other_personnel"
-                             value="{{ other_personnel.name }}"
-                             placeholder="Enter external or outsourced personnel"
-                             class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                         class="{% if not other_personnel %}hidden{% endif %} space-y-2">
+                      <div id="other-personnel-rows" class="space-y-2">
+                        {% for entry in other_personnel %}
+                          <div class="other-personnel-row flex items-center gap-2">
+                            <input type="text"
+                                   name="other_personnel"
+                                   value="{{ entry.name }}"
+                                   placeholder="Enter external or outsourced Personnel"
+                                   {% if is_locked %}disabled{% endif %}
+                                   class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
+                            <button type="button"
+                                    {% if is_locked %}disabled{% endif %}
+                                    class="remove-other-personnel shrink-0 text-gray-400 hover:text-red-500 text-sm px-2 disabled:opacity-0 disabled:pointer-events-none"
+                                    onclick="removeOtherPersonnelRow(this)">✕</button>
+                          </div>
+                        {% empty %}
+                          <div class="other-personnel-row flex items-center gap-2">
+                            <input type="text"
+                                   name="other_personnel"
+                                   value=""
+                                   placeholder="Enter external or outsourced Personnel"
+                                   {% if is_locked %}disabled{% endif %}
+                                   class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
+                            <button type="button"
+                                    {% if is_locked %}disabled{% endif %}
+                                    class="remove-other-personnel shrink-0 text-gray-400 hover:text-red-500 text-sm px-2 disabled:opacity-0 disabled:pointer-events-none"
+                                    onclick="removeOtherPersonnelRow(this)">✕</button>
+                          </div>
+                        {% endfor %}
+                      </div>
+                      {% if not is_locked %}
+                        <button type="button"
+                                id="add-other-personnel"
+                                onclick="addOtherPersonnelRow()"
+                                class="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1">
+                          <span class="text-base leading-none">+</span> Add personnel
+                        </button>
+                      {% endif %}
                     </div>
                   </div>
                 </div>
@@ -362,6 +416,8 @@
                            name="pending_awaiting_personnel"
                            value="1"
                            {% if report.pending_awaiting_personnel %}checked{% endif %}
+                           {% if is_locked %}disabled{% endif %}
+                           id="pending-awaiting-personnel"
                            class="w-4 h-4 rounded border-gray-300 text-blue-600">
                     Awaiting Personnel
                   </label>
@@ -370,6 +426,7 @@
                            name="pending_awaiting_materials"
                            value="1"
                            {% if report.pending_awaiting_materials %}checked{% endif %}
+                           {% if is_locked %}disabled{% endif %}
                            class="w-4 h-4 rounded border-gray-300 text-blue-600">
                     Awaiting Materials
                   </label>
@@ -378,6 +435,7 @@
                            name="pending_awaiting_approval"
                            value="1"
                            {% if report.pending_awaiting_approval %}checked{% endif %}
+                           {% if is_locked %}disabled{% endif %}
                            class="w-4 h-4 rounded border-gray-300 text-blue-600">
                     Awaiting Approval / Budget
                   </label>
@@ -403,10 +461,12 @@
                 {% endif %}
               </span>
             </div>
-            <button type="submit"
-                    class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3.5 rounded-xl transition-colors">
-              Save Changes
-            </button>
+            {% if not is_locked %}
+              <button type="submit"
+                      class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3.5 rounded-xl transition-colors">
+                Save Changes
+              </button>
+            {% endif %}
           </form>
           <!-- ═══════════════════════════════════
              UPDATE STATUS (info only — no manual trigger buttons
@@ -519,6 +579,61 @@
       if (otherPersonnelCheckbox) {
           otherPersonnelCheckbox.addEventListener("change", function() {
               document.getElementById("other-personnel-wrapper").classList.toggle("hidden", !this.checked);
+          });
+      }
+
+      function updateOtherPersonnelRemoveButtons() {
+          const rows = document.querySelectorAll("#other-personnel-rows .other-personnel-row");
+          rows.forEach(function(row) {
+              const removeBtn = row.querySelector(".remove-other-personnel");
+              removeBtn.classList.toggle("hidden", rows.length <= 1);
+          });
+      }
+
+      function addOtherPersonnelRow() {
+          const rowsContainer = document.getElementById("other-personnel-rows");
+          const newRow = document.createElement("div");
+          newRow.className = "other-personnel-row flex items-center gap-2";
+          newRow.innerHTML = `
+              <input type="text" name="other_personnel" value="" placeholder="Enter external or outsourced Personnel" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <button type="button" class="remove-other-personnel shrink-0 text-gray-400 hover:text-red-500 text-sm px-2" onclick="removeOtherPersonnelRow(this)">
+                ✕
+              </button>
+          `;
+          rowsContainer.appendChild(newRow);
+          updateOtherPersonnelRemoveButtons();
+      }
+
+      function removeOtherPersonnelRow(button) {
+          const rows = document.querySelectorAll("#other-personnel-rows .other-personnel-row");
+          if (rows.length <= 1) return;
+          button.closest(".other-personnel-row").remove();
+          updateOtherPersonnelRemoveButtons();
+      }
+
+      updateOtherPersonnelRemoveButtons();
+
+      function setAssignPersonnelDisabled(disabled) {
+          document.querySelectorAll(".personnel-checkbox").forEach(function(cb) {
+              cb.disabled = disabled;
+          });
+          const othersCheckbox = document.getElementById("include-other-personnel");
+          if (othersCheckbox) othersCheckbox.disabled = disabled;
+          document.querySelectorAll('#other-personnel-rows input[name="other_personnel"]').forEach(function(input) {
+              input.disabled = disabled;
+          });
+          document.querySelectorAll(".remove-other-personnel").forEach(function(btn) {
+              btn.disabled = disabled;
+          });
+          const addBtn = document.getElementById("add-other-personnel");
+          if (addBtn) addBtn.classList.toggle("hidden", disabled);
+      }
+
+      const awaitingPersonnelCheckbox = document.getElementById("pending-awaiting-personnel");
+      if (awaitingPersonnelCheckbox && !awaitingPersonnelCheckbox.disabled) {
+          setAssignPersonnelDisabled(awaitingPersonnelCheckbox.checked);
+          awaitingPersonnelCheckbox.addEventListener("change", function() {
+              setAssignPersonnelDisabled(this.checked);
           });
       }
   </script>

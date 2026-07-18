@@ -1,6 +1,16 @@
 import re
 
 
+def validate_no_gibberish(value):
+    """Returns a list of error messages. Empty list = looks like real text.
+    Flags runs of 5+ consecutive consonants with no vowel in between,
+    which is characteristic of random keyboard-mashing (e.g. "dhasjdjasdja")."""
+    errors = []
+    if re.search(r'[b-df-hj-np-tv-z]{5,}', value, re.IGNORECASE):
+        errors.append("Please enter a valid, descriptive input — random or nonsensical text is not allowed.")
+    return errors
+
+
 def validate_password_strength(password):
     """Returns a list of error messages. Empty list = valid password."""
     errors = []
