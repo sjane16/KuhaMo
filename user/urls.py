@@ -20,6 +20,7 @@ urlpatterns = [
     path('ajax/predict-category/', user_required(views.predictCategory), name='predictCategory'),
     path('notifications/', user_required(views.userNotifications), name='userNotifications'),
     path('ajax/notifications/', user_required(views.get_notifications_ajax), name='get_notifications_ajax'),
+    path('ajax/notifications-page/', user_required(views.get_notifications_page_ajax), name='get_notifications_page_ajax'),
     path('notifications/<int:notification_id>/view/', user_required(views.view_notification), name='view_notification'),
     path('ajax/user-reports/', user_required(views.userReportsAjax), name='userReportsAjax'),
 
