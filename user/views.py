@@ -493,6 +493,7 @@ def get_notifications_ajax(request):
             "is_read": n.is_read,
             "time_ago": n.time_ago,
             "report_id": n.report.id,
+            "status": n.report.status,
         }
         for n in notifications
     ]

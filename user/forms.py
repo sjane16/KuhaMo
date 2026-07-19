@@ -4,6 +4,9 @@ from django.contrib.auth.models import User
 from .models import UserProfile
 from .models import Report
 from adm.models import Building, Floor, Room
+from .validators import validate_no_gibberish
+
+
 
 class ReportForm(forms.ModelForm):
     building = forms.ModelChoiceField(queryset=Building.objects.all(), empty_label="Select a Building or Facility", required=True)
@@ -61,6 +64,26 @@ class ReportForm(forms.ModelForm):
                 self.fields['location'].queryset=Room.objects.filter(floor_id=floor_id).order_by('order')
             except (ValueError, TypeError):
                 pass
+
+    def clean_custom_category(self):
+        value = (self.cleaned_data.get('custom_category') or '').strip()
+        if value:
+            if len(value) > 30:
+                raise forms.ValidationError("Custom category must not exceed 30 characters.")
+            gibberish_errors = validate_no_gibberish(value)
+            if gibberish_errors:
+                raise forms.ValidationError(gibberish_errors[0])
+        return value
+
+    def clean_description(self):
+        value = self.cleaned_data.get('description', '').strip()
+        if len(value) > 300:
+            raise forms.ValidationError("Description must not exceed 300 characters.")
+        gibberish_errors = validate_no_gibberish(value)
+        if gibberish_errors:
+            raise forms.ValidationError(gibberish_errors[0])
+        return value
+
 
 class UserForm(forms.ModelForm):
     class Meta:

@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
+from requests import request
 from user.models import Report, SurveyResponse, Notification
 from django.db.models import Count, Avg, Q
 from datetime import timedelta
@@ -50,9 +51,9 @@ def build_personnel_rows(report):
         for name in saved_names
         if name not in known_names
     ]
-    other = {"name": other_names[0] if other_names else ""}
+    others = [{"name": name} for name in other_names]
 
-    return rows, other
+    return rows, others
 
 
 def format_hours(hours):
@@ -355,11 +356,20 @@ def adm_reports_ajax(request):
 def report_detail(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     personnel_rows, other_personnel = build_personnel_rows(report)
+    is_locked = report.status in ('resolved', 'closed')
+
+    if report.status == 'closed':
+        session_key = f'closed_seen_{report.id}'
+        if not request.session.get(session_key):
+            messages.success(request, f"Report {report.job_order_id} has been Closed.")
+            request.session[session_key] = True
+
     return render(request, 'report_detail.html', {
         'report': report,
         'active_page': 'reports',
         'personnel_rows': personnel_rows,
         'other_personnel': other_personnel,
+        'is_locked': is_locked,
     })
 
 
@@ -367,11 +377,15 @@ def report_save(request, report_id):
     report = get_object_or_404(Report, id=report_id)
 
     if request.method == 'POST':
+        if report.status in ('resolved', 'closed'):
+            messages.error(request, "This report can no longer be edited.")
+            return redirect('adm_report_detail', report_id=report_id)
+
         category = request.POST.get('category', '').strip()
         custom_category = request.POST.get('custom_category', '').strip()
         priority = request.POST.get('priority', '').strip()
         selected_personnel = request.POST.getlist('personnel_names')
-        other_personnel = request.POST.get('other_personnel', '').strip()
+        other_personnel_list = request.POST.getlist('other_personnel')
         include_other_personnel = request.POST.get('include_other_personnel') == '1'
 
         awaiting_personnel = request.POST.get('pending_awaiting_personnel') == '1'
@@ -394,8 +408,11 @@ def report_save(request, report_id):
                 continue
             assignments.append({"name": name})
 
-        if include_other_personnel and other_personnel:
-            assignments.append({"name": other_personnel})
+        if include_other_personnel:
+            for name in other_personnel_list:
+                name = name.strip()
+                if name:
+                    assignments.append({"name": name})
 
         report.assigned_personnel_data = assignments
         report.assigned_personnel = ", ".join(
@@ -445,6 +462,7 @@ def report_save(request, report_id):
                 report=report,
                 message=f"Your report {report.job_order_id} is now In Progress."
             )
+            messages.success(request, f"Report {report.job_order_id} is now In Progress.")
 
     return redirect('adm_report_detail', report_id=report_id)
 
@@ -463,6 +481,7 @@ def report_status(request, report_id):
                 report=report,
                 message=f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey."
             )
+            messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
         elif new_status == 'closed':
             return redirect('adm_report_detail', report_id=report_id)
 
@@ -549,6 +568,7 @@ def get_notifications_ajax_admin(request):
             "is_read": n.is_read,
             "time_ago": n.time_ago,
             "report_id": n.report.id,
+            "status": n.report.status,
         }
         for n in notifications
     ]

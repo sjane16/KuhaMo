@@ -1,14 +1,22 @@
 {% load static tailwind_tags %}
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="min-h-full bg-gray-50">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Fac-Check{% endblock %}</title>
     {% tailwind_css %}
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload"
+          as="style"
+          href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+          onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet" />
+    </noscript>
     <link rel="icon"
           type="image/png"
           href="{% static 'user/images/Fac-Check-Logo.png' %}" />
@@ -16,13 +24,26 @@
         :root {
             color-scheme: light;
         }
+
+        html,
+        body {
+            min-height: 100%;
+            width: 100%;
+            margin: 0;
+            background: #f9fafb;
+        }
+
+        body {
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
     </style>
   </head>
   <body class="bg-gray-50 font-[Poppins]">
     <!-- REUSABLE TOAST / DIALOGUE BOX -->
     {% include "user/components/toast.html" %}
     <!-- DESKTOP FLOATING NOTIFICATION BELL -->
-    {% include "user/components/desktop_notif.html" %} 
+    {% include "user/components/desktop_notif.html" %}
     <div class="flex min-h-screen">
       <!-- DESKTOP SIDEBAR -->
       {% include "user/components/sidebar.html" %}
