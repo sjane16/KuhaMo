@@ -549,17 +549,42 @@ def survey_analysis(request):
     return render(request, 'survey_analysis.html', build_survey_analysis_context())
 
 
-def adminNotifications(request):
+def _filter_admin_notifications(request, notif_filter):
     notifications = Notification.objects.filter(user=request.user)
+
+    if notif_filter == 'unread':
+        notifications = notifications.filter(is_read=False)
+
+    return notifications
+
+
+def adminNotifications(request):
+    notif_filter = request.GET.get('filter', 'all')
+    notifications = _filter_admin_notifications(request, notif_filter)
 
     return render(request, 'notifications.html', {
         "active_page": "adminNotifications",
         "notifications": notifications,
+        "notif_filter": notif_filter,
+    })
+
+
+def get_notifications_page_ajax_admin(request):
+    notif_filter = request.GET.get('filter', 'all')
+    notifications = _filter_admin_notifications(request, notif_filter)
+
+    html = render_to_string('partials/_notifications_rows.html', {
+        "notifications": notifications,
+    }, request=request)
+
+    return JsonResponse({
+        "html": html,
     })
 
 
 def get_notifications_ajax_admin(request):
-    notifications = Notification.objects.filter(user=request.user)[:10]
+    notif_filter = request.GET.get('filter', 'all')
+    notifications = _filter_admin_notifications(request, notif_filter)[:10]
 
     data = [
         {

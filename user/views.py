@@ -472,19 +472,45 @@ def predictCategory(request):
         'raw_prediction': prediction['raw_label']
     })
 
+def _filter_user_notifications(request, notif_filter):
+    notifications = Notification.objects.filter(user=request.user)
+
+    if notif_filter == 'unread':
+        notifications = notifications.filter(is_read=False)
+
+    return notifications
+
+
 @login_required
 def userNotifications(request):
-    notifications = Notification.objects.filter(user=request.user)
+    notif_filter = request.GET.get('filter', 'all')
+    notifications = _filter_user_notifications(request, notif_filter)
 
     return render(request, 'user/user_notifications.html', {
         "active_page": "userNotifications",
         "notifications": notifications,
+        "notif_filter": notif_filter,
+    })
+
+
+@login_required
+def get_notifications_page_ajax(request):
+    notif_filter = request.GET.get('filter', 'all')
+    notifications = _filter_user_notifications(request, notif_filter)
+
+    html = render_to_string('user/partials/_notifications_rows.html', {
+        "notifications": notifications,
+    }, request=request)
+
+    return JsonResponse({
+        "html": html,
     })
 
 
 @login_required
 def get_notifications_ajax(request):
-    notifications = Notification.objects.filter(user=request.user)[:10]
+    notif_filter = request.GET.get('filter', 'all')
+    notifications = _filter_user_notifications(request, notif_filter)[:10]
 
     data = [
         {
