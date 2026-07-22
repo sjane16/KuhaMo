@@ -30,13 +30,21 @@ def menu(request):
         if 'save_info' in request.POST:
             user_form = UserForm(request.POST, instance=request.user)
             profile_form = UserProfileForm(request.POST, instance=profile)
+            # Sanitizes first_name/last_name via UserForm
             if user_form.is_valid() and profile_form.is_valid():
                 user_form.save()
                 profile_form.save()
                 messages.success(request, "Profile Updated Successfully")
                 return redirect('menu')
             else:
-                messages.error(request, f"Errors: {user_form.errors}| {profile_form.errors}")
+                # Plain-text error message (avoids raw HTML from form.errors)
+                error_list = [
+                    error
+                    for form in (user_form, profile_form)
+                    for field, errors in form.errors.items()
+                    for error in errors
+                ]
+                messages.error(request, " ".join(error_list))
 
         elif 'save_photo' in request.POST:
             photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=profile)

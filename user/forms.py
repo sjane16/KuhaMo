@@ -5,8 +5,7 @@ from .models import UserProfile
 from .models import Report
 from adm.models import Building, Floor, Room
 from .validators import validate_no_gibberish
-
-
+from .validators import validate_name  # name sanitizer
 
 class ReportForm(forms.ModelForm):
     building = forms.ModelChoiceField(queryset=Building.objects.all(), empty_label="Select a Building or Facility", required=True)
@@ -90,10 +89,26 @@ class UserForm(forms.ModelForm):
         model = User
         fields = ['first_name', 'last_name', 'email']
 
+    # Sanitizes first/last name (shared by admin & user)
+    def clean_first_name(self):
+        return validate_name(self.cleaned_data.get('first_name'), "First name")
+    
+    def clean_last_name(self):
+        return validate_name(self.cleaned_data.get('last_name'), "Last name")
+
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
         fields = ['department', 'phone']
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
+        if phone:
+            if not phone.isdigit():
+                raise forms.ValidationError("Phone number must contain numbers only.")
+            if len(phone) !=11:
+                raise forms.ValidationError("Phone number must be exactly 11 digits.")
+        return phone
 
 class ProfilePhotoForm(forms.ModelForm):
     ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png']

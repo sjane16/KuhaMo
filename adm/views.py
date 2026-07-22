@@ -10,6 +10,9 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
+from user.forms import UserForm  
+from user.validators import validate_password_strength
+from django.contrib.auth import update_session_auth_hash
 
 
 REPORTS_PAGE_SIZE = 5
@@ -492,13 +495,21 @@ def report_status(request, report_id):
 
 def ProfileMenu(request):
     if request.method == 'POST':
+        # Now uses UserForm to sanitize first_name/last_name
         if 'save_info' in request.POST:
-            request.user.first_name = request.POST.get('first_name')
-            request.user.last_name = request.POST.get('last_name')
-            request.user.email = request.POST.get('email')
-            request.user.save()
-            messages.success(request, "Profile Updated Successfully")
-            return redirect('ProfileMenu')
+            user_form = UserForm(request.POST, instance=request.user)
+            if user_form.is_valid():
+                user_form.save()
+                messages.success(request, "Profile Updated Successfully")
+                return redirect('ProfileMenu')
+            else:
+                # Plain-text error message (avoids raw HTML from form.errors)
+                error_list = [
+                    error
+                    for field, errors in user_form.errors.items()
+                    for error in errors
+                ]
+                messages.error(request, " ".join(error_list))
 
         elif 'change_password' in request.POST:
             old_password = request.POST.get('old_password', '').strip()
