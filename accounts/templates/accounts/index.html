@@ -10,6 +10,9 @@
         <script src="https://unpkg.com/htmx.org@1.9.10"></script>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
               rel="stylesheet" />
+        <link rel="icon"
+              type="image/png"
+              href="{% static 'accounts/images/Fac-Check-Logo.png' %}?v=2" />
         <style>
             :root {
                 --fc-blue: #2563eb;
@@ -234,6 +237,15 @@
                 outline-offset: 3px;
                 border-radius: 8px;
             }
+
+            .fc-link-rise {
+                display: inline-block;
+                transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s ease;
+            }
+
+            .fc-link-rise:hover {
+                transform: translateY(-3px);
+            }
         </style>
     </head>
     <body class="min-h-screen flex flex-col text-gray-800 font-[Poppins]">
@@ -326,6 +338,12 @@
                     </div>
                 </div>
             </section>
+            <div class = "fc-rise fc-delay-4 text-center pt-2">
+                <a href=" "
+                   class="fc-link-rise text-sm  font-semibold text-blue-500 block hover:text-blue-800 transition-all">
+                    New user? Register here
+                </a>
+            </div>
         </main>
         <div class="fc-crop fc-crop-bl"></div>
         <div class="fc-crop fc-crop-br"></div>

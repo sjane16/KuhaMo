@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
 from cloudinary.models import CloudinaryField
+from .validators import phone_validator
 
 
 REPORT_PREFIX = "MED-JO"
@@ -195,7 +196,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES, blank=True)
-    phone = models.CharField(max_length=20, blank=True)
+    phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
 
     def __str__(self):

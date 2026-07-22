@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from .forms import StudentLogin, AdminLogin
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
+from django.views.decorators.cache import never_cache
 from django.contrib.messages import get_messages
 from axes.decorators import axes_dispatch
 from axes.utils import reset_request
@@ -10,10 +11,12 @@ from django_ratelimit.core import is_ratelimited
 from security.models import HoneypotHit
 from security.utils import is_ip_flagged
 
+@never_cache
 def splash_screen(request):
     return render(request, 'accounts/index.html')
 
 
+@never_cache
 def student_login(request):
 
     if request.method == 'POST':
@@ -77,6 +80,7 @@ def student_login(request):
 
     return render(request, 'accounts/student_login.html', {'form': form})
 
+@never_cache
 def admin_login(request):
 
     if request.method == 'POST':

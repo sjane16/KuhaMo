@@ -1,8 +1,10 @@
 from django.shortcuts import redirect
 from functools  import wraps
+from django.views.decorators.cache import never_cache
 
 def user_required(view_func):
     @wraps(view_func)
+    @never_cache
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('student_login')
@@ -13,6 +15,7 @@ def user_required(view_func):
 
 def admin_required(view_func):
     @wraps(view_func)
+    @never_cache
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('admin_login')
