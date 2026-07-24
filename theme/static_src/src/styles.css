@@ -2,7 +2,7 @@
 @plugin "daisyui";
 
 @theme {
-  --font-poppins: 'Poppins', sans-serif;
+  --font-poppins: "Poppins", sans-serif;
 }
 
 /**
@@ -13,3 +13,19 @@
   * the scope of this path.
   */
 @source "../../../**/*.{html,py,js}";
+
+/* Skeleton loader — shimmer animation (Facebook-style placeholders) */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
