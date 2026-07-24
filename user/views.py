@@ -515,11 +515,9 @@ def _filter_user_notifications(request, notif_filter):
 @login_required
 def userNotifications(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_user_notifications(request, notif_filter)
 
     return render(request, 'user/user_notifications.html', {
         "active_page": "userNotifications",
-        "notifications": notifications,
         "notif_filter": notif_filter,
     })
 
