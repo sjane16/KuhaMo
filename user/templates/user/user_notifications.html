@@ -38,8 +38,6 @@
             const skeleton = document.getElementById("notificationsSkeleton");
             const tabs = [tabAll, tabUnread];
 
-            let isInitialLoad = true;
-
             function setActiveTab(filterValue) {
                 tabs.forEach(function(tab) {
                     if (!tab) return;
@@ -53,6 +51,35 @@
                 });
             }
 
+            function showSkeleton() {
+                if (skeleton) {
+                    skeleton.classList.remove('hidden');
+                    skeleton.style.transition = '';
+                    skeleton.style.opacity = '1';
+                }
+                container.classList.add('hidden');
+                container.style.opacity = '0';
+            }
+
+            function revealContent() {
+                container.style.opacity = '0';
+                container.classList.remove('hidden');
+
+                if (skeleton) {
+                    skeleton.style.transition = 'opacity 0.25s ease-out';
+                    skeleton.style.opacity = '0';
+                }
+
+                setTimeout(function() {
+                    if (skeleton) skeleton.classList.add('hidden');
+
+                    container.style.transition = 'opacity 0.25s ease-in';
+                    requestAnimationFrame(function() {
+                        container.style.opacity = '1';
+                    });
+                }, 250);
+            }
+
             function fetchNotifications(filterValue) {
                 const url = new URL("{% url 'get_notifications_page_ajax' %}", window.location.origin);
                 url.searchParams.set("filter", filterValue);
@@ -63,27 +90,7 @@
                     })
                     .then(function(data) {
                         container.innerHTML = data.html;
-
-                        if (isInitialLoad) {
-                            isInitialLoad = false;
-
-                            container.style.opacity = '0';
-                            container.classList.remove('hidden');
-
-                            if (skeleton) {
-                                skeleton.style.transition = 'opacity 0.25s ease-out';
-                                skeleton.style.opacity = '0';
-                            }
-
-                            setTimeout(function() {
-                                if (skeleton) skeleton.classList.add('hidden');
-
-                                container.style.transition = 'opacity 0.25s ease-in';
-                                requestAnimationFrame(function() {
-                                    container.style.opacity = '1';
-                                });
-                            }, 250);
-                        }
+                        revealContent();
                     })
                     .catch(function(error) {
                         console.error("Failed to load notifications:", error);
@@ -92,6 +99,7 @@
 
             function handleTabClick(filterValue) {
                 setActiveTab(filterValue);
+                showSkeleton();
                 fetchNotifications(filterValue);
             }
 
