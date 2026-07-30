@@ -11,25 +11,31 @@
             <button type="button"
                     id="notifTabAll"
                     data-filter="all"
-                    class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">
-                All
-            </button>
+                    class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">All</button>
             <button type="button"
                     id="notifTabUnread"
                     data-filter="unread"
-                    class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">
-                Unread
-            </button>
+                    class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">Unread</button>
         </div>
-        <div id="notificationsContainer">
-            {% include "user/partials/_notifications_rows.html" with notifications=notifications %}
+        <div id="notificationsSkeleton" class="flex flex-col gap-3">
+            {% for n in "1234" %}
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-start gap-3">
+                    <div class="skeleton w-11 h-11 rounded-full shrink-0"></div>
+                    <div class="flex-1 min-w-0 space-y-2 pt-1">
+                        <div class="skeleton h-3 w-3/4 rounded"></div>
+                        <div class="skeleton h-2.5 w-16 rounded"></div>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
+        <div id="notificationsContainer" class="hidden"></div>
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const tabAll = document.getElementById("notifTabAll");
             const tabUnread = document.getElementById("notifTabUnread");
             const container = document.getElementById("notificationsContainer");
+            const skeleton = document.getElementById("notificationsSkeleton");
             const tabs = [tabAll, tabUnread];
 
             function setActiveTab(filterValue) {
@@ -45,6 +51,35 @@
                 });
             }
 
+            function showSkeleton() {
+                if (skeleton) {
+                    skeleton.classList.remove('hidden');
+                    skeleton.style.transition = '';
+                    skeleton.style.opacity = '1';
+                }
+                container.classList.add('hidden');
+                container.style.opacity = '0';
+            }
+
+            function revealContent() {
+                container.style.opacity = '0';
+                container.classList.remove('hidden');
+
+                if (skeleton) {
+                    skeleton.style.transition = 'opacity 0.25s ease-out';
+                    skeleton.style.opacity = '0';
+                }
+
+                setTimeout(function() {
+                    if (skeleton) skeleton.classList.add('hidden');
+
+                    container.style.transition = 'opacity 0.25s ease-in';
+                    requestAnimationFrame(function() {
+                        container.style.opacity = '1';
+                    });
+                }, 250);
+            }
+
             function fetchNotifications(filterValue) {
                 const url = new URL("{% url 'get_notifications_page_ajax' %}", window.location.origin);
                 url.searchParams.set("filter", filterValue);
@@ -55,6 +90,7 @@
                     })
                     .then(function(data) {
                         container.innerHTML = data.html;
+                        revealContent();
                     })
                     .catch(function(error) {
                         console.error("Failed to load notifications:", error);
@@ -63,6 +99,7 @@
 
             function handleTabClick(filterValue) {
                 setActiveTab(filterValue);
+                showSkeleton();
                 fetchNotifications(filterValue);
             }
 
@@ -79,6 +116,7 @@
             }
 
             setActiveTab("{{ notif_filter|default:'all' }}");
+            fetchNotifications("{{ notif_filter|default:'all' }}");
         });
     </script>
 {% endblock %}

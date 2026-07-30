@@ -36,7 +36,11 @@
         <div class="px-4 py-3 border-b border-gray-100">
             <h3 class="text-base font-bold text-gray-900">Notifications</h3>
         </div>
-        <div class="px-4 pt-3 flex items-center gap-2">
+        <div id="notif_tabs_skeleton" class="px-4 pt-3 flex items-center gap-2">
+            <div class="skeleton h-6 w-12 rounded-full"></div>
+            <div class="skeleton h-6 w-16 rounded-full"></div>
+        </div>
+        <div id="notif_tabs_real" class="hidden px-4 pt-3 flex items-center gap-2">
             <button type="button"
                     id="notif_tab_all"
                     data-filter="all"
@@ -50,15 +54,28 @@
                 Unread
             </button>
         </div>
-        <div id="notif_list"
+        <div id="notif_list_skeleton"
              class="max-h-96 overflow-y-auto divide-y divide-gray-100 mt-2">
-            <div class="px-4 py-6 text-center text-sm text-gray-400">Loading...</div>
+            {% for n in "1234" %}
+                <div class="flex items-start gap-3 px-4 py-3">
+                    <div class="skeleton w-11 h-11 rounded-full shrink-0"></div>
+                    <div class="flex-1 min-w-0 space-y-2 pt-1">
+                        <div class="skeleton h-3 w-full rounded"></div>
+                        <div class="skeleton h-2.5 w-16 rounded"></div>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
+        <div id="notif_list"
+             class="hidden max-h-96 overflow-y-auto divide-y divide-gray-100 mt-2"></div>
     </div>
 </div>
 <script>
     const notifDropdown = document.getElementById("notif_dropdown");
     const notifList = document.getElementById("notif_list");
+    const notifListSkeleton = document.getElementById("notif_list_skeleton");
+    const notifTabsReal = document.getElementById("notif_tabs_real");
+    const notifTabsSkeleton = document.getElementById("notif_tabs_skeleton");
     const notifTabAll = document.getElementById("notif_tab_all");
     const notifTabUnread = document.getElementById("notif_tab_unread");
 
@@ -142,6 +159,11 @@
     }
 
     function loadNotifications() {
+        notifTabsSkeleton.classList.remove('hidden');
+        notifListSkeleton.classList.remove('hidden');
+        notifTabsReal.classList.add('hidden');
+        notifList.classList.add('hidden');
+
         fetch(`{% url 'get_notifications_ajax' %}?filter=${currentNotifFilter}`)
             .then((res) => res.json())
             .then((data) => {
@@ -150,20 +172,19 @@
                 if (data.notifications.length === 0) {
                     notifList.innerHTML =
                         '<div class="px-4 py-6 text-center text-sm text-gray-400">No notifications yet.</div>';
-                    return;
-                }
+                } else {
+                    const unread = data.notifications.filter((n) => !n.is_read);
+                    const read = data.notifications.filter((n) => n.is_read);
 
-                const unread = data.notifications.filter((n) => !n.is_read);
-                const read = data.notifications.filter((n) => n.is_read);
+                    if (unread.length > 0) {
+                        notifList.appendChild(buildSectionHeader("New", true));
+                        unread.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
+                    }
 
-                if (unread.length > 0) {
-                    notifList.appendChild(buildSectionHeader("New", true));
-                    unread.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
-                }
-
-                if (read.length > 0) {
-                    notifList.appendChild(buildSectionHeader("Yesterday", unread.length === 0));
-                    read.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
+                    if (read.length > 0) {
+                        notifList.appendChild(buildSectionHeader("Yesterday", unread.length === 0));
+                        read.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
+                    }
                 }
 
                 const badge = document.getElementById("desktop_notif_badge");
@@ -172,6 +193,11 @@
                 } else if (badge) {
                     badge.textContent = data.unread_count;
                 }
+
+                notifTabsSkeleton.classList.add('hidden');
+                notifListSkeleton.classList.add('hidden');
+                notifTabsReal.classList.remove('hidden');
+                notifList.classList.remove('hidden');
             });
     }
 

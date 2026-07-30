@@ -23,5 +23,11 @@ urlpatterns = [
     path('ajax/notifications-page/', user_required(views.get_notifications_page_ajax), name='get_notifications_page_ajax'),
     path('notifications/<int:notification_id>/view/', user_required(views.view_notification), name='view_notification'),
     path('ajax/user-reports/', user_required(views.userReportsAjax), name='userReportsAjax'),
+    path('ajax/dashboard-stats/', user_required(views.dashboardStatsAjax), name='dashboardStatsAjax'),
+    path('ajax/report-form/', user_required(views.reportFormAjax), name='reportFormAjax'),
+    path('ajax/survey/', user_required(views.userSurveyAjax), name='userSurveyAjax'),
+
+
+
 
 ]

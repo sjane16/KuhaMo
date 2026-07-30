@@ -106,40 +106,38 @@ def base(request):
 
 @login_required
 def userDashboard(request):
-    total_reports = Report.objects.filter(user=request.user).count()
+    return render(request, 'user/user_dashboard.html', {
+        "active_page": "userDashboard",
+    })
 
-    pending_reports = Report.objects.filter(
-        user=request.user,
-        status='pending'
-    ).count()
 
-    in_progress_reports = Report.objects.filter(
-        user=request.user,
-        status='in_progress'
-    ).count()
+@login_required
+def dashboardStatsAjax(request):
+    from django.db.models import Count, Q
 
-    resolved_reports = Report.objects.filter(
-        user=request.user,
-        status='resolved'
-    ).count()
-
-    closed_reports = Report.objects.filter(
-        user=request.user,
-        status='closed'
-    ).count()
+    status_counts = Report.objects.filter(user=request.user).aggregate(
+        total_reports=Count('id'),
+        pending_reports=Count('id', filter=Q(status='pending')),
+        in_progress_reports=Count('id', filter=Q(status='in_progress')),
+        resolved_reports=Count('id', filter=Q(status='resolved')),
+        closed_reports=Count('id', filter=Q(status='closed')),
+    )
 
     recent_reports = Report.objects.filter(
         user=request.user
     ).order_by('-submitted_at')[:3]
 
-    return render(request, 'user/user_dashboard.html', {
-        "active_page": "userDashboard",
-        "total_reports": total_reports,
-        "pending_reports": pending_reports,
-        "in_progress_reports": in_progress_reports,
-        "resolved_reports": resolved_reports,
-        "closed_reports": closed_reports,
+    context = {
+        **status_counts,
         "recent_reports": recent_reports,
+    }
+
+    mobile_html = render_to_string('user/partials/_dashboard_stats_mobile.html', context, request=request)
+    desktop_html = render_to_string('user/partials/_dashboard_stats_desktop.html', context, request=request)
+
+    return JsonResponse({
+        "mobile_html": mobile_html,
+        "desktop_html": desktop_html,
     })
 
 @login_required
@@ -183,16 +181,36 @@ def reportForm(request):
         else:
             messages.error(request, "Please complete all required fields.")
 
-    else:
-        form = ReportForm()
+        facility_building_ids = list(
+            Building.objects.filter(has_floors=False).values_list('id', flat=True)
+        )
+
+        return render(request, 'user/report_form.html', {
+            "active_page": "reportForm",
+            "form": form,
+            "facility_building_ids": facility_building_ids,
+        })
+
+    return render(request, 'user/report_form.html', {
+        "active_page": "reportForm",
+    })
+
+
+@login_required
+def reportFormAjax(request):
+    form = ReportForm()
 
     facility_building_ids = list(
         Building.objects.filter(has_floors=False).values_list('id', flat=True)
     )
 
-    return render(request, 'user/report_form.html', {
-        "active_page": "reportForm",
+    html = render_to_string('user/partials/_report_form_content.html', {
         "form": form,
+        "facility_building_ids": facility_building_ids,
+    }, request=request)
+
+    return JsonResponse({
+        "html": html,
         "facility_building_ids": facility_building_ids,
     })
 
@@ -216,14 +234,9 @@ def _filter_user_reports(request, status_filter, search_query):
 @login_required
 def userReports(request):
     status_filter = request.GET.get('status', 'all')
-    reports = _filter_user_reports(request, status_filter, '')
-
-    paginator = Paginator(reports, REPORTS_PAGE_SIZE)
-    page_obj = paginator.get_page(1)
 
     return render(request, 'user/user_reports.html', {
         "active_page": "userReports",
-        "reports": page_obj,
         "status_filter": status_filter,
     })
 
@@ -294,13 +307,23 @@ def reportedIssue(request, report_id):
 
 @login_required
 def userSurvey(request):
+    return render(request, 'user/user_survey.html', {
+        "active_page": "userSurvey",
+    })
+
+
+@login_required
+def userSurveyAjax(request):
     submitted_surveys = SurveyResponse.objects.filter(
         report__user=request.user
     ).select_related('report').order_by('-submitted_at')
 
-    return render(request, 'user/user_survey.html', {
-        "active_page": "userSurvey",
+    html = render_to_string('user/partials/_survey_content.html', {
         "submitted_surveys": submitted_surveys,
+    }, request=request)
+
+    return JsonResponse({
+        "html": html,
     })
 
 
@@ -481,7 +504,7 @@ def predictCategory(request):
     })
 
 def _filter_user_notifications(request, notif_filter):
-    notifications = Notification.objects.filter(user=request.user)
+    notifications = Notification.objects.filter(user=request.user).select_related('report')
 
     if notif_filter == 'unread':
         notifications = notifications.filter(is_read=False)
@@ -492,11 +515,9 @@ def _filter_user_notifications(request, notif_filter):
 @login_required
 def userNotifications(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_user_notifications(request, notif_filter)
 
     return render(request, 'user/user_notifications.html', {
         "active_page": "userNotifications",
-        "notifications": notifications,
         "notif_filter": notif_filter,
     })
 

@@ -159,8 +159,15 @@ def build_survey_analysis_context():
     }
 
 def dashboard(request):
-    now = timezone.now()
+    period = request.GET.get('period', '30')
 
+    return render(request, 'dashboard.html', {
+        'period': period,
+    })
+
+
+def adm_dashboard_ajax(request):
+    now = timezone.now()
     period = request.GET.get('period', '30')
 
     if period == '7':
@@ -174,7 +181,7 @@ def dashboard(request):
         if start_date:
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
-    
+
     pending = filter_periods(Report.objects.filter(status='pending')).count()
     in_progress = filter_periods(Report.objects.filter(status='in_progress')).count()
     resolved_thisweek = filter_periods(Report.objects.filter(status='resolved')).count()
@@ -182,17 +189,17 @@ def dashboard(request):
     avg_satisfaction = round(avg_satisfaction, 1)
 
     satisfaction_labels = [
-        "5-Outstanding", 
-        "4-Very Satisfactory", 
-        "3-Satisfactory", 
-        "2-Fair", 
+        "5-Outstanding",
+        "4-Very Satisfactory",
+        "3-Satisfactory",
+        "2-Fair",
         "1-Unsatisfactory"
-        ]
+    ]
     satisfaction_counts = [
         SurveyResponse.objects.filter(rating=i).count()
         for i in range(5, 0, -1)
     ]
-    
+
     categories_data = (
         filter_periods(Report.objects)
         .values('category')
@@ -200,7 +207,7 @@ def dashboard(request):
         .order_by('-count')[:6]
     )
     label_map = dict(Report.CATEGORY_CHOICES)
-    categories =[label_map.get(c['category'], c['category']) for c in categories_data]
+    categories = [label_map.get(c['category'], c['category']) for c in categories_data]
     categories_counts = [c['count'] for c in categories_data]
 
     room_counts = {}
@@ -229,7 +236,7 @@ def dashboard(request):
         end = now - timedelta(weeks=(4 - i))
         resolved = Report.objects.filter(
             status='resolved',
-            accomplished_at__range =(start, end)
+            accomplished_at__range=(start, end)
         )
         resolution_weeks.append(f'Week {i}')
         expected_hours.append(24)
@@ -238,7 +245,7 @@ def dashboard(request):
         for r in resolved:
             if r.accomplished_at and r.submitted_at:
                 diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
-                total_hours += diff 
+                total_hours += diff
         actual_hours.append(round(total_hours / count, 1) if count else 0)
 
     context = {
@@ -246,19 +253,23 @@ def dashboard(request):
         'in_progress': in_progress,
         'resolved_thisweek': resolved_thisweek,
         'avg_satisfaction': avg_satisfaction,
-        'satisfaction_labels': json.dumps(satisfaction_labels),
-        'satisfaction_counts': json.dumps(satisfaction_counts),
-        'categories': json.dumps(categories),
-        'categories_counts': json.dumps(categories_counts),
-        'location': json.dumps(location),
-        'location_counts': json.dumps(location_counts),
-        'resolution_weeks': json.dumps(resolution_weeks),
-        'expected_hours': json.dumps(expected_hours),
-        'actual_hours': json.dumps(actual_hours),
-        'period': period, 
+        'period': period,
     }
 
-    return render(request, 'dashboard.html', context)
+    html = render_to_string('partials/_dashboard_content.html', context, request=request)
+
+    return JsonResponse({
+        'html': html,
+        'satisfaction_labels': satisfaction_labels,
+        'satisfaction_counts': satisfaction_counts,
+        'categories': categories,
+        'categories_counts': categories_counts,
+        'location': location,
+        'location_counts': location_counts,
+        'resolution_weeks': resolution_weeks,
+        'expected_hours': expected_hours,
+        'actual_hours': actual_hours,
+    })
 
 
 def base(request):
@@ -557,7 +568,18 @@ def calendar_view(request):
 
 
 def survey_analysis(request):
-    return render(request, 'survey_analysis.html', build_survey_analysis_context())
+    return render(request, 'survey_analysis.html', {
+        "active_page": "survey_analysis",
+    })
+
+
+def adm_survey_analysis_ajax(request):
+    context = build_survey_analysis_context()
+    html = render_to_string('partials/_survey_analysis_content.html', context, request=request)
+
+    return JsonResponse({
+        'html': html,
+    })
 
 
 def _filter_admin_notifications(request, notif_filter):
@@ -571,11 +593,9 @@ def _filter_admin_notifications(request, notif_filter):
 
 def adminNotifications(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_admin_notifications(request, notif_filter)
 
     return render(request, 'notifications.html', {
         "active_page": "adminNotifications",
-        "notifications": notifications,
         "notif_filter": notif_filter,
     })
 
