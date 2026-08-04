@@ -673,6 +673,10 @@ def report_status(request, report_id):
                 messages.error(request, "Date and Time Completed cannot be earlier than the Date Submitted.")
                 return redirect('adm_report_detail', report_id=report_id)
 
+            if accomplished_at > timezone.now():
+                messages.error(request, "Date and Time Completed cannot be a future date/time.")
+                return redirect('adm_report_detail', report_id=report_id)
+
             report.status = new_status
             report.accomplished_at = accomplished_at
             report.completion_photo = completion_photo
