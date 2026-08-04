@@ -16,6 +16,7 @@ psycopg2-binary = "*"
 dj-database-url = "*"
 python-decouple = "*"
 django-cloudinary-storage = "*"
+xhtml2pdf = "*"
 
 [dev-packages]
 djlint = "*"

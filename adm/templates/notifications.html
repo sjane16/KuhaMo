@@ -7,15 +7,24 @@
             <h1 class="text-xl font-bold text-gray-900">Notifications</h1>
             <p class="text-sm text-gray-500 mt-1">Track new reports and closed concerns.</p>
         </div>
-        <div class="flex items-center gap-2 mb-5">
+        <div class="flex items-center justify-between gap-2 mb-5">
+            <div class="flex items-center gap-2">
+                <button type="button"
+                        id="notifTabAll"
+                        data-filter="all"
+                        class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">All</button>
+                <button type="button"
+                        id="notifTabUnread"
+                        data-filter="unread"
+                        class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">Unread</button>
+            </div>
             <button type="button"
-                    id="notifTabAll"
-                    data-filter="all"
-                    class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">All</button>
-            <button type="button"
-                    id="notifTabUnread"
-                    data-filter="unread"
-                    class="notif-tab px-4 py-1.5 rounded-full text-sm font-semibold transition-colors">Unread</button>
+                    id="markAllReadBtnPage"
+                    class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors">
+                <img src="{% static 'user/images/email.svg' %}"
+                     alt="Mark all as read"
+                     class="w-7 h-7">
+            </button>
         </div>
         <div id="notificationsSkeleton" class="flex flex-col gap-3">
             {% for n in "1234" %}
@@ -97,7 +106,10 @@
                     });
             }
 
+            let currentFilter = "{{ notif_filter|default:'all' }}";
+
             function handleTabClick(filterValue) {
+                currentFilter = filterValue;
                 setActiveTab(filterValue);
                 showSkeleton();
                 fetchNotifications(filterValue);
@@ -112,6 +124,34 @@
             if (tabUnread) {
                 tabUnread.addEventListener("click", function() {
                     handleTabClick("unread");
+                });
+            }
+
+            function getNotifPageCsrfToken() {
+                const match = document.cookie.match(/csrftoken=([^;]+)/);
+                return match ? match[1] : "";
+            }
+
+            const markAllReadBtnPage = document.getElementById("markAllReadBtnPage");
+            if (markAllReadBtnPage) {
+                markAllReadBtnPage.addEventListener("click", function() {
+                    fetch("{% url 'mark_all_notifications_read_admin' %}", {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": getNotifPageCsrfToken(),
+                            },
+                        })
+                        .then(function(res) {
+                            return res.json();
+                        })
+                        .then(function(data) {
+                            if (data.success) {
+                                fetchNotifications(currentFilter);
+                            }
+                        })
+                        .catch(function(error) {
+                            console.error("Failed to mark all as read:", error);
+                        });
                 });
             }
 

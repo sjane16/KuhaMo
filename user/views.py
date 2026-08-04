@@ -4,8 +4,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
 import os
-from django.http import JsonResponse
+from urllib.parse import unquote
+from django.http import JsonResponse, HttpResponse
+from xhtml2pdf import pisa
 from django.conf import settings
+from django.contrib.staticfiles import finders
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
 from django.db.models import Q
@@ -121,7 +124,21 @@ def dashboardStatsAjax(request):
         in_progress_reports=Count('id', filter=Q(status='in_progress')),
         resolved_reports=Count('id', filter=Q(status='resolved')),
         closed_reports=Count('id', filter=Q(status='closed')),
+        
     )
+
+    total = status_counts['total_reports']
+
+    def pct(count):
+        return round((count / total) * 100) if total else 0
+
+    percentages = {
+        "pending_pct": pct(status_counts['pending_reports']),
+        "in_progress_pct": pct(status_counts['in_progress_reports']),
+        "resolved_pct": pct(status_counts['resolved_reports']),
+        "closed_pct": pct(status_counts['closed_reports']),
+        "total_pct": 100 if total else 0,
+    }
 
     recent_reports = Report.objects.filter(
         user=request.user
@@ -129,6 +146,7 @@ def dashboardStatsAjax(request):
 
     context = {
         **status_counts,
+        **percentages,
         "recent_reports": recent_reports,
     }
 
@@ -162,12 +180,12 @@ def reportForm(request):
 
             report.save()
 
-            admin_user = get_admin_user()
-            if admin_user:
+            for admin_user in get_admin_users():
                 Notification.objects.create(
                     user=admin_user,
                     report=report,
-                    message=f"New report submitted: {report.job_order_id}"
+                    message=f"New report submitted: {report.job_order_id}",
+                    status_snapshot=report.status,
                 )
 
             messages.success(request, "Your concern has been submitted successfully.")
@@ -304,6 +322,73 @@ def reportedIssue(request, report_id):
         "emojis": emojis,
     })
 
+def link_callback(uri, rel):
+    """
+    Convert HTML URIs to absolute system paths so xhtml2pdf
+    can access Django static and media files.
+    """
+
+    uri = unquote(uri)
+
+    if uri.startswith(settings.MEDIA_URL):
+        path = os.path.join(
+            settings.MEDIA_ROOT,
+            uri.replace(settings.MEDIA_URL, "")
+        )
+
+    elif uri.startswith(settings.STATIC_URL):
+        path = finders.find(
+            uri.replace(settings.STATIC_URL, "")
+        )
+
+    else:
+        return uri
+
+    if not path or not os.path.isfile(path):
+        raise Exception(
+            f"Media URI must start with {settings.STATIC_URL} or {settings.MEDIA_URL}. "
+            f"Could not find file: {uri}"
+        )
+
+    return path
+
+@login_required
+def exportJobOrderPDF(request, report_id):
+    report = get_object_or_404(Report, id=report_id, user=request.user)
+
+    category_checks = {
+        'vehicle_checkup': report.category == 'vehicle_checkup',
+        'electrical': report.category == 'electrical',
+        'refrigeration_acu': report.category == 'refrigeration_acu',
+        'painting': report.category == 'painting',
+        'carpentry_masonry': report.category == 'carpentry_masonry',
+        'plumbing': report.category == 'plumbing',
+        'others': report.category == 'others',
+    }
+
+    html = render_to_string('user/job_order_pdf.html', {
+        "report": report,
+        "category_checks": category_checks,
+    })
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Job_Order_{report.job_order_id or report.id}.pdf"'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    pisa_status = pisa.CreatePDF(
+        html,
+        dest=response,
+        link_callback=link_callback
+)   
+
+    if pisa_status.err:
+        return HttpResponse("Something went wrong generating the Job Order PDF.", status=500)
+
+    return response
+
 
 @login_required
 def userSurvey(request):
@@ -379,12 +464,14 @@ def submitSurvey(request, report_id):
     report.status = 'closed'
     report.save(update_fields=['status'])
 
-    admin_user = get_admin_user()
-    if admin_user:
+    messages.success(request, f"Thank you for your feedback! Report {report.job_order_id} is now Closed.")
+
+    for admin_user in get_admin_users():
         Notification.objects.create(
             user=admin_user,
             report=report,
-            message=f"Report {report.job_order_id} is now closed — client survey received."
+            message=f"Report {report.job_order_id} is now closed — client survey received.",
+            status_snapshot=report.status,
         )
 
     return JsonResponse({
@@ -546,9 +633,11 @@ def get_notifications_ajax(request):
             "id": n.id,
             "message": n.message,
             "is_read": n.is_read,
+            "is_recent": n.is_recent,
             "time_ago": n.time_ago,
             "report_id": n.report.id,
-            "status": n.report.status,
+            "status": n.status_snapshot or n.report.status,
+            "completion_photo_url": n.report.completion_photo.url if (n.status_snapshot == 'resolved' and n.report.completion_photo) else None,
         }
         for n in notifications
     ]
@@ -572,5 +661,15 @@ def view_notification(request, notification_id):
     return redirect('reportedIssue', report_id=notification.report.id)
 
 
-def get_admin_user():
-    return User.objects.filter(is_superuser=True).first() or User.objects.filter(is_staff=True).first()
+@login_required
+def mark_all_notifications_read(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request.'}, status=400)
+
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+
+    return JsonResponse({'success': True})
+
+
+def get_admin_users():
+    return User.objects.filter(Q(is_staff=True) | Q(is_superuser=True)).distinct()

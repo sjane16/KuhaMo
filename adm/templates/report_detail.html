@@ -17,20 +17,45 @@
     <!-- Modal-style card -->
     <div class="bg-white border border-gray-200 rounded-3xl shadow overflow-hidden">
       <!-- Header -->
-      <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-        <div class="flex items-center gap-3">
-          <h1 class="text-base font-bold text-gray-900">Report Details</h1>
-          <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{{ report.job_order_id }}</span>
+      <div class="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-3 px-4 py-3 lg:px-6 lg:py-5 border-b border-gray-100">
+        <div class="flex items-center flex-nowrap gap-1.5 lg:gap-3 overflow-x-auto mt-2 lg:mt-0">
+          <h1 class="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">Report Details</h1>
+          <span class="text-[10px] lg:text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full whitespace-nowrap">{{ report.job_order_id }}</span>
           {% if report.status == 'pending' %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-600 border border-yellow-200">Pending</span>
+            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+              {{ report.get_status_display }}
+            </span>
           {% elif report.status == 'in_progress' %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-500 border border-blue-200">In Progress</span>
+            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+              {{ report.get_status_display }}
+            </span>
           {% elif report.status == 'resolved' %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-600 border border-green-200">Resolved</span>
+            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+              {{ report.get_status_display }}
+            </span>
           {% elif report.status == 'closed' %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Closed</span>
+            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-gray-100 text-gray-600 border border-gray-200 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
+              {{ report.get_status_display }}
+            </span>
           {% endif %}
         </div>
+        <button type="button"
+                onclick="exportJobOrder()"
+                class="w-full lg:w-auto lg:ml-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 lg:py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600 hover:bg-blue-100 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="w-4 h-4"
+               fill="none"
+               viewBox="0 0 24 24"
+               stroke-width="2"
+               stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          Export
+        </button>
       </div>
       <!-- Body: two columns -->
       <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
@@ -107,6 +132,24 @@
                 <p class="text-sm font-semibold text-gray-800">{{ report.submitted_at|date:"M d, Y · h:i A" }}</p>
               </div>
             </div>
+            {% if report.status == 'resolved' or report.status == 'closed' %}
+              <div class="flex items-start gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke-width="1.6"
+                     stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <div>
+                  <p class="text-xs text-gray-400">Date Accomplished</p>
+                  <p class="text-sm font-semibold text-gray-800">
+                    {% if report.accomplished_at %}{{ report.accomplished_at|date:"M d, Y · h:i A" }}{% else %}—{% endif %}
+                  </p>
+                </div>
+              </div>
+            {% endif %}
             <div class="flex items-start gap-3">
               <svg xmlns="http://www.w3.org/2000/svg"
                    class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"
@@ -153,182 +196,199 @@
         </div>
         <!-- RIGHT PANEL -->
         <div class="flex-1 p-6 space-y-8 margin-bottom-8 overflow-visible max-h-none lg:overflow-y-auto lg:max-h-[80vh]">
-          <!-- Title + reporter -->
-          <div>
-            <h2 class="text-2xl font-bold text-gray-900">{{ report.get_category_display }}</h2>
-            <p class="text-sm text-gray-500 mt-1">
-              Reported by
-              <strong class="text-gray-700">
-                {% if report.user %}{{ report.user.get_full_name|default:report.user.username }}{% else %}Unknown{% endif %}
-              </strong>
-              &nbsp;·&nbsp; {{ report.location }}
-            </p>
-          </div>
-          <!-- Description -->
-          <div>
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Description</p>
-            <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed italic">
-              {{ report.description|default:"No description provided." }}
+          {% if report.status != 'in_progress' %}
+            <!-- Description -->
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Description</p>
+              <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed italic">
+                {{ report.description|default:"No description provided." }}
+              </div>
             </div>
-          </div>
+          {% endif %}
+          {% if report.status == 'resolved' or report.status == 'closed' %}
+            {% if report.findings %}
+              <div>
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Findings</p>
+                <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed italic">{{ report.findings }}</div>
+              </div>
+            {% endif %}
+            {% if report.recommendation %}
+              <div>
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Recommendation</p>
+                <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed italic">
+                  {{ report.recommendation }}
+                </div>
+              </div>
+            {% endif %}
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Progress</p>
+              <div class="overflow-x-auto pb-2">
+                <div class="relative min-w-[420px] pt-2 pb-2">
+                  <div class="absolute top-6 left-[12.5%] right-[12.5%] h-0.5 bg-gray-200"></div>
+                  {% if report.status == 'resolved' %}
+                    <div class="absolute top-6 left-[12.5%] w-[50%] h-0.5 bg-blue-600"></div>
+                  {% elif report.status == 'closed' %}
+                    <div class="absolute top-6 left-[12.5%] right-[12.5%] h-0.5 bg-blue-600"></div>
+                  {% endif %}
+                  <div class="relative grid grid-cols-4 text-center">
+                    <div class="flex flex-col items-center">
+                      <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                      </div>
+                      <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">Pending</p>
+                      <p class="mt-1 text-[10px] text-gray-400">{{ report.submitted_at|date:"M d, Y" }}</p>
+                      <p class="text-[10px] text-gray-300">{{ report.submitted_at|date:"h:i A" }}</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                      <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                      </div>
+                      <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">In Progress</p>
+                      {% if report.in_progress_at %}
+                        <p class="mt-1 text-[10px] text-gray-400">{{ report.in_progress_at|date:"M d, Y" }}</p>
+                        <p class="text-[10px] text-gray-300">{{ report.in_progress_at|date:"h:i A" }}</p>
+                      {% else %}
+                        <p class="mt-1 text-[10px] text-gray-400">-</p>
+                      {% endif %}
+                    </div>
+                    <div class="flex flex-col items-center">
+                      <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                      </div>
+                      <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">Resolved</p>
+                      {% if report.accomplished_at %}
+                        <p class="mt-1 text-[10px] text-gray-400">{{ report.accomplished_at|date:"M d, Y" }}</p>
+                        <p class="text-[10px] text-gray-300">{{ report.accomplished_at|date:"h:i A" }}</p>
+                      {% else %}
+                        <p class="mt-1 text-[10px] text-gray-400">-</p>
+                      {% endif %}
+                    </div>
+                    <div class="flex flex-col items-center">
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm {% if report.status == 'closed' %}bg-blue-600 text-white{% else %}bg-white border-4 border-gray-300{% endif %}">
+                        {% if report.status == 'closed' %}
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        {% endif %}
+                      </div>
+                      <p class="mt-3 text-[10px] font-bold text-gray-900 uppercase">Closed</p>
+                      {% if report.status == 'closed' %}
+                        {% if report.closed_at %}
+                          <p class="mt-1 text-[10px] text-gray-400">{{ report.closed_at|date:"M d, Y" }}</p>
+                          <p class="text-[10px] text-gray-300">{{ report.closed_at|date:"h:i A" }}</p>
+                        {% else %}
+                          <p class="mt-1 text-[10px] text-gray-400">-</p>
+                        {% endif %}
+                      {% else %}
+                        <p class="mt-1 text-[10px] text-gray-400">-</p>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
           <!-- ═══════════════════════════════════════════════════════
              SINGLE UNIFIED FORM
              Covers: Priority + Assigned Personnel.
              Status only auto-moves when Priority and Personnel are assigned.
              ONE "Save Changes" button submits all.
         ═══════════════════════════════════════════════════════════ -->
-          <form method="POST" action="{% url 'adm_report_save' report.id %}">
-            {% csrf_token %}
-            {% if is_locked %}
-              <div class="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl bg-gray-100 border border-gray-200 text-gray-600 text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="w-4 h-4 shrink-0"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="2"
-                     stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-                {% if report.status == 'resolved' %}
-                  This report has been resolved and can no longer be edited.
-                {% else %}
-                  This report is closed and can no longer be edited.
-                {% endif %}
-              </div>
-            {% endif %}
-            <!-- ═══════════════════════════════════
+          {% if report.status == 'pending' %}
+            <form method="POST" action="{% url 'adm_report_save' report.id %}">
+              {% csrf_token %}
+              <!-- ═══════════════════════════════════
      CNN RECOMMENDATION
 ════════════════════════════════════ -->
-            <div class="mb-8">
-              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">CNN Image Classification</p>
-              <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <p class="text-xs text-gray-500">Recommended Category</p>
-                    <p class="text-lg font-bold text-gray-900 mt-1">
-                      {% if report.cnn_raw_prediction %}
-                        {{ report.cnn_raw_prediction }}
-                      {% else %}
-                        No CNN prediction available
-                      {% endif %}
-                    </p>
+              <div class="mb-8">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">CNN Image Classification</p>
+                <div class="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <p class="text-xs text-gray-500">Recommended Category</p>
+                      <p class="text-lg font-bold text-gray-900 mt-1">
+                        {% if report.cnn_raw_prediction %}
+                          {{ report.cnn_raw_prediction }}
+                        {% else %}
+                          No CNN prediction available
+                        {% endif %}
+                      </p>
+                    </div>
+                    {% if report.cnn_confidence is not None %}
+                      <div class="sm:text-right">
+                        <p class="text-xs text-gray-500">Confidence Level</p>
+                        <p class="text-lg font-bold text-blue-600 mt-1">{% widthratio report.cnn_confidence 1 100 %}%</p>
+                      </div>
+                    {% endif %}
                   </div>
                   {% if report.cnn_confidence is not None %}
-                    <div class="sm:text-right">
-                      <p class="text-xs text-gray-500">Confidence Level</p>
-                      <p class="text-lg font-bold text-blue-600 mt-1">{% widthratio report.cnn_confidence 1 100 %}%</p>
+                    <div class="mt-4">
+                      <div class="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                        <span>CNN Confidence</span>
+                        <span>{% widthratio report.cnn_confidence 1 100 %}%</span>
+                      </div>
+                      <div class="w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-600 rounded-full"
+                             style="width: {% widthratio report.cnn_confidence 1 100 %}%"></div>
+                      </div>
                     </div>
                   {% endif %}
-                </div>
-                {% if report.cnn_confidence is not None %}
-                  <div class="mt-4">
-                    <div class="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-                      <span>CNN Confidence</span>
-                      <span>{% widthratio report.cnn_confidence 1 100 %}%</span>
-                    </div>
-                    <div class="w-full h-2 bg-blue-100 rounded-full overflow-hidden">
-                      <div class="h-full bg-blue-600 rounded-full"
-                           style="width: {% widthratio report.cnn_confidence 1 100 %}%"></div>
-                    </div>
+                  <div class="mt-4 pt-4 border-t border-blue-100">
+                    {% if report.flagged_for_review %}
+                      <div class="flex items-start gap-2 text-amber-600">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="w-4 h-4 mt-0.5 shrink-0"
+                             fill="none"
+                             viewBox="0 0 24 24"
+                             stroke-width="2"
+                             stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9.303 3.376 c-.866 1.5-3.03 1.5-3.896 0 L12 6.772 6.593 16.126 c-.866 1.5-3.03 1.5-3.896 0 L8.104 6.772 c.866-1.5 3.03-1.5 3.896 0 l5.407 9.354Z" />
+                        </svg>
+                        <p class="text-xs leading-relaxed">
+                          CNN prediction requires manual review.
+                          Please verify the recommended category.
+                        </p>
+                      </div>
+                    {% else %}
+                      <div class="flex items-start gap-2 text-green-600">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="w-4 h-4 mt-0.5 shrink-0"
+                             fill="none"
+                             viewBox="0 0 24 24"
+                             stroke-width="2"
+                             stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        <p class="text-xs leading-relaxed">
+                          CNN recommendation available.
+                          Administrator may confirm or modify the category below.
+                        </p>
+                      </div>
+                    {% endif %}
                   </div>
-                {% endif %}
-                <div class="mt-4 pt-4 border-t border-blue-100">
-                  {% if report.flagged_for_review %}
-                    <div class="flex items-start gap-2 text-amber-600">
-                      <svg xmlns="http://www.w3.org/2000/svg"
-                           class="w-4 h-4 mt-0.5 shrink-0"
-                           fill="none"
-                           viewBox="0 0 24 24"
-                           stroke-width="2"
-                           stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9.303 3.376 c-.866 1.5-3.03 1.5-3.896 0 L12 6.772 6.593 16.126 c-.866 1.5-3.03 1.5-3.896 0 L8.104 6.772 c.866-1.5 3.03-1.5 3.896 0 l5.407 9.354Z" />
-                      </svg>
-                      <p class="text-xs leading-relaxed">
-                        CNN prediction requires manual review.
-                        Please verify the recommended category.
-                      </p>
-                    </div>
-                  {% else %}
-                    <div class="flex items-start gap-2 text-green-600">
-                      <svg xmlns="http://www.w3.org/2000/svg"
-                           class="w-4 h-4 mt-0.5 shrink-0"
-                           fill="none"
-                           viewBox="0 0 24 24"
-                           stroke-width="2"
-                           stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                      <p class="text-xs leading-relaxed">
-                        CNN recommendation available.
-                        Administrator may confirm or modify the category below.
-                      </p>
-                    </div>
-                  {% endif %}
                 </div>
               </div>
-            </div>
-            <!-- ═══════════════════════════════════
+              <!-- ═══════════════════════════════════
      ADMIN CLASSIFICATION
 ════════════════════════════════════ -->
-            <div class="mb-8">
-              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Admin Classification</p>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Concern Category</label>
-                <div class="relative">
-                  <select name="category"
-                          {% if is_locked %}disabled{% endif %}
-                          class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 disabled:bg-gray-100 disabled:text-gray-400">
-                    {% for value, label in report.CATEGORY_CHOICES %}
-                      <option value="{{ value }}"
-                              {% if report.category == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                  <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="w-4 h-4 text-gray-400"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="2"
-                         stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                  </div>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">
-                  CNN classification is provided as a recommendation only.
-                  The administrator may correct the final category.
-                </p>
-                <div id="custom-category-wrapper"
-                     class="mt-4 {% if report.category != 'others' %}hidden{% endif %}">
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Specified Category</label>
-                  <input type="text"
-                         name="custom_category"
-                         value="{{ report.custom_category|default:'' }}"
-                         placeholder="Specify category"
-                         {% if is_locked %}disabled{% endif %}
-                         class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
-                </div>
-              </div>
-            </div>
-            <!-- ═══════════════════════════════════
-                ASSIGN PRIORITY & PERSONNEL
-            ════════════════════════════════════ -->
-            <div id="assignSection">
-              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Assign Priority &amp; Personnel</p>
-              <div class="space-y-3">
-                <!-- Priority Level -->
+              <div class="mb-8">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Admin Classification</p>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Priority Level</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Concern Category</label>
                   <div class="relative">
-                    <select name="priority"
+                    <select name="category"
                             {% if is_locked %}disabled{% endif %}
                             class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 disabled:bg-gray-100 disabled:text-gray-400">
-                      <option value="" {% if not report.priority %}selected{% endif %}>Select priority</option>
-                      <option value="critical"
-                              {% if report.priority == 'critical' %}selected{% endif %}>3 - Critical / Urgent</option>
-                      <option value="high" {% if report.priority == 'high' %}selected{% endif %}>2 - High Priority</option>
-                      <option value="standard"
-                              {% if report.priority == 'standard' %}selected{% endif %}>1 - Standard</option>
+                      {% for value, label in report.CATEGORY_CHOICES %}
+                        <option value="{{ value }}"
+                                {% if report.category == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg"
@@ -341,169 +401,247 @@
                       </svg>
                     </div>
                   </div>
+                  <p class="text-xs text-gray-400 mt-2">
+                    CNN classification is provided as a recommendation only.
+                    The administrator may correct the final category.
+                  </p>
+                  <div id="custom-category-wrapper"
+                       class="mt-4 {% if report.category != 'others' %}hidden{% endif %}">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Specified Category</label>
+                    <input type="text"
+                           name="custom_category"
+                           value="{{ report.custom_category|default:'' }}"
+                           placeholder="Specify category"
+                           {% if is_locked %}disabled{% endif %}
+                           class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
+                  </div>
                 </div>
-                <!-- Assign Personnel -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Assign Personnel</label>
-                  <div class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                    {% for personnel in personnel_rows %}
+              </div>
+              {% if report.status == 'pending' %}
+                <!-- ═══════════════════════════════════
+                  ASSIGN PRIORITY & PERSONNEL
+              ════════════════════════════════════ -->
+                <div id="assignSection">
+                  <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Assign Priority &amp; Personnel</p>
+                  <div class="space-y-3">
+                    <!-- Priority Level -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">Priority Level</label>
+                      <div class="relative">
+                        <select name="priority"
+                                id="prioritySelect"
+                                {% if is_locked %}disabled{% endif %}
+                                class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 disabled:bg-gray-100 disabled:text-gray-400">
+                          <option value="" {% if not report.priority %}selected{% endif %}>Select priority</option>
+                          <option value="critical"
+                                  {% if report.priority == 'critical' %}selected{% endif %}>3 - Critical / Urgent</option>
+                          <option value="high" {% if report.priority == 'high' %}selected{% endif %}>2 - High Priority</option>
+                          <option value="standard"
+                                  {% if report.priority == 'standard' %}selected{% endif %}>1 - Standard</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg"
+                               class="w-4 h-4 text-gray-400"
+                               fill="none"
+                               viewBox="0 0 24 24"
+                               stroke-width="2"
+                               stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Pending Sub-status</label>
+                    <div class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                       <label class="flex items-center gap-3 text-sm text-gray-700">
                         <input type="checkbox"
-                               name="personnel_names"
-                               value="{{ personnel.slug }}"
-                               {% if personnel.checked %}checked{% endif %}
+                               name="pending_awaiting_personnel"
+                               value="1"
+                               {% if report.pending_awaiting_personnel %}checked{% endif %}
                                {% if is_locked %}disabled{% endif %}
-                               class="personnel-checkbox w-4 h-4 rounded border-gray-300 text-blue-600">
-                        {{ personnel.name }}
+                               id="pending-awaiting-personnel"
+                               class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                        With Assigned Personnel
                       </label>
-                    {% endfor %}
-                    <label class="flex items-center gap-3 text-sm text-gray-700">
-                      <input type="checkbox"
-                             id="include-other-personnel"
-                             name="include_other_personnel"
-                             value="1"
-                             {% if other_personnel %}checked{% endif %}
-                             {% if is_locked %}disabled{% endif %}
-                             class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                      Others
-                    </label>
-                    <div id="other-personnel-wrapper"
-                         class="{% if not other_personnel %}hidden{% endif %} space-y-2">
-                      <div id="other-personnel-rows" class="space-y-2">
-                        {% for entry in other_personnel %}
-                          <div class="other-personnel-row flex items-center gap-2">
-                            <input type="text"
-                                   name="other_personnel"
-                                   value="{{ entry.name }}"
-                                   placeholder="Enter external or outsourced Personnel"
+                      <label class="flex items-center gap-3 text-sm text-gray-700">
+                        <input type="checkbox"
+                               name="pending_awaiting_materials"
+                               value="1"
+                               {% if report.pending_awaiting_materials %}checked{% endif %}
+                               {% if is_locked %}disabled{% endif %}
+                               class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                        Materials Available
+                      </label>
+                      <label class="flex items-center gap-3 text-sm text-gray-700">
+                        <input type="checkbox"
+                               name="pending_awaiting_approval"
+                               value="1"
+                               {% if report.pending_awaiting_approval %}checked{% endif %}
+                               {% if is_locked %}disabled{% endif %}
+                               class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                        Approved/With Budget
+                      </label>
+                    </div>
+                    <!-- Assign Personnel -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">Assign Personnel</label>
+                      <div class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                        {% for personnel in personnel_rows %}
+                          <label class="flex items-center gap-3 text-sm text-gray-700">
+                            <input type="checkbox"
+                                   name="personnel_names"
+                                   value="{{ personnel.slug }}"
+                                   {% if personnel.checked %}checked{% endif %}
                                    {% if is_locked %}disabled{% endif %}
-                                   class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
-                            <button type="button"
-                                    {% if is_locked %}disabled{% endif %}
-                                    class="remove-other-personnel shrink-0 text-gray-400 hover:text-red-500 text-sm px-2 disabled:opacity-0 disabled:pointer-events-none"
-                                    onclick="removeOtherPersonnelRow(this)">✕</button>
-                          </div>
-                        {% empty %}
-                          <div class="other-personnel-row flex items-center gap-2">
-                            <input type="text"
-                                   name="other_personnel"
-                                   value=""
-                                   placeholder="Enter external or outsourced Personnel"
-                                   {% if is_locked %}disabled{% endif %}
-                                   class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
-                            <button type="button"
-                                    {% if is_locked %}disabled{% endif %}
-                                    class="remove-other-personnel shrink-0 text-gray-400 hover:text-red-500 text-sm px-2 disabled:opacity-0 disabled:pointer-events-none"
-                                    onclick="removeOtherPersonnelRow(this)">✕</button>
-                          </div>
+                                   class="personnel-checkbox w-4 h-4 rounded border-gray-300 text-blue-600">
+                            {{ personnel.name }}
+                          </label>
                         {% endfor %}
+                        <label class="flex items-center gap-3 text-sm text-gray-700">
+                          <input type="checkbox"
+                                 id="include-other-personnel"
+                                 name="include_other_personnel"
+                                 value="1"
+                                 {% if other_personnel %}checked{% endif %}
+                                 {% if is_locked %}disabled{% endif %}
+                                 class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                          Others
+                        </label>
+                        <div id="other-personnel-wrapper"
+                             class="{% if not other_personnel %}hidden{% endif %} space-y-2">
+                          <div id="other-personnel-rows" class="space-y-2">
+                            {% for entry in other_personnel %}
+                              <div class="other-personnel-row flex items-center gap-2">
+                                <input type="text"
+                                       name="other_personnel"
+                                       value="{{ entry.name }}"
+                                       placeholder="Enter external or outsourced Personnel"
+                                       {% if is_locked %}disabled{% endif %}
+                                       class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
+                                <button type="button"
+                                        {% if is_locked %}disabled{% endif %}
+                                        class="remove-other-personnel shrink-0 text-gray-400 hover:text-red-500 text-sm px-2 disabled:opacity-0 disabled:pointer-events-none"
+                                        onclick="removeOtherPersonnelRow(this)">✕</button>
+                              </div>
+                            {% empty %}
+                              <div class="other-personnel-row flex items-center gap-2">
+                                <input type="text"
+                                       name="other_personnel"
+                                       value=""
+                                       placeholder="Enter external or outsourced Personnel"
+                                       {% if is_locked %}disabled{% endif %}
+                                       class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400" />
+                                <button type="button"
+                                        {% if is_locked %}disabled{% endif %}
+                                        class="remove-other-personnel shrink-0 text-gray-400 hover:text-red-500 text-sm px-2 disabled:opacity-0 disabled:pointer-events-none"
+                                        onclick="removeOtherPersonnelRow(this)">✕</button>
+                              </div>
+                            {% endfor %}
+                          </div>
+                          {% if not is_locked %}
+                            <button type="button"
+                                    id="add-other-personnel"
+                                    onclick="addOtherPersonnelRow()"
+                                    class="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1">
+                              <span class="text-base leading-none">+</span> Add personnel
+                            </button>
+                          {% endif %}
+                        </div>
                       </div>
-                      {% if not is_locked %}
-                        <button type="button"
-                                id="add-other-personnel"
-                                onclick="addOtherPersonnelRow()"
-                                class="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1">
-                          <span class="text-base leading-none">+</span> Add personnel
-                        </button>
-                      {% endif %}
+                    </div>
+                    <!-- Findings & Recommendation -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">Findings</label>
+                      <textarea name="findings"
+                                rows="2"
+                                required
+                                {% if is_locked %}disabled{% endif %}
+                                placeholder="What was found during inspection/repair?"
+                                class="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 resize-none">{{ report.findings }}</textarea>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">Recommendation</label>
+                      <textarea name="recommendation"
+                                rows="2"
+                                required
+                                {% if is_locked %}disabled{% endif %}
+                                placeholder="Recommended action or follow-up"
+                                class="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 resize-none">{{ report.recommendation }}</textarea>
                     </div>
                   </div>
                 </div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Pending Sub-status</label>
-                <div class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <label class="flex items-center gap-3 text-sm text-gray-700">
-                    <input type="checkbox"
-                           name="pending_awaiting_personnel"
-                           value="1"
-                           {% if report.pending_awaiting_personnel %}checked{% endif %}
-                           {% if is_locked %}disabled{% endif %}
-                           id="pending-awaiting-personnel"
-                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                    Awaiting Personnel
-                  </label>
-                  <label class="flex items-center gap-3 text-sm text-gray-700">
-                    <input type="checkbox"
-                           name="pending_awaiting_materials"
-                           value="1"
-                           {% if report.pending_awaiting_materials %}checked{% endif %}
-                           {% if is_locked %}disabled{% endif %}
-                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                    Awaiting Materials
-                  </label>
-                  <label class="flex items-center gap-3 text-sm text-gray-700">
-                    <input type="checkbox"
-                           name="pending_awaiting_approval"
-                           value="1"
-                           {% if report.pending_awaiting_approval %}checked{% endif %}
-                           {% if is_locked %}disabled{% endif %}
-                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                    Awaiting Approval / Budget
-                  </label>
-                </div>
+              {% endif %}
+              <!-- Predicted Resolution Time -->
+              <div class="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="w-4 h-4 text-blue-400 shrink-0"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke-width="1.8"
+                     stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0 a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <span class="text-sm text-blue-600">
+                  Predicted Resolution Time:
+                  <strong id="predictedResolutionValue">
+                    {% if report.priority %}{{ report.expected_resolution_hours }} hours{% else %}Assign a priority to calculate{% endif %}
+                  </strong>
+                </span>
               </div>
-            </div>
-            <!-- Predicted Resolution Time -->
-            <div class="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
-              <svg xmlns="http://www.w3.org/2000/svg"
-                   class="w-4 h-4 text-blue-400 shrink-0"
-                   fill="none"
-                   viewBox="0 0 24 24"
-                   stroke-width="1.8"
-                   stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0 a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-              <span class="text-sm text-blue-600">
-                Predicted Resolution Time:
-                {% if report.priority %}
-                  <strong>{{ report.expected_resolution_hours }} hours</strong>
-                {% else %}
-                  <strong>Assign a priority to calculate</strong>
-                {% endif %}
-              </span>
-            </div>
-            {% if not is_locked %}
               <button type="submit"
                       class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3.5 rounded-xl transition-colors">
                 Save Changes
               </button>
-            {% endif %}
-          </form>
+            </form>
+          {% endif %}
           <!-- ═══════════════════════════════════
              UPDATE STATUS (info only — no manual trigger buttons
              except Mark Resolved, which appears once in_progress)
         ════════════════════════════════════ -->
-          <div>
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Update Status</p>
-            <div class="flex flex-wrap gap-3">
-              {% if report.status == 'pending' %}
-                <span class="text-sm text-gray-400 italic">Status will move to "In Progress" automatically once you assign Priority &amp; Personnel.</span>
-              {% elif report.status == 'in_progress' %}
-                <div class="space-y-2">
-                  <form method="POST" action="{% url 'adm_report_status' report.id %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="status" value="resolved" />
-                    <button type="submit"
-                            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg"
-                           class="w-4 h-4"
-                           fill="none"
-                           viewBox="0 0 24 24"
-                           stroke-width="2.5"
-                           stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                      </svg>
-                      Mark Resolved
-                    </button>
-                  </form>
-                  <p class="text-sm text-gray-400 italic">Resolved means the issue has been repaired or addressed.</p>
-                </div>
-              {% elif report.status == 'resolved' %}
-                <span class="text-sm text-gray-400 italic">The issue has been resolved.</span>
-              {% elif report.status == 'closed' %}
-                <span class="text-sm text-gray-400 italic">Closed: Only the end-user can trigger this status, and only after they complete the Client Satisfaction Survey.</span>
-              {% endif %}
+          {% if report.status == 'pending' or report.status == 'in_progress' %}
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Update Status</p>
+              <div class="flex flex-wrap gap-3">
+                {% if report.status == 'pending' %}
+                  <span class="text-sm text-gray-400 italic">Status will move to "In Progress" automatically once you set a Priority Level, assign at least one Personnel, and check both "With Assigned Personnel" and "Materials Available" ("Approved/With Budget" is optional).</span>
+                {% elif report.status == 'in_progress' %}
+                  <div class="space-y-3 w-full max-w-sm">
+                    <form method="POST"
+                          action="{% url 'adm_report_status' report.id %}"
+                          enctype="multipart/form-data">
+                      {% csrf_token %}
+                      <input type="hidden" name="status" value="resolved" />
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">Upload Image (proof of completed repair)</label>
+                      <input type="file"
+                             name="completion_photo"
+                             accept="image/*"
+                             required
+                             class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 mb-3 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-600 file:text-xs file:font-semibold hover:file:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">Date and Time Completed</label>
+                      <input type="datetime-local"
+                             name="accomplished_at"
+                             id="accomplishedAtInput"
+                             required
+                             class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <button type="submit"
+                              class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="w-4 h-4"
+                             fill="none"
+                             viewBox="0 0 24 24"
+                             stroke-width="2.5"
+                             stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        Mark Resolved
+                      </button>
+                    </form>
+                    <p class="text-sm text-gray-400 italic">Enter the actual date and time the issue was resolved, then confirm to mark it Resolved.</p>
+                  </div>
+                {% endif %}
+              </div>
             </div>
-          </div>
+          {% endif %}
         </div>
         <!-- end right panel -->
       </div>
@@ -631,10 +769,64 @@
 
       const awaitingPersonnelCheckbox = document.getElementById("pending-awaiting-personnel");
       if (awaitingPersonnelCheckbox && !awaitingPersonnelCheckbox.disabled) {
-          setAssignPersonnelDisabled(awaitingPersonnelCheckbox.checked);
+          setAssignPersonnelDisabled(!awaitingPersonnelCheckbox.checked);
           awaitingPersonnelCheckbox.addEventListener("change", function() {
-              setAssignPersonnelDisabled(this.checked);
+              setAssignPersonnelDisabled(!this.checked);
           });
+      }
+
+      // ── Live Predicted Resolution Time (no save needed) ──
+      const PRIORITY_HOURS = {
+          critical: 3,
+          high: 24,
+          standard: 72
+      };
+      const prioritySelect = document.getElementById("prioritySelect");
+      const predictedResolutionValue = document.getElementById("predictedResolutionValue");
+      if (prioritySelect && predictedResolutionValue) {
+          prioritySelect.addEventListener("change", function() {
+              const hours = PRIORITY_HOURS[this.value];
+              predictedResolutionValue.textContent = hours ? `${hours} hours` : "Assign a priority to calculate";
+          });
+      }
+
+      // ── Job Order PDF export modal ──
+      function exportJobOrder() {
+          const overlay = document.createElement("div");
+          overlay.id = "job-order-overlay";
+          overlay.className = "fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-4";
+          overlay.onclick = function(e) {
+              if (e.target === overlay) {
+                  closeJobOrder();
+              }
+          };
+
+          overlay.innerHTML = `
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[90vh] flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+            <h2 class="text-sm font-bold text-gray-900">Job Order Form — {{ report.job_order_id }}</h2>
+            <button type="button" onclick="closeJobOrder()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <iframe src="{% url 'exportJobOrderPDFAdmin' report.id %}" class="flex-1 w-full border-0"></iframe>
+        </div>
+      `;
+
+          document.body.appendChild(overlay);
+          document.documentElement.style.overflow = "hidden";
+          document.body.style.overflow = "hidden";
+      }
+
+      function closeJobOrder() {
+          const overlay = document.getElementById("job-order-overlay");
+          if (overlay) {
+              overlay.remove();
+          }
+          document.documentElement.style.overflow = "";
+          document.body.style.overflow = "";
       }
   </script>
 {% endblock %}

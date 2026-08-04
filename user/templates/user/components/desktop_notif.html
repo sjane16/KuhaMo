@@ -1,7 +1,8 @@
+{% load static %}
 <!-- ============================= -->
-<!-- DESKTOP FLOATING NOTIFICATION -->
+<!-- DESKTOP NOTIFICATION (static, aligns with first row of page content) -->
 <!-- ============================= -->
-<div class="hidden lg:block fixed top-6 right-8 z-50">
+<div class="hidden lg:block absolute top-6 right-2 lg:right-4 xl:right-6 z-30">
     {% if active_page == 'userNotifications' %}
         <span class="relative inline-block cursor-default">
             <svg class="w-7 h-7 text-blue-600"
@@ -32,9 +33,42 @@
     {% endif %}
     <!-- Dropdown -->
     <div id="notif_dropdown"
-         class="hidden absolute right-0 top-10 w-80 bg-white rounded-2xl shadow-xl border border-gray-100">
-        <div class="px-4 py-3 border-b border-gray-100">
+         class="hidden absolute right-0 top-10 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-40">
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-base font-bold text-gray-900">Notifications</h3>
+            <div class="relative">
+                <button type="button"
+                        id="notif_menu_btn"
+                        class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <circle cx="4" cy="10" r="1.6" />
+                        <circle cx="10" cy="10" r="1.6" />
+                        <circle cx="16" cy="10" r="1.6" />
+                    </svg>
+                </button>
+                <div id="notif_menu"
+                     class="hidden absolute right-0 top-9 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-10">
+                    <button type="button"
+                            id="notif_mark_all_read_btn"
+                            class="w-full flex items-center gap-2.5 pl-4 pr-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <img src="{% static 'user/images/email.svg' %}"
+                             alt="Mark all as read"
+                             class="w-5 h-5">
+                        Mark all as read
+                    </button>
+                    <a href="{% url 'userNotifications' %}"
+                       class="w-full flex items-center gap-2.5 pl-4 pr-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <svg class="w-4 h-4 text-gray-500 "
+                             fill="none"
+                             stroke="currentColor"
+                             stroke-width="2"
+                             viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 0 0-2.25 2.25v13.5a2.25 2.25 0 0 0 2.25 2.25h13.5a2.25 2.25 0 0 0 2.25-2.25V16.5m-8.25-4.5 8.25-8.25M19.5 3v6h-6" />
+                        </svg>
+                        Open Notifications
+                    </a>
+                </div>
+            </div>
         </div>
         <div id="notif_tabs_skeleton" class="px-4 pt-3 flex items-center gap-2">
             <div class="skeleton h-6 w-12 rounded-full"></div>
@@ -78,8 +112,51 @@
     const notifTabsSkeleton = document.getElementById("notif_tabs_skeleton");
     const notifTabAll = document.getElementById("notif_tab_all");
     const notifTabUnread = document.getElementById("notif_tab_unread");
+    const notifMenuBtn = document.getElementById("notif_menu_btn");
+    const notifMenu = document.getElementById("notif_menu");
+    const notifMarkAllReadBtn = document.getElementById("notif_mark_all_read_btn");
 
     const notifBellIcon = document.getElementById("notif_bell_icon");
+
+    const NOTIF_BOTTOM_MARGIN = 16;
+
+    function adjustNotifListHeight() {
+        const dropdownRect = notifDropdown.getBoundingClientRect();
+        const activeTabs = notifTabsReal.classList.contains("hidden") ? notifTabsSkeleton : notifTabsReal;
+        const headerEl = notifDropdown.querySelector(".border-b");
+        const headerHeight = headerEl ? headerEl.offsetHeight : 0;
+        const tabsHeight = activeTabs ? activeTabs.offsetHeight : 0;
+
+        const available = window.innerHeight - dropdownRect.top - headerHeight - tabsHeight - NOTIF_BOTTOM_MARGIN;
+        const finalHeight = Math.max(160, available);
+
+        notifList.style.maxHeight = finalHeight + "px";
+        notifListSkeleton.style.maxHeight = finalHeight + "px";
+    }
+
+    function closeNotifDropdown() {
+        notifDropdown.classList.add("hidden");
+        notifMenu.classList.add("hidden");
+        notifBellIcon.classList.remove("text-blue-600");
+        notifBellIcon.classList.add("text-gray-500");
+    }
+
+    window.addEventListener("scroll", function(e) {
+        if (notifDropdown && !notifDropdown.classList.contains("hidden")) {
+            if (!notifDropdown.contains(e.target)) {
+                closeNotifDropdown();
+            }
+        }
+    }, {
+        passive: true,
+        capture: true
+    });
+
+    window.addEventListener("resize", function() {
+        if (notifDropdown && !notifDropdown.classList.contains("hidden")) {
+            adjustNotifListHeight();
+        }
+    });
 
     function toggleNotifDropdown() {
         notifDropdown.classList.toggle("hidden");
@@ -87,12 +164,48 @@
 
         if (isOpen) {
             loadNotifications();
+            adjustNotifListHeight();
             notifBellIcon.classList.remove("text-gray-500");
             notifBellIcon.classList.add("text-blue-600");
         } else {
+            notifMenu.classList.add("hidden");
             notifBellIcon.classList.remove("text-blue-600");
             notifBellIcon.classList.add("text-gray-500");
         }
+    }
+
+    if (notifMenuBtn) {
+        notifMenuBtn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            notifMenu.classList.toggle("hidden");
+        });
+    }
+
+    function getNotifCsrfToken() {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : "";
+    }
+
+    if (notifMarkAllReadBtn) {
+        notifMarkAllReadBtn.addEventListener("click", function() {
+            fetch("{% url 'mark_all_notifications_read' %}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getNotifCsrfToken(),
+                    },
+                })
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data.success) {
+                        notifMenu.classList.add("hidden");
+                        loadNotifications();
+
+                        const badge = document.getElementById("desktop_notif_badge");
+                        if (badge) badge.remove();
+                    }
+                })
+                .catch((error) => console.error("Failed to mark all as read:", error));
+        });
     }
 
     let currentNotifFilter = "all";
@@ -119,6 +232,10 @@
     function buildNotifItem(notif) {
         const badge = STATUS_BADGES[notif.status] || STATUS_BADGES.pending;
 
+        const seeResolutionHtml = notif.completion_photo_url
+            ? ` <span class="text-blue-600 font-semibold cursor-pointer hover:underline" onclick="event.preventDefault(); event.stopPropagation(); openImageLightbox('${notif.completion_photo_url}')">See resolution</span>`
+            : "";
+
         const item = document.createElement("a");
         item.href = `/user/notifications/${notif.id}/view/`;
         item.className = `flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${
@@ -140,7 +257,7 @@
           </div>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm text-gray-800 ${notif.is_read ? "" : "font-semibold"}">${notif.message}</p>
+          <p class="text-sm text-gray-800 ${notif.is_read ? "" : "font-semibold"}">${notif.message}${seeResolutionHtml}</p>
           <p class="text-xs text-gray-400 mt-1">${notif.time_ago}</p>
         </div>
         ${!notif.is_read ? '<span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 mt-1.5"></span>' : ""}
@@ -173,17 +290,17 @@
                     notifList.innerHTML =
                         '<div class="px-4 py-6 text-center text-sm text-gray-400">No notifications yet.</div>';
                 } else {
-                    const unread = data.notifications.filter((n) => !n.is_read);
-                    const read = data.notifications.filter((n) => n.is_read);
+                    const recent = data.notifications.filter((n) => n.is_recent);
+                    const older = data.notifications.filter((n) => !n.is_recent);
 
-                    if (unread.length > 0) {
+                    if (recent.length > 0) {
                         notifList.appendChild(buildSectionHeader("New", true));
-                        unread.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
+                        recent.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
                     }
 
-                    if (read.length > 0) {
-                        notifList.appendChild(buildSectionHeader("Yesterday", unread.length === 0));
-                        read.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
+                    if (older.length > 0) {
+                        notifList.appendChild(buildSectionHeader("Yesterday", recent.length === 0));
+                        older.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
                     }
                 }
 
@@ -198,6 +315,8 @@
                 notifListSkeleton.classList.add('hidden');
                 notifTabsReal.classList.remove('hidden');
                 notifList.classList.remove('hidden');
+
+                adjustNotifListHeight();
             });
     }
 
@@ -231,15 +350,17 @@
     }
 
     document.addEventListener("click", function(e) {
+        if (notifMenu && !notifMenu.classList.contains("hidden") && !e.target.closest("#notif_menu") && !e.target.closest("#notif_menu_btn")) {
+            notifMenu.classList.add("hidden");
+        }
+
         if (
             notifDropdown &&
             !notifDropdown.classList.contains("hidden") &&
             !e.target.closest("#notif_dropdown") &&
             !e.target.closest("button[onclick='toggleNotifDropdown()']")
         ) {
-            notifDropdown.classList.add("hidden");
-            notifBellIcon.classList.remove("text-blue-600");
-            notifBellIcon.classList.add("text-gray-500");
+            closeNotifDropdown();
         }
     });
 </script>

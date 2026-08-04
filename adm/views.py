@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from requests import request
 from user.models import Report, SurveyResponse, Notification
 from django.db.models import Count, Avg, Q
@@ -7,12 +8,14 @@ from datetime import timedelta
 import json
 from collections import defaultdict
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
 from user.forms import UserForm  
 from user.validators import validate_password_strength
 from django.contrib.auth import update_session_auth_hash
+from xhtml2pdf import pisa
+from user.views import link_callback
 
 
 REPORTS_PAGE_SIZE = 5
@@ -70,6 +73,51 @@ def format_hours(hours):
     return f"{days:.1f} days"
 
 
+RESPONSES_PAGE_SIZE = 5
+
+PRIORITY_SLA_HOURS = {
+    'standard': 72,
+    'high': 24,
+    'critical': 3,
+}
+
+
+def _delay_score(delay_hours):
+    """Convert an elapsed-delay (in hours, already clamped to >= 0) into a 1-5 score."""
+    if delay_hours is None:
+        return None
+    if delay_hours <= 0:
+        return 5
+    delay_days = delay_hours / 24
+    if delay_days <= 2:
+        return 4
+    if delay_days <= 5:
+        return 3
+    if delay_days <= 7:
+        return 2
+    return 1
+
+
+def _percent_to_score(pct):
+    """Convert a completion percentage into a 1-5 score."""
+    if pct >= 100:
+        return 5
+    if pct >= 90:
+        return 4
+    if pct >= 80:
+        return 3
+    if pct >= 70:
+        return 2
+    return 1
+
+
+def _known_personnel_names(assignments):
+    """Filter assignment dicts down to names that match the official PERSONNEL_OPTIONS roster
+    (excludes outsourced/typed-in "other personnel")."""
+    known = {option["name"] for option in PERSONNEL_OPTIONS}
+    return [item.get("name") for item in assignments if item.get("name") in known]
+
+
 def build_survey_analysis_context():
     surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
     total_surveys = surveys.count()
@@ -82,70 +130,133 @@ def build_survey_analysis_context():
         percent = round((count / max_rating_count) * 100) if max_rating_count else 0
         rating_rows.append({"rating": rating, "count": count, "percent": percent})
 
-    personnel_stats = defaultdict(lambda: {
-        "name": "",
-        "rating_total": 0,
-        "survey_count": 0,
-        "categories": set(),
-        "met_expected": 0,
-    })
-    responses = []
+    # ---- Personnel Performance (QQT) — official personnel only, based on ALL assigned reports ----
+    personnel_stats = {
+        option["name"]: {
+            "name": option["name"],
+            "total_assigned": 0,
+            "closed_count": 0,
+            "rating_total": 0,
+            "rating_count": 0,
+            "categories": set(),
+            "timeliness_scores": [],
+        }
+        for option in PERSONNEL_OPTIONS
+    }
 
+    for report in Report.objects.all():
+        assignments = report.assigned_personnel_data or []
+        if not assignments and report.assigned_personnel:
+            assignments = [{"name": report.assigned_personnel}]
+
+        names = _known_personnel_names(assignments)
+        if not names:
+            continue
+
+        for name in names:
+            stats = personnel_stats[name]
+            stats["total_assigned"] += 1
+
+            if report.status != 'closed':
+                continue
+
+            stats["closed_count"] += 1
+            stats["categories"].add(report.get_category_display())
+
+            survey = getattr(report, 'survey', None)
+            if survey:
+                stats["rating_total"] += survey.rating
+                stats["rating_count"] += 1
+
+            threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
+
+            sla_score = None
+            if report.in_progress_at and report.accomplished_at:
+                sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
+                sla_score = _delay_score(max(0, sla_hours - threshold))
+
+            close_score = None
+            if report.accomplished_at and report.closed_at:
+                close_hours = (report.closed_at - report.accomplished_at).total_seconds() / 3600
+                close_score = _delay_score(max(0, close_hours))
+
+            report_scores = [s for s in (sla_score, close_score) if s is not None]
+            if report_scores:
+                stats["timeliness_scores"].append(sum(report_scores) / len(report_scores))
+
+    personnel_rows = []
+    for stats in personnel_stats.values():
+        rating_count = stats["rating_count"]
+        quality_avg = (stats["rating_total"] / rating_count) if rating_count else 0
+        quality = round(quality_avg, 1)
+
+        total_assigned = stats["total_assigned"]
+        completion_pct = (stats["closed_count"] / total_assigned * 100) if total_assigned else 0
+        quantity = _percent_to_score(completion_pct) if total_assigned else 0
+
+        timeliness_scores = stats["timeliness_scores"]
+        timeliness_avg = (sum(timeliness_scores) / len(timeliness_scores)) if timeliness_scores else 0
+        timeliness = round(timeliness_avg, 1)
+
+        personnel_avg_rating = round((quality + quantity + timeliness) / 3, 2)
+
+        personnel_rows.append({
+            "name": stats["name"],
+            "avg_rating": personnel_avg_rating,
+            "total_score": stats["rating_total"],
+            "total_surveys": rating_count,
+            "complete_task": f"{stats['closed_count']}/{total_assigned}",
+            "quality": quality,
+            "quantity": quantity,
+            "timeliness": timeliness,
+        })
+
+    personnel_rows.sort(key=lambda row: row["avg_rating"], reverse=True)
+    # (uses the dict key "avg_rating", unaffected by the personnel_avg_rating rename above)
+
+    # ---- Individual Responses — official personnel only (outsourced-only reports are hidden) ----
+    responses = []
     for survey in surveys:
         report = survey.report
         assignments = report.assigned_personnel_data or []
         if not assignments and report.assigned_personnel:
-            assignments = [{"name": report.assigned_personnel, "qtt": 1}]
+            assignments = [{"name": report.assigned_personnel}]
 
-        expected_at = report.expected_resolution_at
-        actual_at = report.accomplished_at
-        met_expected = report.met_expected_resolution
-        personnel_names = [item.get("name") for item in assignments if item.get("name")]
+        personnel_names = _known_personnel_names(assignments)
+        if not personnel_names:
+            continue
+
+        threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
+
+        expected_resolution_met = None
+        resolution_delay_days = None
+        if report.in_progress_at and report.accomplished_at:
+            sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
+            delay_hours = max(0, sla_hours - threshold)
+            expected_resolution_met = _delay_score(delay_hours) >= 4
+            resolution_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
+
+        closure_turnaround_met = None
+        closure_delay_days = None
+        if report.accomplished_at and report.closed_at:
+            close_hours = (report.closed_at - report.accomplished_at).total_seconds() / 3600
+            delay_hours = max(0, close_hours)
+            closure_turnaround_met = _delay_score(delay_hours) >= 4
+            closure_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
 
         responses.append({
-            "personnel": ", ".join(personnel_names) if personnel_names else "Unassigned",
+            "personnel": ", ".join(personnel_names),
             "category": report.get_category_display(),
             "rating": survey.rating,
             "feedback": survey.feedback,
-            "submitted_at": survey.submitted_at,
-            "report": report,
-            "expected_at": expected_at,
-            "actual_at": actual_at,
-            "met_expected": met_expected,
+            "date_submitted": report.submitted_at,
+            "expected_at": report.expected_resolution_at,
+            "actual_at": report.accomplished_at,
+            "expected_resolution_met": expected_resolution_met,
+            "resolution_delay_days": resolution_delay_days,
+            "closure_turnaround_met": closure_turnaround_met,
+            "closure_delay_days": closure_delay_days,
         })
-
-        for item in assignments:
-            name = item.get("name")
-            if not name:
-                continue
-            stats = personnel_stats[name]
-            stats["name"] = name
-            stats["rating_total"] += survey.rating
-            stats["survey_count"] += 1
-            stats["categories"].add(report.get_category_display())
-            if met_expected:
-                stats["met_expected"] += 1
-
-    personnel_rows = []
-    for stats in personnel_stats.values():
-        survey_count = stats["survey_count"]
-        avg = stats["rating_total"] / survey_count if survey_count else 0
-        quality = round((avg / 5) * 40, 1)
-        quantity = min(30, survey_count * 10)
-        timeliness = round((stats["met_expected"] / survey_count) * 30, 1) if survey_count else 0
-        qtt_score = round(quality + quantity + timeliness, 1)
-        personnel_rows.append({
-            "name": stats["name"],
-            "avg_rating": round(avg, 1),
-            "total_surveys": survey_count,
-            "categories_handled": len(stats["categories"]),
-            "quality": quality,
-            "quantity": round(quantity, 1),
-            "timeliness": timeliness,
-            "qtt_score": qtt_score,
-        })
-
-    personnel_rows.sort(key=lambda row: row["qtt_score"], reverse=True)
 
     return {
         "active_page": "survey_analysis",
@@ -387,6 +498,43 @@ def report_detail(request, report_id):
     })
 
 
+def export_job_order_pdf_admin(request, report_id):
+    report = get_object_or_404(Report, id=report_id)
+
+    category_checks = {
+        'vehicle_checkup': report.category == 'vehicle_checkup',
+        'electrical': report.category == 'electrical',
+        'refrigeration_acu': report.category == 'refrigeration_acu',
+        'painting': report.category == 'painting',
+        'carpentry_masonry': report.category == 'carpentry_masonry',
+        'plumbing': report.category == 'plumbing',
+        'others': report.category == 'others',
+    }
+
+    html = render_to_string('user/job_order_pdf.html', {
+        "report": report,
+        "category_checks": category_checks,
+    })
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Job_Order_{report.job_order_id or report.id}.pdf"'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    pisa_status = pisa.CreatePDF(
+        html,
+        dest=response,
+        link_callback=link_callback
+    )
+
+    if pisa_status.err:
+        return HttpResponse("Something went wrong generating the Job Order PDF.", status=500)
+
+    return response
+
+
 def report_save(request, report_id):
     report = get_object_or_404(Report, id=report_id)
 
@@ -411,6 +559,9 @@ def report_save(request, report_id):
         if category in valid_categories:
             report.category = category
             report.custom_category = custom_category if category == "others" else None
+
+        report.findings = request.POST.get('findings', '').strip()
+        report.recommendation = request.POST.get('recommendation', '').strip()
 
         report.priority = priority if priority else None
         assignments = []
@@ -458,9 +609,8 @@ def report_save(request, report_id):
             report.status == 'pending'
             and report.priority
             and assignments
-            and not awaiting_personnel
-            and not awaiting_materials
-            and not awaiting_approval
+            and awaiting_personnel
+            and awaiting_materials
         ):
             report.status = 'in_progress'
             became_in_progress = True
@@ -474,9 +624,26 @@ def report_save(request, report_id):
             Notification.objects.create(
                 user=report.user,
                 report=report,
-                message=f"Your report {report.job_order_id} is now In Progress."
+                message=f"Your report {report.job_order_id} is now In Progress.",
+                status_snapshot=report.status,
             )
             messages.success(request, f"Report {report.job_order_id} is now In Progress.")
+        elif report.status == 'pending':
+            missing = []
+            if not report.priority:
+                missing.append("Priority Level")
+            if not assignments:
+                missing.append("Assign Personnel (at least one)")
+            if not awaiting_personnel:
+                missing.append('"With Assigned Personnel"')
+            if not awaiting_materials:
+                missing.append('"Materials Available"')
+
+            if missing:
+                messages.warning(
+                    request,
+                    f"Report {report.job_order_id} is still Pending — missing: {', '.join(missing)}."
+                )
 
     return redirect('adm_report_detail', report_id=report_id)
 
@@ -487,13 +654,34 @@ def report_status(request, report_id):
     if request.method == 'POST':
         new_status = request.POST.get('status')
         if new_status == 'resolved':
+            completion_photo = request.FILES.get('completion_photo')
+            if not completion_photo:
+                messages.error(request, "Please upload a photo proof of the completed repair.")
+                return redirect('adm_report_detail', report_id=report_id)
+
+            accomplished_at_raw = request.POST.get('accomplished_at')
+            accomplished_at = parse_datetime(accomplished_at_raw) if accomplished_at_raw else None
+
+            if accomplished_at is None:
+                messages.error(request, "Please enter the Date and Time Completed.")
+                return redirect('adm_report_detail', report_id=report_id)
+
+            if timezone.is_naive(accomplished_at):
+                accomplished_at = timezone.make_aware(accomplished_at)
+
+            if accomplished_at < report.submitted_at:
+                messages.error(request, "Date and Time Completed cannot be earlier than the Date Submitted.")
+                return redirect('adm_report_detail', report_id=report_id)
+
             report.status = new_status
-            report.accomplished_at = timezone.now()
+            report.accomplished_at = accomplished_at
+            report.completion_photo = completion_photo
 
             Notification.objects.create(
                 user=report.user,
                 report=report,
-                message=f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey."
+                message=f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey.",
+                status_snapshot=report.status,
             )
             messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
         elif new_status == 'closed':
@@ -575,10 +763,42 @@ def survey_analysis(request):
 
 def adm_survey_analysis_ajax(request):
     context = build_survey_analysis_context()
+
+    all_responses = context.pop("responses")
+    paginator = Paginator(all_responses, RESPONSES_PAGE_SIZE)
+    page_obj = paginator.get_page(1)
+    context["responses"] = page_obj
+    context["responses_total_pages"] = paginator.num_pages
+    context["responses_has_previous"] = page_obj.has_previous()
+    context["responses_has_next"] = page_obj.has_next()
+    context["responses_total_count"] = paginator.count
+
     html = render_to_string('partials/_survey_analysis_content.html', context, request=request)
 
     return JsonResponse({
         'html': html,
+    })
+
+
+def adm_survey_responses_ajax(request):
+    context = build_survey_analysis_context()
+    all_responses = context["responses"]
+    page_number = request.GET.get('page', 1)
+
+    paginator = Paginator(all_responses, RESPONSES_PAGE_SIZE)
+    page_obj = paginator.get_page(page_number)
+
+    html = render_to_string('partials/_survey_responses_rows.html', {
+        'responses': page_obj,
+    }, request=request)
+
+    return JsonResponse({
+        'html': html,
+        'current_page': page_obj.number,
+        'total_pages': paginator.num_pages,
+        'has_previous': page_obj.has_previous(),
+        'has_next': page_obj.has_next(),
+        'total_count': paginator.count,
     })
 
 
@@ -622,9 +842,10 @@ def get_notifications_ajax_admin(request):
             "id": n.id,
             "message": n.message,
             "is_read": n.is_read,
+            "is_recent": n.is_recent,
             "time_ago": n.time_ago,
             "report_id": n.report.id,
-            "status": n.report.status,
+            "status": n.status_snapshot or n.report.status,
         }
         for n in notifications
     ]
@@ -645,3 +866,12 @@ def view_notification_admin(request, notification_id):
         notification.save(update_fields=['is_read'])
 
     return redirect('adm_report_detail', report_id=notification.report.id)
+
+
+def mark_all_notifications_read_admin(request):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request.'}, status=400)
+
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+
+    return JsonResponse({'success': True})

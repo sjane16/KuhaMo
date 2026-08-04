@@ -44,6 +44,7 @@ class Report(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
     job_order_id = models.CharField(max_length=30, unique=True, blank=True, null=True)
     photo = CloudinaryField('Photo', folder='reports/', null=True, blank=True)
+    completion_photo = CloudinaryField('Completion Photo', folder='reports/completion/', null=True, blank=True)
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     custom_category = models.CharField(max_length=100, blank=True, null=True)
     location = models.CharField(max_length=100)
@@ -65,6 +66,8 @@ class Report(models.Model):
     cnn_confidence = models.FloatField(blank=True, null=True)
     cnn_margin = models.FloatField(blank=True, null=True)
     flagged_for_review = models.BooleanField(default=False)
+    findings = models.TextField(blank=True)
+    recommendation = models.TextField(blank=True)
 
     @property
     def room_location(self):
@@ -217,6 +220,7 @@ class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='notifications')
     message = models.CharField(max_length=255)
+    status_snapshot = models.CharField(max_length=20, choices=Report.STATUS_CHOICES, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -244,3 +248,8 @@ class Notification(models.Model):
 
         days = hours // 24
         return f"{int(days)}d"
+
+    @property
+    def is_recent(self):
+        """True if this notification was created less than 24 hours ago."""
+        return (timezone.now() - self.created_at) < timedelta(hours=24)

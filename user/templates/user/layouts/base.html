@@ -46,8 +46,6 @@
   <body class="bg-gray-50 font-[Poppins]">
     <!-- REUSABLE TOAST / DIALOGUE BOX -->
     {% include "user/components/toast.html" %}
-    <!-- DESKTOP FLOATING NOTIFICATION BELL -->
-    {% include "user/components/desktop_notif.html" %}
     <div class="flex min-h-screen">
       <!-- DESKTOP SIDEBAR -->
       {% include "user/components/sidebar.html" %}
@@ -56,7 +54,9 @@
         <!-- MOBILE HEADER -->
         {% include "user/components/mobile_header.html" %}
         <!-- PAGE CONTENT -->
-        <main>
+        <main class="relative">
+          <!-- DESKTOP NOTIFICATION BELL (aligns with top-right of page content, scrolls away with it) -->
+          {% include "user/components/desktop_notif.html" %}
           {% block content %}{% endblock %}
         </main>
       </div>
@@ -98,6 +98,43 @@
         </div>
       </div>
     </div>
+    <!-- Global Image Lightbox (used by report photos and notification "See resolution" links) -->
+    <script>
+        function openImageLightbox(url) {
+            const overlay = document.createElement("div");
+            overlay.id = "image-lightbox-overlay";
+            overlay.className = "fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4 py-4";
+            overlay.onclick = function(e) {
+                if (e.target === overlay) {
+                    closeImageLightbox();
+                }
+            };
+
+            overlay.innerHTML = `
+        <div class="relative max-w-[90vw] max-h-[90vh]">
+          <img src="${url}" alt="Full Report Photo" class="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl" />
+          <button type="button" onclick="closeImageLightbox()" class="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-white text-gray-700 flex items-center justify-center shadow-lg hover:bg-gray-100">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      `;
+
+            document.body.appendChild(overlay);
+            document.documentElement.style.overflow = "hidden";
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeImageLightbox() {
+            const overlay = document.getElementById("image-lightbox-overlay");
+            if (overlay) {
+                overlay.remove();
+            }
+            document.documentElement.style.overflow = "";
+            document.body.style.overflow = "";
+        }
+    </script>
     <!-- Logout Modal Script -->
     <script>
         function openLogoutModal() {
