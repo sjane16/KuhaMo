@@ -37,8 +37,6 @@
   <body class="bg-gray-50 font-[Poppins] min-h-screen w-full">
     <!-- TOAST NOTIFICATIONS -->
     {% include "components/toast.html" %}
-    <!-- DESKTOP FLOATING NOTIFICATION BELL -->
-    {% include "components/desktop_notif.html" %}
     <div class="flex min-h-screen w-full bg-gray-50">
       <!-- DESKTOP SIDEBAR -->
       {% include "components/sidebar.html" %}
@@ -47,7 +45,9 @@
         <!-- MOBILE HEADER -->
         {% include "components/mobile_header.html" %}
         <!-- PAGE CONTENT -->
-        <main class="flex-1 min-w-0 w-full bg-gray-50">
+        <main class="relative flex-1 min-w-0 w-full bg-gray-50">
+          <!-- DESKTOP NOTIFICATION BELL (aligns with top-right of page content, scrolls away with it) -->
+          {% include "components/desktop_notif.html" %}
           {% block content %}{% endblock %}
         </main>
       </div>

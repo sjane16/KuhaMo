@@ -1,12 +1,12 @@
 {% extends "layouts/base.html" %}
-{% block title %}Survey Analysis{% endblock %}
+{% block title %}Rating Analytics{% endblock %}
 {% block content %}
   <main class="flex-1 min-w-0 w-full bg-gray-50">
     <div class="w-full px-6 lg:px-10 xl:px-16 pt-6 pb-24 lg:pb-10">
       <!-- PAGE HEADER -->
       <div class="mb-6">
-        <h1 class="text-lg font-bold text-gray-800">Survey / Analysis</h1>
-        <p class="text-sm text-gray-500">Satisfaction survey results and personnel QQT performance metrics.</p>
+        <h1 class="text-lg font-bold text-gray-800">Rating Analytics</h1>
+        <p class="text-sm text-gray-500">Personnel performance based on Quality, Quantity, and Timeliness of resolved reports, plus overall satisfaction survey results.</p>
       </div>
       <div id="surveyAnalysisSkeleton">
         <!-- OVERVIEW SKELETON -->
@@ -41,13 +41,13 @@
               <thead>
                 <tr class="border-b border-gray-100 bg-gray-50">
                   <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Personnel/s</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Avg Rating</th>
                   <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Surveys</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Categories Handled</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Quality (40)</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Quantity (30)</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Timeliness (30)</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">QQT Score (100)</th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Complete Task</th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Overall Satisfaction Score</th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Quality</th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Quantity</th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Timeliness</th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Avg Rating</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-50">
@@ -60,10 +60,10 @@
                       <div class="skeleton h-3 w-10 rounded"></div>
                     </td>
                     <td class="px-4 py-4">
-                      <div class="skeleton h-3 w-10 rounded"></div>
+                      <div class="skeleton h-3 w-16 rounded"></div>
                     </td>
                     <td class="px-4 py-4">
-                      <div class="skeleton h-3 w-16 rounded"></div>
+                      <div class="skeleton h-3 w-10 rounded"></div>
                     </td>
                     <td class="px-4 py-4">
                       <div class="skeleton h-3 w-10 rounded"></div>
@@ -92,14 +92,15 @@
             <table class="w-full min-w-[1100px] text-sm">
               <thead>
                 <tr class="border-b border-gray-100 bg-gray-50">
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Personnel/s</th>
+                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Personnel</th>
                   <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Category</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Rating</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Expected</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Actual</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Timeliness</th>
+                  <th class="px-2 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">Date Submitted</th>
+                  <th class="px-2 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">Expected Date Resolution</th>
+                  <th class="px-2 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">Actual Resolution</th>
+                  <th class="px-4 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">Satisfaction Score</th>
+                  <th class="px-4 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">Expected Resolution Time</th>
+                  <th class="px-4 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-wide">Closure Turnaround</th>
                   <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Comments</th>
-                  <th class="px-4 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Date</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-50">
@@ -111,23 +112,29 @@
                     <td class="px-4 py-4">
                       <div class="skeleton h-3 w-20 rounded"></div>
                     </td>
-                    <td class="px-4 py-4">
-                      <div class="skeleton h-3 w-10 rounded"></div>
+                    <td class="px-2 py-4">
+                      <div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div>
+                      <div class="skeleton h-2 w-10 rounded mx-auto"></div>
+                    </td>
+                    <td class="px-2 py-4">
+                      <div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div>
+                      <div class="skeleton h-2 w-10 rounded mx-auto"></div>
+                    </td>
+                    <td class="px-2 py-4">
+                      <div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div>
+                      <div class="skeleton h-2 w-10 rounded mx-auto"></div>
                     </td>
                     <td class="px-4 py-4">
-                      <div class="skeleton h-3 w-24 rounded"></div>
+                      <div class="skeleton h-3 w-10 rounded mx-auto"></div>
                     </td>
                     <td class="px-4 py-4">
-                      <div class="skeleton h-3 w-24 rounded"></div>
+                      <div class="skeleton h-6 w-14 rounded-full mx-auto"></div>
                     </td>
                     <td class="px-4 py-4">
-                      <div class="skeleton h-6 w-14 rounded-full"></div>
+                      <div class="skeleton h-6 w-14 rounded-full mx-auto"></div>
                     </td>
                     <td class="px-4 py-4">
                       <div class="skeleton h-3 w-32 rounded"></div>
-                    </td>
-                    <td class="px-4 py-4">
-                      <div class="skeleton h-3 w-16 rounded"></div>
                     </td>
                   </tr>
                 {% endfor %}
@@ -144,12 +151,52 @@
           const skeleton = document.getElementById("surveyAnalysisSkeleton");
           const container = document.getElementById("surveyAnalysisContainer");
 
+          const RESPONSES_AJAX_URL = "{% url 'adm_survey_responses_ajax' %}";
+          let responsesCurrentPage = 1;
+
+          function wireResponsesPagination() {
+              const responsesBody = document.getElementById("responsesBody");
+              const prevBtn = document.getElementById("responsesPrevBtn");
+              const nextBtn = document.getElementById("responsesNextBtn");
+              const pageInfo = document.getElementById("responsesPageInfo");
+
+              function fetchResponsesPage() {
+                  fetch(`${RESPONSES_AJAX_URL}?page=${responsesCurrentPage}`)
+                      .then(function(response) {
+                          return response.json();
+                      })
+                      .then(function(data) {
+                          responsesBody.innerHTML = data.html;
+                          pageInfo.textContent = `Page ${data.current_page} of ${data.total_pages}`;
+                          prevBtn.disabled = !data.has_previous;
+                          nextBtn.disabled = !data.has_next;
+                          responsesCurrentPage = data.current_page;
+                      })
+                      .catch(function(error) {
+                          console.error("Failed to fetch survey responses:", error);
+                      });
+              }
+
+              if (prevBtn) prevBtn.addEventListener("click", function() {
+                  if (responsesCurrentPage > 1) {
+                      responsesCurrentPage -= 1;
+                      fetchResponsesPage();
+                  }
+              });
+              if (nextBtn) nextBtn.addEventListener("click", function() {
+                  responsesCurrentPage += 1;
+                  fetchResponsesPage();
+              });
+          }
+
           fetch("{% url 'adm_survey_analysis_ajax' %}")
               .then(function(response) {
                   return response.json();
               })
               .then(function(data) {
                   container.innerHTML = data.html;
+
+                  wireResponsesPagination();
 
                   container.style.opacity = '0';
                   container.classList.remove('hidden');
