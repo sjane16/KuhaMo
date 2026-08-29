@@ -154,6 +154,21 @@
           const RESPONSES_AJAX_URL = "{% url 'adm_survey_responses_ajax' %}";
           let responsesCurrentPage = 1;
 
+          const RESPONSES_SKELETON_ROW = `
+              <tr>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-24 rounded"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-20 rounded"></div></td>
+                  <td class="px-2 py-4"><div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div><div class="skeleton h-2 w-10 rounded mx-auto"></div></td>
+                  <td class="px-2 py-4"><div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div><div class="skeleton h-2 w-10 rounded mx-auto"></div></td>
+                  <td class="px-2 py-4"><div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div><div class="skeleton h-2 w-10 rounded mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-10 rounded mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-6 w-14 rounded-full mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-6 w-14 rounded-full mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-32 rounded"></div></td>
+              </tr>
+          `;
+          const RESPONSES_SKELETON_HTML = RESPONSES_SKELETON_ROW.repeat(4);
+
           function wireResponsesPagination() {
               const responsesBody = document.getElementById("responsesBody");
               const prevBtn = document.getElementById("responsesPrevBtn");
@@ -161,6 +176,10 @@
               const pageInfo = document.getElementById("responsesPageInfo");
 
               function fetchResponsesPage() {
+                  responsesBody.innerHTML = RESPONSES_SKELETON_HTML;
+                  prevBtn.disabled = true;
+                  nextBtn.disabled = true;
+
                   fetch(`${RESPONSES_AJAX_URL}?page=${responsesCurrentPage}`)
                       .then(function(response) {
                           return response.json();
@@ -174,6 +193,8 @@
                       })
                       .catch(function(error) {
                           console.error("Failed to fetch survey responses:", error);
+                          prevBtn.disabled = !(responsesCurrentPage > 1);
+                          nextBtn.disabled = false;
                       });
               }
 
