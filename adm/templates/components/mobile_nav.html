@@ -28,7 +28,7 @@
   <!-- Reports -->
   <a
     href="{% url 'reports' %}"
-    class="flex flex-col items-center gap-1 flex-1 py-2 text-xs font-medium text-gray-400 hover:text-blue-500"
+    class="flex flex-col items-center gap-1 flex-1 py-2 text-xs font-medium {% if request.resolver_match.url_name == 'reports' %}text-blue-500{% else %}text-gray-400 hover:text-blue-500{% endif %}"
   >
     <svg
       class="w-5 h-5"
@@ -65,35 +65,13 @@
         d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605"
       />
     </svg>
-    Analytics
+    Ratings
   </a>
 
-  <!-- Predictions -->
+  <!-- Menu -->
   <a
-    href="#"
-    class="flex flex-col items-center gap-1 flex-1 py-2 text-xs font-medium text-gray-400 hover:text-blue-500"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke-width="1.5"
-      stroke="currentColor"
-      class="size-5"
-    >
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"
-      />
-    </svg>
-    Predictons
-  </a>
-
-  <!-- More (for Generate Report, logout, etc.) -->
-  <a
-    href="#"
-    class="flex flex-col items-center gap-1 flex-1 py-2 text-xs font-medium text-gray-400 hover:text-blue-500"
+    href="{% url 'ProfileMenu' %}"
+    class="flex flex-col items-center gap-1 flex-1 py-2 text-xs font-medium {% if request.resolver_match.url_name == 'ProfileMenu' %}text-blue-500{% else %}text-gray-400 hover:text-blue-500{% endif %}"
   >
     <svg
       class="w-5 h-5"
@@ -105,9 +83,9 @@
       <path
         stroke-linecap="round"
         stroke-linejoin="round"
-        d="M4.5 12h15m-15 6h15m-15-12h15"
+        d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
       />
     </svg>
-    More
+    Profile
   </a>
 </nav>
