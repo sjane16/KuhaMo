@@ -1,270 +1,190 @@
-{% extends "user/layouts/base.html" %} {% block title %}Menu{% endblock %}
+{% extends "user/layouts/base.html" %} {% block title %}Menu{% endblock %} {% load static %}
 {% block content %}
   <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-32 lg:pb-10 w-full">
     <h1 class="text-2xl font-bold text-gray-800">My Profile</h1>
     <p class="text-sm text-gray-500 mt-1 mb-6">Manage your account information and security settings.</p>
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-      <!-- LEFT: Personal Information Card -->
-      <div class="xl:col-span-1">
-        <div class="bg-white border border-gray-200 rounded-3xl shadow-sm p-6 flex flex-col items-center text-center gap-4">
-          <!-- Avatar or Uploaded Photo -->
-          {% if user.profile.profile_photo %}
-            <img id="photo_preview"
-                 src="{{ user.profile.profile_photo.url }}"
-                 class="w-24 h-24 rounded-full object-cover border-2 border-blue-100"
-                 alt="Profile Photo" />
-          {% else %}
-            <img id="photo_preview"
-                 src=""
-                 class="w-24 h-24 rounded-full object-cover border-2 border-blue-100 hidden"
-                 alt="Profile Photo" />
-            <div id="default_avatar"
-                 class="w-24 h-24 rounded-full bg-blue-50 border-2 border-blue-100 flex items-center justify-center">
-              <svg class="w-12 h-12 text-blue-400"
-                   fill="none"
-                   stroke="currentColor"
-                   stroke-width="1.2"
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              </svg>
+    {% if is_post_render %}
+      <div id = "menu-content">{% include 'user/partials/_menu_content.html' %}</div>
+    {% else %}
+      <div id="menu-skeleton" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <!-- LEFT Skeleton -->
+        <div class="xl:col-span-1">
+          <div class="bg-white border border-gray-200 rounded-3xl shadow-sm p-6 flex flex-col items-center text-center gap-4">
+            <div class="skeleton w-24 h-24 rounded-full"></div>
+            <div class="space-y-2 flex flex-col items-center w-full">
+              <div class="skeleton h-5 w-40 rounded mx-auto"></div>
+              <div class="skeleton h-5 w-24 rounded-full mx-auto"></div>
             </div>
-          {% endif %}
-          <!-- Name & Role Badge -->
-          <div>
-            <p class="text-lg font-bold text-gray-900">{{ user.get_full_name|default:"John Carlo Lacson" }}</p>
-            <span class="inline-flex items-center gap-1.5 mt-1 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-600">
-              <svg class="w-3 h-3"
-                   fill="none"
-                   stroke="currentColor"
-                   stroke-width="2.5"
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-              </svg>
-              {{ user.profile.role|default:"Student" }}
-            </span>
-          </div>
-          <!-- Photo Form -->
-          <form method="POST"
-                enctype="multipart/form-data"
-                class="w-full flex flex-col gap-2"
-                id="photo_form">
-            {% csrf_token %}
-            <input type="file"
-                   name="profile_photo"
-                   id="photo_input"
-                   accept="image/png, image/jpeg"
-                   class="hidden" />
-            <button type="button"
-                    onclick="document.getElementById('photo_input').click()"
-                    class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2 rounded-xl hover:bg-blue-600 transition-colors">
-              Upload New Photo
-            </button>
-            <button type="submit"
-                    name="save_photo"
-                    id="save_photo_btn"
-                    class="w-full text-sm font-semibold text-white bg-green-500 px-4 py-2 rounded-xl hover:bg-green-600 transition-colors hidden">
-              Save Photo
-            </button>
-          </form>
-          <!-- Remove Photo Form -->
-          <form method="POST" class="w-full">
-            {% csrf_token %}
-            <button type="submit"
-                    name="remove_photo"
-                    class="w-full text-sm font-semibold text-gray-600 bg-white border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">
-              Remove Photo
-            </button>
-          </form>
-          <p class="text-xs text-gray-400 -mt-1">JPG, PNG up to 5MB</p>
-          <hr class="w-full border-gray-100" />
-          <!-- Info Rows -->
-          <div class="w-full flex flex-col gap-2 text-left">
-            <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
-              <svg class="w-4 h-4 text-gray-400 shrink-0"
-                   fill="none"
-                   stroke="currentColor"
-                   stroke-width="1.6"
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.5h16.5v15H3.75v-15ZM3.75 9h16.5" />
-              </svg>
-              <span class="text-sm text-gray-600">{{ user.username|default:"xx-xx-xxx" }}</span>
-            </div>
-            <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
-              <svg class="w-4 h-4 text-gray-400 shrink-0"
-                   fill="none"
-                   stroke="currentColor"
-                   stroke-width="1.6"
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 18V5l8-3 8 3v13M9 21v-6h6v6" />
-              </svg>
-              <span class="text-sm text-gray-600">{{ user.profile.department|default:"CCS" }}</span>
-            </div>
-            <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
-              <svg class="w-4 h-4 text-gray-400 shrink-0"
-                   fill="none"
-                   stroke="currentColor"
-                   stroke-width="1.6"
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15A2.25 2.25 0 0 1 2.25 17.25V6.75m19.5 0L12 13.5 2.25 6.75" />
-              </svg>
-              <span class="text-sm text-gray-600">{{ user.email|default:"jclacson@udm.edu.ph" }}</span>
-            </div>
-            <div class="flex items-center gap-3 bg-gray-50 px-3 py-2.5 rounded-xl">
-              <svg class="w-4 h-4 text-gray-400 shrink-0"
-                   fill="none"
-                   stroke="currentColor"
-                   stroke-width="1.6"
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 7.18 5.82 13 13 13h1.5a2.25 2.25 0 0 0 2.25-2.25v-1.372a1.125 1.125 0 0 0-.845-1.09l-4.423-1.106a1.125 1.125 0 0 0-1.173.417l-.97 1.293a9.042 9.042 0 0 1-4.293-4.293l1.293-.97a1.125 1.125 0 0 0 .417-1.173L8.712 5.095a1.125 1.125 0 0 0-1.09-.845H6.25A2.25 2.25 0 0 0 4 6.5v.25Z" />
-              </svg>
-              <span class="text-sm text-gray-600">{{ user.profile.phone|default:"09123456789" }}</span>
+            <div class="skeleton h-9 w-full rounded-xl"></div>
+            <div class="skeleton h-9 w-full rounded-xl"></div>
+            <div class="skeleton h-3 w-32 rounded"></div>
+            <hr class="w-full border-gray-100" />
+            <div class="w-full flex flex-col gap-2">
+              {% for n in "1234" %}
+                <div class="skeleton h-10 w-full rounded-xl"></div>
+              {% endfor %}
             </div>
           </div>
         </div>
-      </div>
-      <!-- RIGHT: Edit + Password Cards -->
-      <div class="xl:col-span-2 flex flex-col gap-4">
-        <!-- Edit Information -->
-        <div class="bg-white border border-gray-200 rounded-3xl shadow-sm p-6">
-          <h2 class="text-base font-bold text-gray-800 mb-4">Edit Information</h2>
-          <form method="POST" id="edit_info_form" onsubmit="return validatePhone()">
-            {% csrf_token %}
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-4">
-              <div class="mb-3.5">
-                <label class="block text-sm font-semibold text-gray-700 mb-1.5">First Name</label>
-                <!-- ADDED: maxlength=50, client-side UX only, matches server-side NAME_MAX_LENGTH in validators.py -->
-                <input type="text"
-                       name="first_name"
-                       value="{{ user.first_name }}"
-                       maxlength="50"
-                       class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-              </div>
-              <div class="mb-3.5">
-                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Last Name</label>
-                <!-- FIXED: was maxlength="50 (missing closing quote), swallowed the class attr and broke the input's styling -->
-                <input type="text"
-                       name="last_name"
-                       value="{{ user.last_name }}"
-                       maxlength="50"
-                       class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-              </div>
-              <div class="mb-3.5">
-                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
-                <input type="email"
-                       name="email"
-                       value="{{ user.email }}"
-                       class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-              </div>
-              <div class="mb-3.5">
-                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Department</label>
-                <div class="relative">
-                  <select name="department"
-                          class="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer pr-10">
-                    {% for value, label in profile_form.department.field.choices %}
-                      <option value="{{ value }}"
-                              {% if user.profile.department == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                  <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-                       fill="none"
-                       stroke="currentColor"
-                       stroke-width="2"
-                       viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
-                  </svg>
-                </div>
-              </div>
-              <div class="mb-3.5 lg:col-span-2">
-                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Contact Number</label>
-                <input type="tel"
-                       name="phone"
-                       id="phone_input"
-                       value="{{ user.profile.phone }}"
-                       placeholder="09XXXXXXXXX"
-                       maxlength="11"
-                       inputmode="numeric"
-                       oninput="validatePhone()"
-                       class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                <div id="phone-validation" class="text-xs text-red-500 mt-1 hidden">
-                  Phone number must be exactly 11 digits, numbers only.
-                </div>
-              </div>
+        <!--RIGHT Skeleton-->
+        <div class="xl:col-span-2 flex flex-col gap-4">
+          <div class="bg-white border border-gray-200 rounded-3xl shadow-sm p-6">
+            <div class="skeleton h-5 w-40 rounded mb-4"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              {% for n in "1234" %}<div class="skeleton h-11 w-full rounded-xl"></div>{% endfor %}
             </div>
-            <button type="submit"
-                    name="save_info"
-                    id="save_info_btn"
-                    disabled
-                    class="w-full text-sm font-semibold text-white bg-blue-500 px-4 py-2.5 rounded-xl hover:bg-blue-600 transition-colors opacity-50 cursor-not-allowed">
-              Save Changes
-            </button>
-          </form>
+            <div class="skeleton h-11 w-full rounded-xl mb-1.5"></div>
+            <div class="skeleton h-11 w-full rounded-xl mt-4"></div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-3xl shadow-sm p-6">
+            <div class="skeleton h-5 w-4 rounded mb-4"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+              {% for n in "123" %}<div class="skeleton h-11 w-full rounded-xl"></div>{% endfor %}
+            </div>
+            <div class="skeleton h-11 w-full rounded-xl"></div>
+          </div>
         </div>
-        {% include 'user/components/password_change_card.html' %}
       </div>
-    </div>
+      <div id="menu-content" class="hidden"></div>
+    {% endif %}
   </main>
+  <script src="{% static 'user/js/password_change.js' %}"></script>
   <script>
-      // Contact Number field: strips non-digit characters and caps input at 11 chars while typing
-      const phoneInput = document.getElementById("phone_input");
-      if (phoneInput) {
-          //Remove non-digit characters
-          phoneInput.addEventListener("input", function() {
-              this.value = this.value.replace(/\D/g, "").slice(0, 11);
-              validatePhone();
-          });
+      function setButtonLoading(btnId, spinnerId, textId, loadingText) {
+          const btn = document.getElementById(btnId);
+          if (!btn) return;
+          btn.disabled = true;
+          btn.classList.add("opacity-70", "cursor-not-allowed");
+          const spinner = spinnerId ? document.getElementById(spinnerId) : null;
+          if (spinner) spinner.classList.remove("hidden");
+          const text = textId ? document.getElementById(textId) : null;
+          if (text && loadingText) text.textContent = loadingText;
       }
 
-      // Checks phone is exactly 11 digits; toggles the red error text below the field
-      function validatePhone() {
-          const phone = document.getElementById("phone_input");
-          const validation = document.getElementById("phone-validation");
-          if (!phone) return true;
-
-          if (phone.value.length === 0) {
-              validation.classList.add("hidden");
-              return true;
+      function initMenuPage() {
+          initPasswordChangeButton();
+          initPasswordChecklistToggle();
+          initPasswordModalOverlay();
+          // Contact Number field: strips non-digit characters and caps input at 11 chars while typing
+          const phoneInput = document.getElementById("phone_input");
+          if (phoneInput) {
+              //Remove non-digit characters
+              phoneInput.addEventListener("input", function() {
+                  this.value = this.value.replace(/\D/g, "").slice(0, 11);
+                  validatePhone();
+              });
           }
-          const isValid = /^\d{11}$/.test(phone.value);
-          validation.classList.toggle("hidden", isValid);
-          return isValid;
+
+          // Checks phone is exactly 11 digits; toggles the red error text below the field
+          window.validatePhone = function() {
+              const phone = document.getElementById("phone_input");
+              const validation = document.getElementById("phone-validation");
+              if (!phone) return true;
+
+              if (phone.value.length === 0) {
+                  validation.classList.add("hidden");
+                  return true;
+              }
+              const isValid = /^\d{11}$/.test(phone.value);
+              validation.classList.toggle("hidden", isValid);
+              return isValid;
+          };
+
+          // Enables the "Save Changes" button as soon as user edits any profile info field (starts disabled)
+          (function() {
+              const editForm = document.getElementById("edit_info_form");
+              const saveBtn = document.getElementById("save_info_btn");
+              if (!editForm || !saveBtn) return;
+
+              function enableSaveBtn() {
+                  saveBtn.disabled = false;
+                  saveBtn.classList.remove("opacity-50", "cursor-not-allowed");
+              }
+
+              editForm.querySelectorAll("input, select").forEach((field) => {
+                  field.addEventListener("input", enableSaveBtn);
+                  field.addEventListener("change", enableSaveBtn);
+              });
+          })();
+
+          // Profile photo upload: live preview before saving
+          const photoInput = document.getElementById("photo_input");
+          const photoPreview = document.getElementById("photo_preview");
+          const defaultAvatar = document.getElementById("default_avatar");
+          const savePhotoBtn = document.getElementById("save_photo_btn");
+
+
+          if (photoInput) {
+              photoInput.addEventListener("change", function() {
+                  const file = this.files[0];
+                  if (file) {
+                      const reader = new FileReader();
+                      reader.onload = function(e) {
+                          photoPreview.src = e.target.result;
+                          photoPreview.classList.remove("hidden");
+                          if (defaultAvatar) defaultAvatar.classList.add("hidden");
+                          savePhotoBtn.classList.remove("hidden");
+                      };
+                      reader.readAsDataURL(file);
+                  }
+              });
+          }
+
+          //Attach spinners on  submit listeners 
+          const editForm = document.getElementById("edit_info_form")
+          if (editForm) {
+              editForm.addEventListener("submit", function() {
+                  setButtonLoading("save_info_btn", "save_info_spinner", "save_info_text", "Saving...");
+              });
+          }
+
+          const photoForm = document.getElementById("photo_form");
+          if (photoForm) {
+              photoForm.addEventListener("submit", function() {
+                  setButtonLoading("save_photo_btn", "save_photo_spinner", "save_photo_text", "Saving...");
+              });
+          }
+
+          const removePhotoForm = document.getElementById("remove_photo_form");
+          if (removePhotoForm) {
+              removePhotoForm.addEventListener("submit", function() {
+                  setButtonLoading("remove_photo_btn", "remove_photo_spinner", "remove_photo_text", "Removing...")
+              });
+          }
       }
 
-      // Enables the "Save Changes" button as soon as user edits any profile info field (starts disabled)
-      (function() {
-          const editForm = document.getElementById("edit_info_form");
-          const saveBtn = document.getElementById("save_info_btn");
-          if (!editForm || !saveBtn) return;
+      document.addEventListener('DOMContentLoaded', function() {
+          {% if is_post_render %}
+          initMenuPage();
+          {% else %}
+          fetch("{% url 'menuAjax' %}")
+              .then(function(res) {
+                  return res.json();
+              })
+              .then(function(data) {
+                  var skeleton = document.getElementById('menu-skeleton');
+                  var content = document.getElementById('menu-content')
 
-          function enableSaveBtn() {
-              saveBtn.disabled = false;
-              saveBtn.classList.remove("opacity-50", "cursor-not-allowed");
-          }
+                  content.innerHTML = data.html;
+                  content.style.opacity = '0';
+                  content.classList.remove('hidden');
 
-          editForm.querySelectorAll("input, select").forEach((field) => {
-              field.addEventListener("input", enableSaveBtn);
-              field.addEventListener("change", enableSaveBtn);
-          });
-      })();
+                  skeleton.style.transition = 'opacity 0.25s ease-out';
+                  skeleton.style.opacity = '0';
 
-      // Profile photo upload: live preview before saving
-      const photoInput = document.getElementById("photo_input");
-      const photoPreview = document.getElementById("photo_preview");
-      const defaultAvatar = document.getElementById("default_avatar");
-      const savePhotoBtn = document.getElementById("save_photo_btn");
-
-
-      photoInput.addEventListener("change", function() {
-          const file = this.files[0];
-          if (file) {
-              const reader = new FileReader();
-              reader.onload = function(e) {
-                  photoPreview.src = e.target.result;
-                  photoPreview.classList.remove("hidden");
-                  if (defaultAvatar) defaultAvatar.classList.add("hidden");
-                  savePhotoBtn.classList.remove("hidden");
-              };
-              reader.readAsDataURL(file);
-          }
+                  setTimeout(function() {
+                      skeleton.classList.add('hidden');
+                      content.style.transition = 'opacity 0.25s ease in';
+                      requestAnimationFrame(function() {
+                          content.style.opacity = '1';
+                      });
+                      initMenuPage();
+                  }, 250);
+              })
+              .catch(function(error) {
+                  console.error('Failed to load menu:', error)
+              });
+          {% endif %}
       });
   </script>
 {% endblock %}

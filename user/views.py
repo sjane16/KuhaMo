@@ -28,6 +28,7 @@ def menu(request):
     user_form = UserForm(instance=request.user)
     profile_form = UserProfileForm(instance=profile)
     photo_form = ProfilePhotoForm(instance=profile)
+    is_post_render = request.method == 'POST'
 
     if request.method == 'POST':
         if 'save_info' in request.POST:
@@ -100,8 +101,19 @@ def menu(request):
         "user_form": user_form,
         "profile_form": profile_form,
         "photo_form": photo_form,
+        "is_post_render": is_post_render,
     })
 
+@login_required
+def menuAjax(request):
+    profile, created = UserProfile.objects.get_or_create(user = request.user)
+    profile_form = UserProfileForm(instance=profile)
+
+    html = render_to_string('user/partials/_menu_content.html', {
+        "profile_form": profile_form,
+    }, request=request)
+
+    return JsonResponse({"html":html})
 
 def base(request):
     return render(request, 'user/layouts/base.html', {"active_page": "base"})
