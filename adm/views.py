@@ -709,6 +709,8 @@ def report_status(request, report_id):
     return redirect('adm_report_detail', report_id=report_id)
 
 def ProfileMenu(request):
+    is_post_render = request.method == 'POST'
+
     if request.method == 'POST':
         # Now uses UserForm to sanitize first_name/last_name
         if 'save_info' in request.POST:
@@ -758,18 +760,15 @@ def ProfileMenu(request):
     return render(request, 'menu-admin.html', {
         "active_page": "ProfileMenu",
         "role": "Admin",
+        "is_post_render": is_post_render,
     })
 
-def universitymap (request):
-    return render(request, 'university-map.html', {
-        "active_page": "universitymap"
-})
+def adm_menu_ajax(request):
+    html = render_to_string('partials/_menu_content.html', {
+        "role": "Admin",
+    }, request = request)
 
-def calendar_view(request):
-    return render(request, 'calendar.html', {
-        "active_page": "calendar"
-    })
-
+    return JsonResponse({"html": html})
 
 def survey_analysis(request):
     return render(request, 'survey_analysis.html', {

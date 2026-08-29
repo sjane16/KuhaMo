@@ -6,6 +6,7 @@ from . import views
 urlpatterns = [
     path('user_dashboard/', user_required(views.userDashboard), name='userDashboard'),
     path('menu/', user_required(views.menu), name='menu'),
+    path('ajax/menu/', user_required(views.menuAjax), name= 'menuAjax'),
     path('base/', user_required(views.base), name='base'),
     path('survey/submit/<int:report_id>/', user_required(views.submitSurvey), name='submitSurvey'),
     path('survey/', user_required(views.userSurvey), name='userSurvey'),
