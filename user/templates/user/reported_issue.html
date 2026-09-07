@@ -431,6 +431,15 @@
           document.documentElement.style.overflow = "";
           document.body.style.overflow = "";
       }
+
+      document.addEventListener("keydown", function(e) {
+          if (e.key === "Escape") {
+              const jobOrderOverlay = document.getElementById("job-order-overlay");
+              if (jobOrderOverlay) {
+                  closeJobOrder();
+              }
+          }
+      });
   </script>
   {% if show_survey %}
     <div id="resolved-notif"

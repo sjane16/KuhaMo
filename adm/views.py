@@ -547,6 +547,32 @@ def export_job_order_pdf_admin(request, report_id):
     return response
 
 
+def export_personnel_performance_pdf(request):
+    context = build_survey_analysis_context()
+    context.pop("responses", None)
+
+    html = render_to_string('personnel_performance_pdf.html', context)
+
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"Personnel_Performance_QQT_{timezone.now().strftime('%Y-%m-%d')}.pdf"
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    pisa_status = pisa.CreatePDF(
+        html,
+        dest=response,
+        link_callback=link_callback
+    )
+
+    if pisa_status.err:
+        return HttpResponse("Something went wrong generating the Personnel Performance PDF.", status=500)
+
+    return response
+
+
 def report_save(request, report_id):
     report = get_object_or_404(Report, id=report_id)
 
