@@ -118,6 +118,59 @@ def _known_personnel_names(assignments):
     return [item.get("name") for item in assignments if item.get("name") in known]
 
 
+def build_survey_responses_list():
+    """Builds just the Individual Responses list — does NOT touch Personnel Performance
+    stats (no looping over all Reports, no N+1 report.survey queries). Used both by the
+    full-page context builder AND directly by the responses-pagination endpoint, so
+    paginating this table alone never re-triggers the expensive personnel-stats computation."""
+    surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
+
+    responses = []
+    for survey in surveys:
+        report = survey.report
+        assignments = report.assigned_personnel_data or []
+        if not assignments and report.assigned_personnel:
+            assignments = [{"name": report.assigned_personnel}]
+
+        personnel_names = _known_personnel_names(assignments)
+        if not personnel_names:
+            continue
+
+        threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
+
+        expected_resolution_met = None
+        resolution_delay_days = None
+        if report.in_progress_at and report.accomplished_at:
+            sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
+            delay_hours = max(0, sla_hours - threshold)
+            expected_resolution_met = _delay_score(delay_hours) >= 4
+            resolution_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
+
+        closure_turnaround_met = None
+        closure_delay_days = None
+        if report.accomplished_at and report.closed_at:
+            close_hours = (report.closed_at - report.accomplished_at).total_seconds() / 3600
+            delay_hours = max(0, close_hours)
+            closure_turnaround_met = _delay_score(delay_hours) >= 4
+            closure_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
+
+        responses.append({
+            "personnel": ", ".join(personnel_names),
+            "category": report.get_category_display(),
+            "rating": survey.rating,
+            "feedback": survey.feedback,
+            "date_submitted": report.submitted_at,
+            "expected_at": report.expected_resolution_at,
+            "actual_at": report.accomplished_at,
+            "expected_resolution_met": expected_resolution_met,
+            "resolution_delay_days": resolution_delay_days,
+            "closure_turnaround_met": closure_turnaround_met,
+            "closure_delay_days": closure_delay_days,
+        })
+
+    return responses
+
+
 def build_survey_analysis_context():
     surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
     total_surveys = surveys.count()
@@ -215,48 +268,7 @@ def build_survey_analysis_context():
     # (uses the dict key "avg_rating", unaffected by the personnel_avg_rating rename above)
 
     # ---- Individual Responses — official personnel only (outsourced-only reports are hidden) ----
-    responses = []
-    for survey in surveys:
-        report = survey.report
-        assignments = report.assigned_personnel_data or []
-        if not assignments and report.assigned_personnel:
-            assignments = [{"name": report.assigned_personnel}]
-
-        personnel_names = _known_personnel_names(assignments)
-        if not personnel_names:
-            continue
-
-        threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
-
-        expected_resolution_met = None
-        resolution_delay_days = None
-        if report.in_progress_at and report.accomplished_at:
-            sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
-            delay_hours = max(0, sla_hours - threshold)
-            expected_resolution_met = _delay_score(delay_hours) >= 4
-            resolution_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
-
-        closure_turnaround_met = None
-        closure_delay_days = None
-        if report.accomplished_at and report.closed_at:
-            close_hours = (report.closed_at - report.accomplished_at).total_seconds() / 3600
-            delay_hours = max(0, close_hours)
-            closure_turnaround_met = _delay_score(delay_hours) >= 4
-            closure_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
-
-        responses.append({
-            "personnel": ", ".join(personnel_names),
-            "category": report.get_category_display(),
-            "rating": survey.rating,
-            "feedback": survey.feedback,
-            "date_submitted": report.submitted_at,
-            "expected_at": report.expected_resolution_at,
-            "actual_at": report.accomplished_at,
-            "expected_resolution_met": expected_resolution_met,
-            "resolution_delay_days": resolution_delay_days,
-            "closure_turnaround_met": closure_turnaround_met,
-            "closure_delay_days": closure_delay_days,
-        })
+    responses = build_survey_responses_list()
 
     return {
         "active_page": "survey_analysis",
@@ -535,6 +547,32 @@ def export_job_order_pdf_admin(request, report_id):
     return response
 
 
+def export_personnel_performance_pdf(request):
+    context = build_survey_analysis_context()
+    context.pop("responses", None)
+
+    html = render_to_string('personnel_performance_pdf.html', context)
+
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"Personnel_Performance_QQT_{timezone.now().strftime('%Y-%m-%d')}.pdf"
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    pisa_status = pisa.CreatePDF(
+        html,
+        dest=response,
+        link_callback=link_callback
+    )
+
+    if pisa_status.err:
+        return HttpResponse("Something went wrong generating the Personnel Performance PDF.", status=500)
+
+    return response
+
+
 def report_save(request, report_id):
     report = get_object_or_404(Report, id=report_id)
 
@@ -784,8 +822,7 @@ def adm_survey_analysis_ajax(request):
 
 
 def adm_survey_responses_ajax(request):
-    context = build_survey_analysis_context()
-    all_responses = context["responses"]
+    all_responses = build_survey_responses_list()
     page_number = request.GET.get('page', 1)
 
     paginator = Paginator(all_responses, RESPONSES_PAGE_SIZE)

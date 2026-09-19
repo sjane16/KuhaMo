@@ -17,6 +17,7 @@ urlpatterns = [
     path('survey-analysis/', admin_required(views.survey_analysis), name='survey_analysis'),
     path('ajax/survey-analysis/', admin_required(views.adm_survey_analysis_ajax), name='adm_survey_analysis_ajax'),
     path('ajax/survey-analysis/responses/', admin_required(views.adm_survey_responses_ajax), name='adm_survey_responses_ajax'),
+    path('survey-analysis/pdf/', admin_required(views.export_personnel_performance_pdf), name='export_personnel_performance_pdf'),
     path('notifications/', admin_required(views.adminNotifications), name='adminNotifications'),
     path('ajax/notifications/', admin_required(views.get_notifications_ajax_admin), name='get_notifications_ajax_admin'),
     path('ajax/notifications-page/', admin_required(views.get_notifications_page_ajax_admin), name='get_notifications_page_ajax_admin'),

@@ -147,12 +147,74 @@
     </div>
   </main>
   <script>
+      function exportPersonnelPerformancePDF() {
+          const overlay = document.createElement("div");
+          overlay.id = "personnel-performance-overlay";
+          overlay.className = "fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-4";
+          overlay.onclick = function(e) {
+              if (e.target === overlay) {
+                  closePersonnelPerformancePDF();
+              }
+          };
+
+          overlay.innerHTML = `
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+          <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+            <h2 class="text-sm font-bold text-gray-900">Personnel Performance (QQT) — Preview</h2>
+            <button type="button" onclick="closePersonnelPerformancePDF()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <iframe src="{% url 'export_personnel_performance_pdf' %}" class="flex-1 w-full border-0"></iframe>
+        </div>
+      `;
+
+          document.body.appendChild(overlay);
+          document.documentElement.style.overflow = "hidden";
+          document.body.style.overflow = "hidden";
+      }
+
+      function closePersonnelPerformancePDF() {
+          const overlay = document.getElementById("personnel-performance-overlay");
+          if (overlay) {
+              overlay.remove();
+          }
+          document.documentElement.style.overflow = "";
+          document.body.style.overflow = "";
+      }
+
+      document.addEventListener("keydown", function(e) {
+          if (e.key === "Escape") {
+              const overlay = document.getElementById("personnel-performance-overlay");
+              if (overlay) {
+                  closePersonnelPerformancePDF();
+              }
+          }
+      });
+
       document.addEventListener("DOMContentLoaded", function() {
           const skeleton = document.getElementById("surveyAnalysisSkeleton");
           const container = document.getElementById("surveyAnalysisContainer");
 
           const RESPONSES_AJAX_URL = "{% url 'adm_survey_responses_ajax' %}";
           let responsesCurrentPage = 1;
+
+          const RESPONSES_SKELETON_ROW = `
+              <tr>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-24 rounded"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-20 rounded"></div></td>
+                  <td class="px-2 py-4"><div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div><div class="skeleton h-2 w-10 rounded mx-auto"></div></td>
+                  <td class="px-2 py-4"><div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div><div class="skeleton h-2 w-10 rounded mx-auto"></div></td>
+                  <td class="px-2 py-4"><div class="skeleton h-3 w-16 rounded mx-auto mb-1"></div><div class="skeleton h-2 w-10 rounded mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-10 rounded mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-6 w-14 rounded-full mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-6 w-14 rounded-full mx-auto"></div></td>
+                  <td class="px-4 py-4"><div class="skeleton h-3 w-32 rounded"></div></td>
+              </tr>
+          `;
+          const RESPONSES_SKELETON_HTML = RESPONSES_SKELETON_ROW.repeat(4);
 
           function wireResponsesPagination() {
               const responsesBody = document.getElementById("responsesBody");
@@ -161,6 +223,10 @@
               const pageInfo = document.getElementById("responsesPageInfo");
 
               function fetchResponsesPage() {
+                  responsesBody.innerHTML = RESPONSES_SKELETON_HTML;
+                  prevBtn.disabled = true;
+                  nextBtn.disabled = true;
+
                   fetch(`${RESPONSES_AJAX_URL}?page=${responsesCurrentPage}`)
                       .then(function(response) {
                           return response.json();
@@ -174,6 +240,8 @@
                       })
                       .catch(function(error) {
                           console.error("Failed to fetch survey responses:", error);
+                          prevBtn.disabled = !(responsesCurrentPage > 1);
+                          nextBtn.disabled = false;
                       });
               }
 

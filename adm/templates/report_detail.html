@@ -705,6 +705,11 @@
                   modal.classList.remove('flex');
                   document.body.style.overflow = '';
               }
+
+              const jobOrderOverlay = document.getElementById('job-order-overlay');
+              if (jobOrderOverlay) {
+                  closeJobOrder();
+              }
           }
       });
 
