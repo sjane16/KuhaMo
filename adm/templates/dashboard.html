@@ -19,18 +19,7 @@
             <div class="skeleton h-7 w-20 rounded-full"></div>
         </div>
         <div id="dashboardSkeleton"
-             class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-            {% for n in "1234" %}
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center gap-4">
-                    <div class="skeleton w-12 h-12 rounded-xl shrink-0"></div>
-                    <div class="flex-1 space-y-2">
-                        <div class="skeleton h-3 w-20 rounded"></div>
-                        <div class="skeleton h-6 w-12 rounded"></div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+             class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
             {% for n in "12" %}
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                     <div class="skeleton h-4 w-48 rounded mb-4"></div>
@@ -49,6 +38,168 @@
         </div>
         <div id="dashboardContainer" class="hidden"></div>
     </main>
+    <style>
+        .report-status-card {
+            min-width: 0;
+        }
+
+        .report-status-content {
+            gap: 24px;
+            padding-top: 16px;
+        }
+
+        .status-chart-frame {
+            position: relative;
+            width: min(100%, 240px);
+            min-height: 0;
+            aspect-ratio: 1 / 1;
+            align-self: center;
+        }
+
+        .status-chart-frame>canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .status-chart-frame[data-empty="true"]::before {
+            content: "";
+            position: absolute;
+            inset: 5px;
+            border-radius: 50%;
+            background: #e2e8f0;
+        }
+
+        .status-chart-frame[data-empty="true"]::after {
+            content: "";
+            position: absolute;
+            inset: calc(17.5% + 3.25px);
+            border-radius: 50%;
+            background: white;
+        }
+
+        .status-chart-total {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .status-chart-total strong {
+            max-width: 55%;
+            overflow-wrap: anywhere;
+            text-align: center;
+            font-size: clamp(20px, 2.5vw, 32px);
+            font-weight: 700;
+            line-height: 1.1;
+            color: #111827;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-chart-total>span {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        #statusLegend {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .status-legend-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 5px 0;
+        }
+
+        .status-legend-row:last-child {
+            border-bottom: 0;
+        }
+
+        .status-legend-row dt {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .status-legend-dot {
+            width: 8px;
+            height: 8px;
+            flex-shrink: 0;
+            border-radius: 50%;
+        }
+
+        .status-legend-row dd {
+            margin: 0;
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: 20px 20px;
+            align-items: baseline;
+            column-gap: 8px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .status-legend-row dd strong {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .status-legend-row dd>span {
+            display: block;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        #categoriesLegend {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        #categoriesLegend .status-legend-row {
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        #categoriesLegend .status-legend-row:last-child {
+            border-bottom: 0;
+        }
+
+        #categoriesLegend dt {
+            overflow-wrap: anywhere;
+        }
+
+
+
+        @media (min-width: 1024px) {
+            .status-chart-frame {
+                flex: 0 1 45%;
+                max-width: 240px;
+            }
+        }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let dashboardCharts = {};
@@ -58,7 +209,7 @@
             const dashboardSkeleton = document.getElementById("dashboardSkeleton");
             const dashboardSkeletonRow2 = document.getElementById("dashboardSkeletonRow2");
             const dashboardContainer = document.getElementById("dashboardContainer");
-            const skeletonPieces = [dashboardButtonsSkeleton, dashboardSkeleton, dashboardSkeletonRow2.previousElementSibling, dashboardSkeletonRow2];
+            const skeletonPieces = [dashboardButtonsSkeleton, dashboardSkeleton, dashboardSkeletonRow2];
 
             skeletonPieces.forEach(function(piece) {
                 piece.style.transition = '';
@@ -72,14 +223,14 @@
 
             fetch(url)
                 .then(function(response) {
+                    if (!response.ok) throw new Error(`Dashboard request failed (${response.status})`);
                     return response.json();
                 })
                 .then(function(data) {
                     dashboardContainer.innerHTML = data.html;
-                    initAdminDashboardCharts(data);
-
                     dashboardContainer.style.opacity = '0';
                     dashboardContainer.classList.remove('hidden');
+                    initAdminDashboardCharts(data);
 
                     skeletonPieces.forEach(function(piece) {
                         piece.style.transition = 'opacity 0.25s ease-out';
@@ -99,6 +250,18 @@
                 })
                 .catch(function(error) {
                     console.error("Failed to load dashboard data:", error);
+                    skeletonPieces.forEach(piece => piece.classList.add('hidden'));
+                    dashboardContainer.classList.remove('hidden');
+                    dashboardContainer.style.opacity = '1';
+                    const message = document.createElement('p');
+                    message.setAttribute('role', 'alert');
+                    message.textContent = 'Unable to load the dashboard. Please try again.';
+                    const retry = document.createElement('button');
+                    retry.type = 'button';
+                    retry.className = 'mt-4 px-4 py-2 rounded-full bg-blue-600 text-white';
+                    retry.textContent = 'Try again';
+                    retry.addEventListener('click', () => fetchDashboard(period));
+                    dashboardContainer.replaceChildren(message, retry);
                 });
         }
 
@@ -119,33 +282,147 @@
             });
             dashboardCharts = {};
 
-            dashboardCharts.satisfaction = new Chart(document.getElementById('satisfactionChart'), {
-                type: 'pie',
+            const statusTotal = data.status_data.reduce((sum, count) => sum + count, 0);
+            document.getElementById('statusChartWrap').dataset.empty = String(statusTotal === 0);
+            dashboardCharts.status = new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
                 data: {
-                    labels: data.satisfaction_labels,
+                    labels: data.status_labels,
                     datasets: [{
-                        data: data.satisfaction_counts,
-                        backgroundColor: ['#1a7a4a', '#2ecc71', '#82e0aa', '#abebc6', '#d5f5e3'],
-                        borderWidth: 0,
+                        data: data.status_data,
+                        backgroundColor: ['#f59e0b', '#6366f1', '#10b981', '#64748b'],
+                        cutout: '65%',
+                        borderColor: '#ffffff',
+                        borderWidth: 1,
+                        hoverOffset: 4,
                     }]
                 },
                 options: {
+                    cutout: '65%',
+                    layout: {
+                        padding: 5
+                    },
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    size: 11
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const total = ctx.dataset.data.reduce((sum, count) => sum + count, 0);
+                                    const pct = total ? ((ctx.raw / total) * 100).toFixed(1) : '0.0';
+                                    return `${ctx.label}: ${ctx.raw} (${pct}%)`;
                                 }
                             }
                         }
                     }
                 }
             });
+            document.querySelector('[data-status-count="total"]').textContent = statusTotal;
+            ['pending', 'in_progress', 'resolved', 'closed'].forEach(function(code, index) {
+                const count = data.status_data[index];
+                const pct = statusTotal ? ((count / statusTotal) * 100).toFixed(1) : '0.0';
+                document.querySelector(`[data-status-count="${code}"]`).textContent = count;
+                document.querySelector(`[data-status-pct="${code}"]`).textContent = `${pct}%`;
+            });
 
-            dashboardCharts.categories = new Chart(document.getElementById('categoriesChart'), {
+            const categoryLabels = data.categories;
+            const categoryCounts = data.categories_counts;
+
+            const categoryColors = [
+                '#3b82f6', // Blue
+                '#8b5cf6', // Violet
+                '#14b8a6', // Teal
+                '#f59e0b', // Amber
+                '#f43f5e', // Rose
+                '#64748b', // Slate
+                '#06b6d4' // Cyan
+            ];
+
+            const categoryTotal = categoryCounts.reduce(
+                (sum, count) => sum + count,
+                0
+            );
+
+            //For the center count and show gray ring kapag no reports.
+            document.getElementById('categoriesTotal').textContent =
+                categoryCounts.filter(count => count > 0).length;
+            document.getElementById('categoriesChartWrap').dataset.empty = String(categoryTotal === 0);
+
+            dashboardCharts.categories = new Chart(
+                document.getElementById('categoriesChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            data: categoryCounts,
+                            backgroundColor: categoryColors,
+                            borderColor: '#ffffff',
+                            borderWidth: 1,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        cutout: '65%',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: {
+                            padding: 5
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        const percentage = categoryTotal ?
+                                            ((ctx.raw / categoryTotal) * 100).toFixed(1) : '0.0';
+
+                                        return `${ctx.label}: ${ctx.raw} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            );
+
+            //Side legend/labels 
+            const categoryLegend = document.getElementById('categoriesLegend');
+            categoryLegend.replaceChildren();
+
+            categoryLabels.forEach(function(label, index) {
+                const count = categoryCounts[index];
+                const percentage = categoryTotal ?
+                    ((count / categoryTotal) * 100).toFixed(1) :
+                    '0.0';
+
+                const row = document.createElement('div');
+                row.className = 'status-legend-row';
+                row.innerHTML = `
+                    <dt>
+                        <span class="status-legend-dot" aria-hidden="true"></span>
+                        <span class="category-name"></span>
+                    </dt>
+                    <dd>
+                        <strong></strong>
+                        <span>${percentage}%</span>
+                    </dd>
+                `;
+
+                row.querySelector('.status-legend-dot').style.backgroundColor =
+                    categoryColors[index];
+                row.querySelector('.category-name').textContent = label;
+                row.querySelector('strong').textContent = count;
+
+                categoryLegend.append(row);
+            });
+
+
+            {% comment %} dashboardCharts.categories = new Chart(document.getElementById('categoriesChart'), {
                 type: 'bar',
                 data: {
                     labels: data.categories,
@@ -187,44 +464,81 @@
                     }
                 }
             });
-
-            dashboardCharts.locations = new Chart(document.getElementById('locationsChart'), {
+            {% endcomment %}
+            dashboardCharts.buildings = new Chart(document.getElementById('buildingChart'), {
                 type: 'bar',
                 data: {
-                    labels: data.location,
+                    labels: data.building_labels,
                     datasets: [{
-                        data: data.location_counts,
-                        backgroundColor: '#f0a500',
-                        borderRadius: 4,
-                    }]
+                        label: 'Pending',
+                        data: data.building_status_data.pending,
+                        backgroundColor: '#f59e0b'
+                    }, {
+                        label: 'In Progress',
+                        data: data.building_status_data.in_progress,
+                        backgroundColor: '#6366f1'
+                    }, {
+                        label: 'Resolved',
+                        data: data.building_status_data.resolved,
+                        backgroundColor: '#10b981'
+                    }, {
+                        label: 'Closed',
+                        data: data.building_status_data.closed,
+                        backgroundColor: '#64748b'
+                    }, ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    datasets: {
+                        bar: {
+                            grouped: true,
+                            borderRadius: 3,
+                            maxBarThickness: 22,
+                            categoryPercentage: 0.6,
+                            barPercentage: 0.9
+                        }
+                    },
                     plugins: {
                         legend: {
-                            display: false
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                boxHeight: 12,
+                                padding: 16,
+                                font: {
+                                    size: 11
+                                }
+                            }
                         }
                     },
                     scales: {
+                        x: {
+                            stacked: false,
+                            grid: {
+                                display: true,
+                                color: '#f3f4f6',
+                                drawTicks: false
+                            },
+                            ticks: {
+                                minRotation: 45,
+                                maxRotation: 45,
+                                autoSkip: false,
+                                color: '#6b7280',
+                                font: {
+                                    size: 9
+                                }
+                            }
+                        },
                         y: {
+                            stacked: false,
                             beginAtZero: true,
                             grid: {
                                 color: '#f3f4f6'
                             },
                             ticks: {
-                                color: '#9ca3af'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#9ca3af',
-                                font: {
-                                    size: 8
-                                }
+                                precision: 0,
+                                color: '#6b7280'
                             }
                         }
                     }
