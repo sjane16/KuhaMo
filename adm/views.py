@@ -16,6 +16,7 @@ from user.validators import validate_password_strength
 from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
 from user.views import link_callback
+from .models import Building 
 
 
 REPORTS_PAGE_SIZE = 5
@@ -305,11 +306,19 @@ def adm_dashboard_ajax(request):
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
 
-    pending = filter_periods(Report.objects.filter(status='pending')).count()
-    in_progress = filter_periods(Report.objects.filter(status='in_progress')).count()
-    resolved_thisweek = filter_periods(Report.objects.filter(status='resolved')).count()
     avg_satisfaction = SurveyResponse.objects.aggregate(avg=Avg('rating'))['avg'] or 0
     avg_satisfaction = round(avg_satisfaction, 1)
+
+    status_counts_qs = (
+        filter_periods(Report.objects)
+        .values('status')
+        .annotate(count=Count('id'))
+    )
+    status_map = dict(Report.STATUS_CHOICES)
+    status_counts = {status_map[s['status']]: s['count'] for s in status_counts_qs}
+
+    status_labels = [status_map[code] for code, _ in Report.STATUS_CHOICES]
+    status_data = [status_counts.get(label, 0) for label in status_labels]
 
     satisfaction_labels = [
         "5-Outstanding",
@@ -327,28 +336,61 @@ def adm_dashboard_ajax(request):
         filter_periods(Report.objects)
         .values('category')
         .annotate(count=Count('id'))
-        .order_by('-count')[:6]
+        .order_by('-count')
+        # [:6]
     )
-    label_map = dict(Report.CATEGORY_CHOICES)
-    categories = [label_map.get(c['category'], c['category']) for c in categories_data]
-    categories_counts = [c['count'] for c in categories_data]
+    # label_map = dict(Report.CATEGORY_CHOICES)
+    # categories = [label_map.get(c['category'], c['category']) for c in categories_data]
+    # categories_counts = [c['count'] for c in categories_data]
 
-    room_counts = {}
+    # Look up the report count for each category that has reports.
+    category_count_map = {
+        item['category']: item['count']
+        for item in categories_data
+    }
+
+    # Include every category, then sort by report count.
+    sorted_categories = sorted(
+        Report.CATEGORY_CHOICES,
+        key=lambda category: category_count_map.get(category[0], 0),
+        reverse=True,
+    )
+
+    categories = [
+        label for code, label in sorted_categories
+    ]
+
+    categories_counts = [
+        category_count_map.get(code, 0)
+        for code, label in sorted_categories
+    ]
+
+    building_status_counts = defaultdict(
+        lambda: {code: 0 for code, _ in Report.STATUS_CHOICES}
+    )
+
+    # Include every building, even if it has no reports.
+    for name in Building.objects.order_by('name').values_list('name', flat=True):
+        building_status_counts[name.strip()] = {
+            code: 0 for code, _ in Report.STATUS_CHOICES
+        }
 
     for report in filter_periods(Report.objects):
-        room = report.room_location
+        building = report.location.split(',')[0].strip() if report.location else None
+        if building:
+            building_status_counts[building][report.status] += 1
 
-        if room:
-            room_counts[room] = room_counts.get(room, 0) + 1
-
-    top_rooms = sorted(
-        room_counts.items(),
-        key=lambda item: item[1],
-        reverse=True
-    )[:6]
-
-    location = [room for room, count in top_rooms]
-    location_counts = [count for room, count in top_rooms]
+    sorted_buildings = sorted(
+        building_status_counts.items(),
+        key=lambda item: sum(item[1].values()),
+        reverse=True,
+    )
+    # [:8]
+    building_labels = [building for building, _ in sorted_buildings]
+    building_status_data = {
+        code: [counts[code] for _, counts in sorted_buildings]
+        for code, _ in Report.STATUS_CHOICES
+    }
 
     resolution_weeks = []
     expected_hours = []
@@ -372,9 +414,6 @@ def adm_dashboard_ajax(request):
         actual_hours.append(round(total_hours / count, 1) if count else 0)
 
     context = {
-        'pending': pending,
-        'in_progress': in_progress,
-        'resolved_thisweek': resolved_thisweek,
         'avg_satisfaction': avg_satisfaction,
         'period': period,
     }
@@ -387,11 +426,13 @@ def adm_dashboard_ajax(request):
         'satisfaction_counts': satisfaction_counts,
         'categories': categories,
         'categories_counts': categories_counts,
-        'location': location,
-        'location_counts': location_counts,
+        'building_labels': building_labels,
+        'building_status_data': building_status_data,
         'resolution_weeks': resolution_weeks,
         'expected_hours': expected_hours,
         'actual_hours': actual_hours,
+        'status_labels': status_labels,
+        'status_data': status_data,
     })
 
 
