@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from cloudinary.models import CloudinaryField
 from .validators import phone_validator
+from simple_history.models import HistoricalRecords
 
 
 REPORT_PREFIX = "MED-JO"
@@ -176,12 +177,15 @@ class Report(models.Model):
     def __str__(self):
         return f"{self.job_order_id or f'#{self.id:04d}'} - {self.get_category_display()} ({self.location})"
 
+    history = HistoricalRecords()
+
 
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('student', 'Student'),
         ('faculty', 'Faculty'),
         ('staff', 'Staff'),
+        ('admin', 'Admin'),
     ]
 
     DEPARTMENT_CHOICES = [
@@ -197,13 +201,18 @@ class UserProfile(models.Model):
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES, blank=True)
     phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
 
+    otp = models.CharField(max_length=6, blank=True, default='')
+    otp_created_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.user.username} - Profile"
+
+    history = HistoricalRecords()
 
 
 class SurveyResponse(models.Model):
@@ -214,6 +223,8 @@ class SurveyResponse(models.Model):
 
     def __str__(self):
         return f"Survey for Report {self.report.job_order_id or f'#{self.report.id:04d}'}"
+
+    history = HistoricalRecords()
 
 
 class Notification(models.Model):

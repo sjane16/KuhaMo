@@ -14,7 +14,7 @@ urlpatterns = [
     path('user_reports/', user_required(views.userReports), name='userReports'),
     path('reported_issue/<int:report_id>/', user_required(views.reportedIssue), name='reportedIssue'),
     path('job-order/<int:report_id>/pdf/', user_required(views.exportJobOrderPDF), name='exportJobOrderPDF'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='student_login'), name='logout'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('chatbot/', user_required(views.chatbot), name='chatbot'),
     path('chatbot/response/', user_required(views.chatbot_response), name='chatbot_response'),
     path('ajax/load-floors/', user_required(views.load_floors), name='ajax_load_floors'),
