@@ -37,8 +37,7 @@
             overflow-x: hidden;
         }
 
-        /* Blueprint grid overlay -- evokes floor-plan / architectural drafting,
-         a deliberate nod to the building/floor/room data this app is built on. */
+        
         .fc-grid {
             position: absolute;
             inset: 0;
@@ -125,7 +124,7 @@
             transition: background-color 5000s ease-in-out 0s;
         }
 
-        /* Scrollable Terms/Privacy content box */
+        
         .fc-policy-box {
             max-height: 320px;
             overflow-y: auto;
@@ -205,8 +204,8 @@
           class="bg-white p-8 rounded-2xl shadow-md w-full max-w-2xl mb-4 z-10">
       {% csrf_token %}
       <div class="flex flex-col items-start text-left mb-5">
-        <a href="{% url 'index' %}"
-         class="text-sm text-left pb-2 text-gray-500 block hover:text-blue-600 transition-all">← Back to Home</a>
+        <a href="{% url 'signup' %}"
+         class="text-sm text-left pb-2 text-gray-500 block hover:text-blue-600 transition-all">← Back to Sign up</a>
         <h1 class="text-lg font-semibold">Privacy Policy and Terms of Service</h1>
       </div>
       {% if messages %}
