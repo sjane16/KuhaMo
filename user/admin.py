@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
-from .models import Report
-from .models import UserProfile
+from simple_history.admin import SimpleHistoryAdmin
+from .models import Report, UserProfile, SurveyResponse
+
 
 # Inline class - makes UserProfile appear inside the User page
 class UserProfileInline(admin.StackedInline):
@@ -20,7 +21,15 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('username', 'first_name', 'last_name', 'email')
 
 @admin.register(Report)
-class ReportAdmin(admin.ModelAdmin):
+class ReportAdmin(SimpleHistoryAdmin):
     list_display = ('id', 'reporter_name', 'category', 'location', 'status', 'submitted_at')
     list_filter = ('status', 'category')
     raw_id_fields = ('user',)
+
+@admin.register(UserProfile)
+class UserProfileAdmin(SimpleHistoryAdmin):
+    pass
+
+@admin.register(SurveyResponse)
+class SurveyResponseAdmin(SimpleHistoryAdmin):
+    pass
