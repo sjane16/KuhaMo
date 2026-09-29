@@ -4,7 +4,7 @@ from django.utils.dateparse import parse_datetime
 from requests import request
 from user.models import Report, SurveyResponse, Notification
 from django.db.models import Count, Avg, Q
-from datetime import timedelta
+from datetime import timedelta, datetime
 import calendar
 import json
 import re
@@ -304,17 +304,25 @@ def dashboard(request):
     })
 
 
-def _build_dashboard_data(period):
+def _build_dashboard_data(period, start_date=None, end_date=None):
     now = timezone.now()
 
-    if period == '7':
-        start_date = now - timedelta(days=7)
-    elif period == '30':
-        start_date = now - timedelta(days=30)
-    else:
-        start_date = None
+    # If caller didn't provide explicit start/end dates, derive from period
+    if start_date is None and end_date is None:
+        if period == '7':
+            start_date = now - timedelta(days=7)
+            end_date = now
+        elif period == '30':
+            start_date = now - timedelta(days=30)
+            end_date = now
+        else:
+            start_date = None
+            end_date = None
 
     def filter_periods(qs):
+        # Support both open-ended (>= start) and closed ranges (start..end)
+        if start_date and end_date:
+            return qs.filter(submitted_at__range=(start_date, end_date))
         if start_date:
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
@@ -806,13 +814,33 @@ def export_dashboard_report_pdf(request):
     now = timezone.localtime(timezone.now())
     today = now.date()
 
-    if not settings.DEBUG and not _is_last_day_of_month(today):
+    # Allow admins to explicitly request any month via the "report_month" POST field (format: YYYY-MM).
+    # If no month is specified, keep the original restriction: only allow generation on the last day
+    # of the current month (unless DEBUG).
+    report_month = request.POST.get('report_month')
+    start_dt = None
+    end_dt = None
+    if report_month:
+        try:
+            year, month = map(int, report_month.split('-', 1))
+            first_day = datetime(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            last_dt = datetime(year, month, last_day, 23, 59, 59)
+            start_dt = timezone.make_aware(first_day)
+            end_dt = timezone.make_aware(last_dt)
+        except Exception:
+            return HttpResponse("Invalid report_month format. Expected YYYY-MM.", status=400)
+
+    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
         return HttpResponse(
             "The monthly report can only be generated on the last day of the month.",
             status=403,
         )
 
-    data = _build_dashboard_data('30')
+    if report_month:
+        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+    else:
+        data = _build_dashboard_data('30')
 
     # Admin's edited text wins (even if blank -> no SUMMARY section).
     # If the field wasn't sent at all, fall back to the system-generated summary.
@@ -959,14 +987,34 @@ def dashboard_report_summary(request):
     now = timezone.localtime(timezone.now())
     today = now.date()
 
-    if not settings.DEBUG and not _is_last_day_of_month(today):
+    report_month = request.GET.get('report_month')
+    start_dt = None
+    end_dt = None
+    if report_month:
+        try:
+            year, month = map(int, report_month.split('-', 1))
+            first_day = datetime(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            last_dt = datetime(year, month, last_day, 23, 59, 59)
+            start_dt = timezone.make_aware(first_day)
+            end_dt = timezone.make_aware(last_dt)
+        except Exception:
+            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+
+    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
         return JsonResponse(
             {'error': 'The monthly report can only be generated on the last day of the month.'},
             status=403,
         )
 
-    data = _build_dashboard_data('30')
-    return JsonResponse({'summary': _build_report_summary(data, today)})
+    if report_month:
+        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        summary_date = end_dt.date()
+    else:
+        data = _build_dashboard_data('30')
+        summary_date = today
+
+    return JsonResponse({'summary': _build_report_summary(data, summary_date)})
 
 
 def report_save(request, report_id):

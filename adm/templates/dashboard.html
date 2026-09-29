@@ -45,7 +45,11 @@
          aria-labelledby="reportModalTitle">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl h-[90vh] flex flex-col">
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h3 id="reportModalTitle" class="text-base font-semibold text-gray-800">Monthly Report Preview</h3>
+                <div class="flex items-center gap-4">
+                    <h3 id="reportModalTitle" class="text-base font-semibold text-gray-800">Monthly Report Preview</h3>
+                    <label for="reportMonthPicker" class="text-sm text-gray-500">Month</label>
+                    <input type="month" id="reportMonthPicker" class="h-8 px-2 rounded border border-gray-200 text-sm" aria-label="Select report month" />
+                </div>
                 <button type="button"
                         id="reportModalClose"
                         class="text-gray-400 hover:text-gray-600 text-xl leading-none"
@@ -273,11 +277,15 @@
             if (!btn) return;
 
             const isThirtyDays = String(period) === "30";
-            btn.disabled = !(data.can_generate_report && isThirtyDays);
+            const monthPicker = document.getElementById('reportMonthPicker');
+            const hasMonth = monthPicker && monthPicker.value;
 
-            if (!data.can_generate_report) {
+            // allow generation when either Last 30 Days is selected or a specific month is picked
+            btn.disabled = !(data.can_generate_report && (isThirtyDays || hasMonth));
+
+            if (!data.can_generate_report && !hasMonth) {
                 btn.title = `Available on ${data.report_available_on}`;
-            } else if (!isThirtyDays) {
+            } else if (!isThirtyDays && !hasMonth) {
                 btn.title = 'Select "Last 30 Days" to generate the report';
             } else {
                 btn.title = "Generate the monthly dashboard report (PDF)";
@@ -338,7 +346,12 @@
             btn.disabled = true;
             label.textContent = "Generating...";
 
-            fetch(reportSummaryUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            // Include the optional month selection when requesting the system summary
+            var summaryUrl = reportSummaryUrl;
+            var mp = document.getElementById('reportMonthPicker');
+            if (mp && mp.value) summaryUrl += '?report_month=' + encodeURIComponent(mp.value);
+
+            fetch(summaryUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
                 .then(function(response) {
                     if (!response.ok) throw new Error(`Summary request failed (${response.status})`);
                     return response.json();
@@ -372,6 +385,8 @@
                 formData.append(key, dashboardReportCharts[key]);
             });
             formData.append("summary_text", document.getElementById("reportSummaryText").value);
+            var mp = document.getElementById('reportMonthPicker');
+            if (mp && mp.value) formData.append('report_month', mp.value);
 
             loading.classList.remove("hidden");
             errorEl.classList.add("hidden");
@@ -456,7 +471,9 @@
             if (!dashboardReportBlobUrl) return;
             const a = document.createElement("a");
             a.href = dashboardReportBlobUrl;
-            a.download = `Dashboard_Report_${new Date().toISOString().slice(0, 7)}.pdf`;
+            var mp = document.getElementById('reportMonthPicker');
+            var month = (mp && mp.value) ? mp.value : new Date().toISOString().slice(0, 7);
+            a.download = `Dashboard_Report_${month}.pdf`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -470,6 +487,17 @@
             document.getElementById("reportSummaryReset").addEventListener("click", function() {
                 document.getElementById("reportSummaryText").value = dashboardReportSystemSummary;
             });
+
+            // Initialize month picker behavior for report generation
+            var monthPickerEl = document.getElementById('reportMonthPicker');
+            if (monthPickerEl) {
+                if (!monthPickerEl.value) monthPickerEl.value = new Date().toISOString().slice(0,7);
+                monthPickerEl.addEventListener('change', function() {
+                    const reportBtn = document.getElementById('generateReportBtn');
+                    if (reportBtn) reportBtn.disabled = false;
+                });
+            }
+
             document.addEventListener("keydown", function(e) {
                 const modal = document.getElementById("reportModal");
                 if (e.key === "Escape" && !modal.classList.contains("hidden")) closeDashboardReport();
