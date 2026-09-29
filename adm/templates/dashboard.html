@@ -330,6 +330,34 @@
             return monthPicker && monthPicker.value ? monthPicker.value : "";
         }
 
+        function fetchDashboardData(period, reportMonth) {
+            const url = new URL("{% url 'adm_dashboard_ajax' %}", window.location.origin);
+            url.searchParams.set("period", period);
+            if (reportMonth) {
+                url.searchParams.set("report_month", reportMonth);
+            }
+            return fetch(url).then(function(response) {
+                if (!response.ok) throw new Error(`Dashboard request failed (${response.status})`);
+                return response.json();
+            });
+        }
+
+        function buildDashboardReportCharts() {
+            const statusTotal = dashboardCharts.status.data.datasets[0].data
+                .reduce((sum, count) => sum + count, 0);
+            const categoryCount = dashboardCharts.categories.data.datasets[0].data
+                .filter(count => count > 0).length;
+
+            return {
+                chart_status: chartImageWithCenter(
+                    dashboardCharts.status, statusTotal, statusTotal === 1 ? "report" : "reports"),
+                chart_categories: chartImageWithCenter(
+                    dashboardCharts.categories, categoryCount, categoryCount === 1 ? "category" : "categories"),
+                chart_buildings: dashboardCharts.buildings.toBase64Image(),
+                chart_resolution: dashboardCharts.resolution.toBase64Image(),
+            };
+        }
+
         function requestSystemSummary() {
             let summaryUrl = reportSummaryUrl;
             const selectedMonth = getSelectedReportMonth();
@@ -349,25 +377,23 @@
         function generateDashboardReport(btn) {
             const label = document.getElementById("generateReportLabel");
             const defaultText = "Generate Monthly Report";
-
-            const statusTotal = dashboardCharts.status.data.datasets[0].data
-                .reduce((sum, count) => sum + count, 0);
-            const categoryCount = dashboardCharts.categories.data.datasets[0].data
-                .filter(count => count > 0).length;
-
-            dashboardReportCharts = {
-                chart_status: chartImageWithCenter(
-                    dashboardCharts.status, statusTotal, statusTotal === 1 ? "report" : "reports"),
-                chart_categories: chartImageWithCenter(
-                    dashboardCharts.categories, categoryCount, categoryCount === 1 ? "category" : "categories"),
-                chart_buildings: dashboardCharts.buildings.toBase64Image(),
-                chart_resolution: dashboardCharts.resolution.toBase64Image(),
-            };
+            const selectedMonth = getSelectedReportMonth();
 
             btn.disabled = true;
             label.textContent = "Generating...";
 
-            requestSystemSummary()
+            const syncChartsPromise = selectedMonth
+                ? fetchDashboardData("30", selectedMonth).then(function(data) {
+                    initAdminDashboardCharts(data);
+                    updateReportButton(data, "30");
+                })
+                : Promise.resolve();
+
+            syncChartsPromise
+                .then(function() {
+                    dashboardReportCharts = buildDashboardReportCharts();
+                    return requestSystemSummary();
+                })
                 .then(function(summaryText) {
                     dashboardReportSystemSummary = summaryText;
                     document.getElementById("reportSummaryText").value = dashboardReportSystemSummary;
@@ -507,9 +533,18 @@
                 monthPickerEl.addEventListener('change', function() {
                     const reportBtn = document.getElementById('generateReportBtn');
                     if (reportBtn) reportBtn.disabled = false;
+                    const selectedMonth = getSelectedReportMonth();
+                    fetchDashboard("30", selectedMonth);
+
                     const modal = document.getElementById("reportModal");
-                    if (modal && !modal.classList.contains("hidden") && dashboardReportCharts) {
-                        requestSystemSummary()
+                    if (modal && !modal.classList.contains("hidden") && dashboardReportCharts && selectedMonth) {
+                        fetchDashboardData("30", selectedMonth)
+                            .then(function(data) {
+                                initAdminDashboardCharts(data);
+                                updateReportButton(data, "30");
+                                dashboardReportCharts = buildDashboardReportCharts();
+                                return requestSystemSummary();
+                            })
                             .then(function(summaryText) {
                                 dashboardReportSystemSummary = summaryText;
                                 document.getElementById("reportSummaryText").value = summaryText;
@@ -528,7 +563,7 @@
             });
         }
 
-        function fetchDashboard(period) {
+        function fetchDashboard(period, reportMonth) {
             const dashboardButtonsSkeleton = document.getElementById("dashboardButtonsSkeleton");
             const dashboardSkeleton = document.getElementById("dashboardSkeleton");
             const dashboardSkeletonRow2 = document.getElementById("dashboardSkeletonRow2");
@@ -542,14 +577,7 @@
             });
             dashboardContainer.classList.add('hidden');
 
-            const url = new URL("{% url 'adm_dashboard_ajax' %}", window.location.origin);
-            url.searchParams.set("period", period);
-
-            fetch(url)
-                .then(function(response) {
-                    if (!response.ok) throw new Error(`Dashboard request failed (${response.status})`);
-                    return response.json();
-                })
+            fetchDashboardData(period, reportMonth)
                 .then(function(data) {
                     dashboardContainer.innerHTML = data.html;
                     dashboardContainer.style.opacity = '0';
@@ -585,7 +613,7 @@
                     retry.type = 'button';
                     retry.className = 'mt-4 px-4 py-2 rounded-full bg-blue-600 text-white';
                     retry.textContent = 'Try again';
-                    retry.addEventListener('click', () => fetchDashboard(period));
+                    retry.addEventListener('click', () => fetchDashboard(period, reportMonth));
                     dashboardContainer.replaceChildren(message, retry);
                 });
         }
@@ -605,6 +633,8 @@
                 const btn = e.target.closest(".period-filter-btn");
                 if (!btn) return;
 
+                const monthPicker = document.getElementById("reportMonthPicker");
+                if (monthPicker) monthPicker.value = "";
                 fetchDashboard(btn.dataset.period);
             });
         });

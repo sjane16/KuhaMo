@@ -470,7 +470,16 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
 
 def adm_dashboard_ajax(request):
     period = request.GET.get('period', '30')
-    data = _build_dashboard_data(period)
+    report_month = (request.GET.get('report_month') or '').strip()
+
+    if report_month:
+        try:
+            start_dt, end_dt = _parse_report_month(report_month)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+    else:
+        data = _build_dashboard_data(period)
 
     html = render_to_string(
         'partials/_dashboard_content.html',
@@ -489,7 +498,7 @@ def adm_dashboard_ajax(request):
 
     return JsonResponse({
         'html': html,
-        'can_generate_report': settings.DEBUG or _is_last_day_of_month(today),
+        'can_generate_report': settings.DEBUG or _is_last_day_of_month(today) or bool(report_month),
         'report_available_on': last_day.strftime('%b %d, %Y'),
         **data,
     })
