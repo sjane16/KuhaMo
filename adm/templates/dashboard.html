@@ -38,6 +38,67 @@
         </div>
         <div id="dashboardContainer" class="hidden"></div>
     </main>
+    <div id="reportModal"
+         class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="reportModalTitle">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h3 id="reportModalTitle" class="text-base font-semibold text-gray-800">Monthly Report Preview</h3>
+                <button type="button"
+                        id="reportModalClose"
+                        class="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                        aria-label="Close">&times;</button>
+            </div>
+            <div class="flex-1 min-h-0 flex flex-col lg:flex-row p-4 overflow-y-auto lg:overflow-hidden">
+                <div class="relative flex-1 min-h-[50vh] lg:min-h-0 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                    <div id="reportPreviewLoading"
+                         class="absolute inset-0 flex items-center justify-center text-sm text-gray-500 bg-white/80">
+                        Generating preview...
+                    </div>
+                    <iframe id="reportPreviewFrame" title="Monthly report preview" class="w-full h-full"></iframe>
+                </div>
+                <div id="reportEditPanel"
+                     inert
+                     aria-hidden="true"
+                     class="shrink-0 w-full lg:w-0 max-h-0 lg:max-h-none opacity-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="flex flex-col gap-2 h-full pt-4 lg:pt-0 lg:pl-4 lg:w-[25rem]">
+                        <label for="reportSummaryText" class="text-sm font-semibold text-gray-700">Summary</label>
+                        <p class="text-xs text-gray-500">
+                            This is a system-suggested summary and may be edited freely. Press Enter twice to start a new paragraph. If left blank, the Summary section will be omitted from the PDF.
+                        </p>
+                        <textarea id="reportSummaryText"
+                                  maxlength="3000"
+                                  class="flex-1 min-h-[220px] w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        <p id="reportModalError" class="hidden text-xs text-red-600"></p>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button"
+                                    id="reportSummaryReset"
+                                    class="text-xs text-blue-600 hover:underline">Reset to system summary</button>
+                            <button type="button"
+                                    id="reportUpdatePreview"
+                                    class="ml-auto px-4 py-1.5 rounded-full text-xs font-medium border border-blue-600 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Update Preview
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-6 py-3 border-t border-gray-200">
+                <button type="button"
+                        id="reportEdit"
+                        class="px-4 py-1.5 rounded-full text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
+                    Edit Summary
+                </button>
+                <button type="button"
+                        id="reportDownload"
+                        class="px-4 py-1.5 rounded-full text-xs font-medium border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
     <style>
         .report-status-card {
             min-width: 0;
@@ -203,6 +264,217 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let dashboardCharts = {};
+        const reportCsrfToken = "{{ csrf_token }}";
+        const reportPdfUrl = "{% url 'export_dashboard_report_pdf' %}";
+        const reportSummaryUrl = "{% url 'dashboard_report_summary' %}";
+
+        function updateReportButton(data, period) {
+            const btn = document.getElementById("generateReportBtn");
+            if (!btn) return;
+
+            const isThirtyDays = String(period) === "30";
+            btn.disabled = !(data.can_generate_report && isThirtyDays);
+
+            if (!data.can_generate_report) {
+                btn.title = `Available on ${data.report_available_on}`;
+            } else if (!isThirtyDays) {
+                btn.title = 'Select "Last 30 Days" to generate the report';
+            } else {
+                btn.title = "Generate the monthly dashboard report (PDF)";
+            }
+        }
+
+        function chartImageWithCenter(chart, value, label) {
+            const src = chart.canvas;
+            const out = document.createElement("canvas");
+            out.width = src.width;
+            out.height = src.height;
+
+            const ctx = out.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, out.width, out.height);
+            ctx.drawImage(src, 0, 0);
+
+            const ratio = src.width / chart.width;
+            const area = chart.chartArea;
+            const cx = ((area.left + area.right) / 2) * ratio;
+            const cy = ((area.top + area.bottom) / 2) * ratio;
+            const diameter = Math.min(area.right - area.left, area.bottom - area.top) * ratio;
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#111827";
+            ctx.font = `bold ${Math.round(diameter * 0.2)}px Arial, sans-serif`;
+            ctx.fillText(String(value), cx, cy - diameter * 0.04);
+            ctx.fillStyle = "#6b7280";
+            ctx.font = `${Math.round(diameter * 0.07)}px Arial, sans-serif`;
+            ctx.fillText(label, cx, cy + diameter * 0.12);
+
+            return out.toDataURL("image/png");
+        }
+
+        let dashboardReportBlobUrl = null;
+        let dashboardReportSystemSummary = "";
+        let dashboardReportCharts = null;
+
+        function generateDashboardReport(btn) {
+            const label = document.getElementById("generateReportLabel");
+            const defaultText = "Generate Monthly Report";
+
+            const statusTotal = dashboardCharts.status.data.datasets[0].data
+                .reduce((sum, count) => sum + count, 0);
+            const categoryCount = dashboardCharts.categories.data.datasets[0].data
+                .filter(count => count > 0).length;
+
+            dashboardReportCharts = {
+                chart_status: chartImageWithCenter(
+                    dashboardCharts.status, statusTotal, statusTotal === 1 ? "report" : "reports"),
+                chart_categories: chartImageWithCenter(
+                    dashboardCharts.categories, categoryCount, categoryCount === 1 ? "category" : "categories"),
+                chart_buildings: dashboardCharts.buildings.toBase64Image(),
+                chart_resolution: dashboardCharts.resolution.toBase64Image(),
+            };
+
+            btn.disabled = true;
+            label.textContent = "Generating...";
+
+            fetch(reportSummaryUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(function(response) {
+                    if (!response.ok) throw new Error(`Summary request failed (${response.status})`);
+                    return response.json();
+                })
+                .then(function(data) {
+                    dashboardReportSystemSummary = data.summary || "";
+                    document.getElementById("reportSummaryText").value = dashboardReportSystemSummary;
+                    openDashboardReportModal();
+                    label.textContent = defaultText;
+                    btn.disabled = false;
+                    return requestDashboardReportPreview();
+                })
+                .catch(function(error) {
+                    console.error("Failed to generate dashboard report:", error);
+                    label.textContent = "Failed - try again";
+                    setTimeout(function() {
+                        label.textContent = defaultText;
+                        btn.disabled = false;
+                    }, 2500);
+                });
+        }
+
+        function requestDashboardReportPreview() {
+            const loading = document.getElementById("reportPreviewLoading");
+            const errorEl = document.getElementById("reportModalError");
+            const updateBtn = document.getElementById("reportUpdatePreview");
+            const downloadBtn = document.getElementById("reportDownload");
+
+            const formData = new FormData();
+            Object.keys(dashboardReportCharts).forEach(function(key) {
+                formData.append(key, dashboardReportCharts[key]);
+            });
+            formData.append("summary_text", document.getElementById("reportSummaryText").value);
+
+            loading.classList.remove("hidden");
+            errorEl.classList.add("hidden");
+            updateBtn.disabled = true;
+            downloadBtn.disabled = true;
+
+            return fetch(reportPdfUrl, {
+                    method: "POST",
+                    headers: { "X-CSRFToken": reportCsrfToken },
+                    body: formData,
+                })
+                .then(function(response) {
+                    if (!response.ok) throw new Error(`Report request failed (${response.status})`);
+                    return response.blob();
+                })
+                .then(function(blob) {
+                    if (dashboardReportBlobUrl) URL.revokeObjectURL(dashboardReportBlobUrl);
+                    dashboardReportBlobUrl = URL.createObjectURL(blob);
+                    document.getElementById("reportPreviewFrame").src = dashboardReportBlobUrl;
+                    downloadBtn.disabled = false;
+                })
+                .catch(function(error) {
+                    console.error("Failed to update report preview:", error);
+                    errorEl.textContent = "Unable to generate the preview. Please try again.";
+                    errorEl.classList.remove("hidden");
+                })
+                .finally(function() {
+                    loading.classList.add("hidden");
+                    updateBtn.disabled = false;
+                });
+        }
+
+        function openDashboardReportModal() {
+            document.getElementById("reportModal").classList.remove("hidden");
+            document.documentElement.style.overflow = "hidden";
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeDashboardReport() {
+            document.getElementById("reportModal").classList.add("hidden");
+            resetReportEditPanel();
+            document.getElementById("reportPreviewFrame").removeAttribute("src");
+            if (dashboardReportBlobUrl) {
+                URL.revokeObjectURL(dashboardReportBlobUrl);
+                dashboardReportBlobUrl = null;
+            }
+            document.documentElement.style.overflow = "";
+            document.body.style.overflow = "";
+        }
+
+        function openReportEditPanel() {
+            const panel = document.getElementById("reportEditPanel");
+            panel.classList.remove("lg:w-0", "max-h-0", "opacity-0");
+            panel.classList.add("lg:w-[25rem]", "max-h-[70vh]", "opacity-100");
+            panel.removeAttribute("inert");
+            panel.setAttribute("aria-hidden", "false");
+            document.getElementById("reportEdit").textContent = "Hide Editor";
+            setTimeout(function() {
+                document.getElementById("reportSummaryText").focus();
+            }, 320);
+        }
+
+        function resetReportEditPanel() {
+            const panel = document.getElementById("reportEditPanel");
+            panel.classList.remove("lg:w-[25rem]", "max-h-[70vh]", "opacity-100");
+            panel.classList.add("lg:w-0", "max-h-0", "opacity-0");
+            panel.setAttribute("inert", "");
+            panel.setAttribute("aria-hidden", "true");
+            document.getElementById("reportEdit").textContent = "Edit Summary";
+        }
+
+        function toggleReportEditPanel() {
+            const panel = document.getElementById("reportEditPanel");
+            if (panel.hasAttribute("inert")) {
+                openReportEditPanel();
+            } else {
+                resetReportEditPanel();
+            }
+        }
+
+        function downloadDashboardReport() {
+            if (!dashboardReportBlobUrl) return;
+            const a = document.createElement("a");
+            a.href = dashboardReportBlobUrl;
+            a.download = `Dashboard_Report_${new Date().toISOString().slice(0, 7)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        function initReportModal() {
+            document.getElementById("reportModalClose").addEventListener("click", closeDashboardReport);
+            document.getElementById("reportEdit").addEventListener("click", toggleReportEditPanel);
+            document.getElementById("reportUpdatePreview").addEventListener("click", requestDashboardReportPreview);
+            document.getElementById("reportDownload").addEventListener("click", downloadDashboardReport);
+            document.getElementById("reportSummaryReset").addEventListener("click", function() {
+                document.getElementById("reportSummaryText").value = dashboardReportSystemSummary;
+            });
+            document.addEventListener("keydown", function(e) {
+                const modal = document.getElementById("reportModal");
+                if (e.key === "Escape" && !modal.classList.contains("hidden")) closeDashboardReport();
+            });
+        }
 
         function fetchDashboard(period) {
             const dashboardButtonsSkeleton = document.getElementById("dashboardButtonsSkeleton");
@@ -231,6 +503,7 @@
                     dashboardContainer.style.opacity = '0';
                     dashboardContainer.classList.remove('hidden');
                     initAdminDashboardCharts(data);
+                    updateReportButton(data, period);
 
                     skeletonPieces.forEach(function(piece) {
                         piece.style.transition = 'opacity 0.25s ease-out';
@@ -266,7 +539,15 @@
         }
 
         document.addEventListener("DOMContentLoaded", function() {
+            initReportModal();
             fetchDashboard("{{ period }}");
+
+            document.addEventListener("click", function(e) {
+                const reportBtn = e.target.closest("#generateReportBtn");
+                if (!reportBtn || reportBtn.disabled) return;
+
+                generateDashboardReport(reportBtn);
+            });
 
             document.addEventListener("click", function(e) {
                 const btn = e.target.closest(".period-filter-btn");
@@ -568,6 +849,16 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    const h = ctx.parsed.y;
+                                    if (h === null || h === undefined) return ctx.dataset.label + ': N/A';
+                                    const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
+                                    return ctx.dataset.label.replace(' (hours)', '') + ': ' + txt;
+                                }
+                            }
+                        },
                         legend: {
                             position: 'bottom',
                             labels: {
