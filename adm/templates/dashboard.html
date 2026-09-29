@@ -325,6 +325,27 @@
         let dashboardReportSystemSummary = "";
         let dashboardReportCharts = null;
 
+        function getSelectedReportMonth() {
+            const monthPicker = document.getElementById("reportMonthPicker");
+            return monthPicker && monthPicker.value ? monthPicker.value : "";
+        }
+
+        function requestSystemSummary() {
+            let summaryUrl = reportSummaryUrl;
+            const selectedMonth = getSelectedReportMonth();
+            if (selectedMonth) {
+                summaryUrl += "?report_month=" + encodeURIComponent(selectedMonth);
+            }
+            return fetch(summaryUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(function(response) {
+                    if (!response.ok) throw new Error(`Summary request failed (${response.status})`);
+                    return response.json();
+                })
+                .then(function(data) {
+                    return data.summary || "";
+                });
+        }
+
         function generateDashboardReport(btn) {
             const label = document.getElementById("generateReportLabel");
             const defaultText = "Generate Monthly Report";
@@ -346,18 +367,9 @@
             btn.disabled = true;
             label.textContent = "Generating...";
 
-            // Include the optional month selection when requesting the system summary
-            var summaryUrl = reportSummaryUrl;
-            var mp = document.getElementById('reportMonthPicker');
-            if (mp && mp.value) summaryUrl += '?report_month=' + encodeURIComponent(mp.value);
-
-            fetch(summaryUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } })
-                .then(function(response) {
-                    if (!response.ok) throw new Error(`Summary request failed (${response.status})`);
-                    return response.json();
-                })
-                .then(function(data) {
-                    dashboardReportSystemSummary = data.summary || "";
+            requestSystemSummary()
+                .then(function(summaryText) {
+                    dashboardReportSystemSummary = summaryText;
                     document.getElementById("reportSummaryText").value = dashboardReportSystemSummary;
                     openDashboardReportModal();
                     label.textContent = defaultText;
@@ -495,6 +507,18 @@
                 monthPickerEl.addEventListener('change', function() {
                     const reportBtn = document.getElementById('generateReportBtn');
                     if (reportBtn) reportBtn.disabled = false;
+                    const modal = document.getElementById("reportModal");
+                    if (modal && !modal.classList.contains("hidden") && dashboardReportCharts) {
+                        requestSystemSummary()
+                            .then(function(summaryText) {
+                                dashboardReportSystemSummary = summaryText;
+                                document.getElementById("reportSummaryText").value = summaryText;
+                                return requestDashboardReportPreview();
+                            })
+                            .catch(function(error) {
+                                console.error("Failed to refresh monthly report summary:", error);
+                            });
+                    }
                 });
             }
 

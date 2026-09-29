@@ -698,14 +698,13 @@ def _join_and(items):
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
 
-def _build_report_summary(data, today):
+def _build_report_summary(data, period_start, period_end):
     """Plain-text summary paragraph (system-suggested; admin can edit before PDF)."""
-    start = today - timedelta(days=30)
     fmt = lambda d: f"{d:%B} {d.day}, {d:%Y}"
     parts = [
         "This report summarizes the corrective maintenance reports received by the "
         "Maintenance and Engineering Division of Universidad de Manila from "
-        f"{fmt(start)} to {fmt(today)}, based on the analytics of the Admin Dashboard."
+        f"{fmt(period_start)} to {fmt(period_end)}, based on the analytics of the Admin Dashboard."
     ]
 
     total = sum(data['status_data'])
@@ -807,6 +806,14 @@ def _build_report_summary(data, today):
     return " ".join(parts)
 
 
+def _parse_report_month(report_month):
+    parsed = datetime.strptime(report_month, '%Y-%m')
+    first_day = datetime(parsed.year, parsed.month, 1)
+    last_day = calendar.monthrange(parsed.year, parsed.month)[1]
+    last_dt = datetime(parsed.year, parsed.month, last_day, 23, 59, 59)
+    return timezone.make_aware(first_day), timezone.make_aware(last_dt)
+
+
 def export_dashboard_report_pdf(request):
     if request.method != 'POST':
         return HttpResponse("Invalid request.", status=405)
@@ -817,18 +824,13 @@ def export_dashboard_report_pdf(request):
     # Allow admins to explicitly request any month via the "report_month" POST field (format: YYYY-MM).
     # If no month is specified, keep the original restriction: only allow generation on the last day
     # of the current month (unless DEBUG).
-    report_month = request.POST.get('report_month')
+    report_month = (request.POST.get('report_month') or '').strip()
     start_dt = None
     end_dt = None
     if report_month:
         try:
-            year, month = map(int, report_month.split('-', 1))
-            first_day = datetime(year, month, 1)
-            last_day = calendar.monthrange(year, month)[1]
-            last_dt = datetime(year, month, last_day, 23, 59, 59)
-            start_dt = timezone.make_aware(first_day)
-            end_dt = timezone.make_aware(last_dt)
-        except Exception:
+            start_dt, end_dt = _parse_report_month(report_month)
+        except ValueError:
             return HttpResponse("Invalid report_month format. Expected YYYY-MM.", status=400)
 
     if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
@@ -839,15 +841,19 @@ def export_dashboard_report_pdf(request):
 
     if report_month:
         data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        period_start = start_dt.date()
+        period_end = end_dt.date()
     else:
         data = _build_dashboard_data('30')
+        period_end = today
+        period_start = today - timedelta(days=30)
 
     # Admin's edited text wins (even if blank -> no SUMMARY section).
     # If the field wasn't sent at all, fall back to the system-generated summary.
     if 'summary_text' in request.POST:
         summary_text = request.POST.get('summary_text', '').strip()[:DASHBOARD_SUMMARY_MAX_LEN]
     else:
-        summary_text = _build_report_summary(data, today)
+        summary_text = _build_report_summary(data, period_start, period_end)
 
     total = sum(data['status_data'])
     status_colors = ['#f59e0b', '#6366f1', '#10b981', '#64748b']
@@ -931,8 +937,8 @@ def export_dashboard_report_pdf(request):
     }
 
     html = render_to_string('dashboard_report_pdf.html', {
-        'period_start': today - timedelta(days=30),
-        'period_end': today,
+        'period_start': period_start,
+        'period_end': period_end,
         'generated_at': now,
         'generated_by': request.user.get_full_name() or request.user.get_username(),
         'total_reports': total,
@@ -956,11 +962,11 @@ def export_dashboard_report_pdf(request):
         'chart_categories': _clean_chart_image(request.POST.get('chart_categories')),
         'chart_buildings': _clean_chart_image(request.POST.get('chart_buildings')),
         'chart_resolution': _clean_chart_image(request.POST.get('chart_resolution')),
-        'footer_text': f"Report Period: {(today - timedelta(days=30)).strftime('%b %d, %Y')} to {today.strftime('%b %d, %Y')}  |  Generated: {now.strftime('%b %d, %Y %I:%M %p')}",
+        'footer_text': f"Report Period: {period_start.strftime('%b %d, %Y')} to {period_end.strftime('%b %d, %Y')}  |  Generated: {now.strftime('%b %d, %Y %I:%M %p')}",
     })
 
     response = HttpResponse(content_type='application/pdf')
-    filename = f"Dashboard_Report_{today.strftime('%Y-%m')}.pdf"
+    filename = f"Dashboard_Report_{period_end.strftime('%Y-%m')}.pdf"
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     response['X-Frame-Options'] = 'SAMEORIGIN'
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -987,18 +993,13 @@ def dashboard_report_summary(request):
     now = timezone.localtime(timezone.now())
     today = now.date()
 
-    report_month = request.GET.get('report_month')
+    report_month = (request.GET.get('report_month') or '').strip()
     start_dt = None
     end_dt = None
     if report_month:
         try:
-            year, month = map(int, report_month.split('-', 1))
-            first_day = datetime(year, month, 1)
-            last_day = calendar.monthrange(year, month)[1]
-            last_dt = datetime(year, month, last_day, 23, 59, 59)
-            start_dt = timezone.make_aware(first_day)
-            end_dt = timezone.make_aware(last_dt)
-        except Exception:
+            start_dt, end_dt = _parse_report_month(report_month)
+        except ValueError:
             return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
 
     if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
@@ -1009,12 +1010,14 @@ def dashboard_report_summary(request):
 
     if report_month:
         data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
-        summary_date = end_dt.date()
+        period_start = start_dt.date()
+        period_end = end_dt.date()
     else:
         data = _build_dashboard_data('30')
-        summary_date = today
+        period_end = today
+        period_start = today - timedelta(days=30)
 
-    return JsonResponse({'summary': _build_report_summary(data, summary_date)})
+    return JsonResponse({'summary': _build_report_summary(data, period_start, period_end)})
 
 
 def report_save(request, report_id):
