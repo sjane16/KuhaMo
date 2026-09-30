@@ -48,7 +48,10 @@
                 <div class="flex items-center gap-4">
                     <h3 id="reportModalTitle" class="text-base font-semibold text-gray-800">Monthly Report Preview</h3>
                     <label for="reportMonthPicker" class="text-sm text-gray-500">Month</label>
-                    <input type="month" id="reportMonthPicker" class="h-8 px-2 rounded border border-gray-200 text-sm" aria-label="Select report month" />
+                    <input type="month"
+                           id="reportMonthPicker"
+                           class="h-10 min-w-[11rem] px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm font-medium"
+                           aria-label="Select report month" />
                 </div>
                 <button type="button"
                         id="reportModalClose"
@@ -103,7 +106,27 @@
             </div>
         </div>
     </div>
+    <div id="reportChartStage"
+         aria-hidden="true"
+         style="position:fixed; left:-10000px; top:0; visibility:hidden; pointer-events:none;">
+        <div style="position:relative; width:240px; height:240px;"><canvas id="report_statusChart"></canvas></div>
+        <div style="position:relative; width:240px; height:240px;"><canvas id="report_categoriesChart"></canvas></div>
+        <div style="position:relative; width:640px; height:300px;"><canvas id="report_buildingChart"></canvas></div>
+        <div style="position:relative; width:640px; height:300px;"><canvas id="report_resolutionChart"></canvas></div>
+    </div>
     <style>
+        #reportMonthPicker {
+            color: #111827;
+            background-color: #ffffff;
+            opacity: 1;
+        }
+
+        #reportMonthPicker::-webkit-calendar-picker-indicator {
+            opacity: 1;
+            cursor: pointer;
+            filter: none;
+        }
+
         .report-status-card {
             min-width: 0;
         }
@@ -276,20 +299,10 @@
             const btn = document.getElementById("generateReportBtn");
             if (!btn) return;
 
-            const isThirtyDays = String(period) === "30";
-            const monthPicker = document.getElementById('reportMonthPicker');
-            const hasMonth = monthPicker && monthPicker.value;
-
-            // allow generation when either Last 30 Days is selected or a specific month is picked
-            btn.disabled = !(data.can_generate_report && (isThirtyDays || hasMonth));
-
-            if (!data.can_generate_report && !hasMonth) {
-                btn.title = `Available on ${data.report_available_on}`;
-            } else if (!isThirtyDays && !hasMonth) {
-                btn.title = 'Select "Last 30 Days" to generate the report';
-            } else {
-                btn.title = "Generate the monthly dashboard report (PDF)";
-            }
+            btn.disabled = !data.can_generate_report;
+            btn.title = data.can_generate_report
+                ? "Generate the monthly dashboard report (PDF)"
+                : `Available on ${data.report_available_on}`;
         }
 
         function chartImageWithCenter(chart, value, label) {
@@ -342,20 +355,43 @@
             });
         }
 
-        function buildDashboardReportCharts() {
-            const statusTotal = dashboardCharts.status.data.datasets[0].data
+        function currentMonthValue() {
+            const d = new Date();
+            return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+        }
+
+        function buildDashboardReportCharts(charts) {
+            const statusTotal = charts.status.data.datasets[0].data
                 .reduce((sum, count) => sum + count, 0);
-            const categoryCount = dashboardCharts.categories.data.datasets[0].data
+            const categoryCount = charts.categories.data.datasets[0].data
                 .filter(count => count > 0).length;
 
             return {
                 chart_status: chartImageWithCenter(
-                    dashboardCharts.status, statusTotal, statusTotal === 1 ? "report" : "reports"),
+                    charts.status, statusTotal, statusTotal === 1 ? "report" : "reports"),
                 chart_categories: chartImageWithCenter(
-                    dashboardCharts.categories, categoryCount, categoryCount === 1 ? "category" : "categories"),
-                chart_buildings: dashboardCharts.buildings.toBase64Image(),
-                chart_resolution: dashboardCharts.resolution.toBase64Image(),
+                    charts.categories, categoryCount, categoryCount === 1 ? "category" : "categories"),
+                chart_buildings: charts.buildings.toBase64Image(),
+                chart_resolution: charts.resolution.toBase64Image(),
             };
+        }
+
+        function renderReportChartsForMonth(reportMonth) {
+            return fetchDashboardData("30", reportMonth).then(function(data) {
+                ["statusChart", "categoriesChart", "buildingChart", "resolutionChart"].forEach(function(id) {
+                    const old = Chart.getChart("report_" + id);
+                    if (old) old.destroy();
+                });
+
+                const charts = initAdminDashboardCharts(data, { report: true });
+                try {
+                    return buildDashboardReportCharts(charts);
+                } finally {
+                    Object.values(charts).forEach(function(chart) {
+                        chart.destroy();
+                    });
+                }
+            });
         }
 
         function requestSystemSummary() {
@@ -377,21 +413,16 @@
         function generateDashboardReport(btn) {
             const label = document.getElementById("generateReportLabel");
             const defaultText = "Generate Monthly Report";
+            const monthPicker = document.getElementById("reportMonthPicker");
+            if (monthPicker) monthPicker.value = currentMonthValue();
             const selectedMonth = getSelectedReportMonth();
 
             btn.disabled = true;
             label.textContent = "Generating...";
 
-            const syncChartsPromise = selectedMonth
-                ? fetchDashboardData("30", selectedMonth).then(function(data) {
-                    initAdminDashboardCharts(data);
-                    updateReportButton(data, "30");
-                })
-                : Promise.resolve();
-
-            syncChartsPromise
-                .then(function() {
-                    dashboardReportCharts = buildDashboardReportCharts();
+            renderReportChartsForMonth(selectedMonth)
+                .then(function(images) {
+                    dashboardReportCharts = images;
                     return requestSystemSummary();
                 })
                 .then(function(summaryText) {
@@ -529,29 +560,36 @@
             // Initialize month picker behavior for report generation
             var monthPickerEl = document.getElementById('reportMonthPicker');
             if (monthPickerEl) {
-                if (!monthPickerEl.value) monthPickerEl.value = new Date().toISOString().slice(0,7);
+                if (!monthPickerEl.value) monthPickerEl.value = currentMonthValue();
+                let monthChangeSeq = 0;
                 monthPickerEl.addEventListener('change', function() {
-                    const reportBtn = document.getElementById('generateReportBtn');
-                    if (reportBtn) reportBtn.disabled = false;
                     const selectedMonth = getSelectedReportMonth();
-                    fetchDashboard("30", selectedMonth);
 
                     const modal = document.getElementById("reportModal");
                     if (modal && !modal.classList.contains("hidden") && dashboardReportCharts && selectedMonth) {
-                        fetchDashboardData("30", selectedMonth)
-                            .then(function(data) {
-                                initAdminDashboardCharts(data);
-                                updateReportButton(data, "30");
-                                dashboardReportCharts = buildDashboardReportCharts();
-                                return requestSystemSummary();
-                            })
-                            .then(function(summaryText) {
-                                dashboardReportSystemSummary = summaryText;
-                                document.getElementById("reportSummaryText").value = summaryText;
+                        const seq = ++monthChangeSeq;
+                        const loading = document.getElementById("reportPreviewLoading");
+                        const errorEl = document.getElementById("reportModalError");
+
+                        loading.classList.remove("hidden");
+                        errorEl.classList.add("hidden");
+                        document.getElementById("reportUpdatePreview").disabled = true;
+                        document.getElementById("reportDownload").disabled = true;
+
+                        Promise.all([renderReportChartsForMonth(selectedMonth), requestSystemSummary()])
+                            .then(function(results) {
+                                if (seq !== monthChangeSeq) return;
+                                dashboardReportCharts = results[0];
+                                dashboardReportSystemSummary = results[1];
+                                document.getElementById("reportSummaryText").value = results[1];
                                 return requestDashboardReportPreview();
                             })
                             .catch(function(error) {
                                 console.error("Failed to refresh monthly report summary:", error);
+                                if (seq !== monthChangeSeq) return;
+                                loading.classList.add("hidden");
+                                errorEl.textContent = "Unable to load this month. Please choose the month again.";
+                                errorEl.classList.remove("hidden");
                             });
                     }
                 });
@@ -633,21 +671,33 @@
                 const btn = e.target.closest(".period-filter-btn");
                 if (!btn) return;
 
-                const monthPicker = document.getElementById("reportMonthPicker");
-                if (monthPicker) monthPicker.value = "";
                 fetchDashboard(btn.dataset.period);
             });
         });
 
-        function initAdminDashboardCharts(data) {
-            Object.values(dashboardCharts).forEach(function(chart) {
-                chart.destroy();
-            });
-            dashboardCharts = {};
+        function initAdminDashboardCharts(data, opts) {
+            // reportMode = para sa PDF: sa hidden canvases lang, hindi ginagalaw ang dashboard
+            const reportMode = !!(opts && opts.report);
+            const dom = function(id) {
+                return reportMode ? document.createElement('div') : document.getElementById(id);
+            };
+            const canvasOf = function(id) {
+                return document.getElementById(reportMode ? 'report_' + id : id);
+            };
+            let charts;
+            if (reportMode) {
+                charts = {};
+            } else {
+                Object.values(dashboardCharts).forEach(function(chart) {
+                    chart.destroy();
+                });
+                dashboardCharts = {};
+                charts = dashboardCharts;
+            }
 
             const statusTotal = data.status_data.reduce((sum, count) => sum + count, 0);
-            document.getElementById('statusChartWrap').dataset.empty = String(statusTotal === 0);
-            dashboardCharts.status = new Chart(document.getElementById('statusChart'), {
+            dom('statusChartWrap').dataset.empty = String(statusTotal === 0);
+            charts.status = new Chart(canvasOf('statusChart'), {
                 type: 'doughnut',
                 data: {
                     labels: data.status_labels,
@@ -683,13 +733,15 @@
                     }
                 }
             });
-            document.querySelector('[data-status-count="total"]').textContent = statusTotal;
-            ['pending', 'in_progress', 'resolved', 'closed'].forEach(function(code, index) {
-                const count = data.status_data[index];
-                const pct = statusTotal ? ((count / statusTotal) * 100).toFixed(1) : '0.0';
-                document.querySelector(`[data-status-count="${code}"]`).textContent = count;
-                document.querySelector(`[data-status-pct="${code}"]`).textContent = `${pct}%`;
-            });
+            if (!reportMode) {
+                document.querySelector('[data-status-count="total"]').textContent = statusTotal;
+                ['pending', 'in_progress', 'resolved', 'closed'].forEach(function(code, index) {
+                    const count = data.status_data[index];
+                    const pct = statusTotal ? ((count / statusTotal) * 100).toFixed(1) : '0.0';
+                    document.querySelector(`[data-status-count="${code}"]`).textContent = count;
+                    document.querySelector(`[data-status-pct="${code}"]`).textContent = `${pct}%`;
+                });
+            }
 
             const categoryLabels = data.categories;
             const categoryCounts = data.categories_counts;
@@ -710,12 +762,12 @@
             );
 
             //For the center count and show gray ring kapag no reports.
-            document.getElementById('categoriesTotal').textContent =
+            dom('categoriesTotal').textContent =
                 categoryCounts.filter(count => count > 0).length;
-            document.getElementById('categoriesChartWrap').dataset.empty = String(categoryTotal === 0);
+            dom('categoriesChartWrap').dataset.empty = String(categoryTotal === 0);
 
-            dashboardCharts.categories = new Chart(
-                document.getElementById('categoriesChart'), {
+            charts.categories = new Chart(
+                canvasOf('categoriesChart'), {
                     type: 'doughnut',
                     data: {
                         labels: categoryLabels,
@@ -754,7 +806,7 @@
             );
 
             //Side legend/labels 
-            const categoryLegend = document.getElementById('categoriesLegend');
+            const categoryLegend = dom('categoriesLegend');
             categoryLegend.replaceChildren();
 
             categoryLabels.forEach(function(label, index) {
@@ -828,7 +880,7 @@
                 }
             });
             {% endcomment %}
-            dashboardCharts.buildings = new Chart(document.getElementById('buildingChart'), {
+            charts.buildings = new Chart(canvasOf('buildingChart'), {
                 type: 'bar',
                 data: {
                     labels: data.building_labels,
@@ -908,7 +960,7 @@
                 }
             });
 
-            dashboardCharts.resolution = new Chart(document.getElementById('resolutionChart'), {
+            charts.resolution = new Chart(canvasOf('resolutionChart'), {
                 type: 'line',
                 data: {
                     labels: data.resolution_weeks,
@@ -970,6 +1022,15 @@
                     }
                 }
             });
+
+            if (reportMode) {
+                // walang animation para kumpleto na ang drawing pag kinuha ang image
+                Object.values(charts).forEach(function(chart) {
+                    chart.stop();
+                    chart.update('none');
+                });
+            }
+            return charts;
         }
     </script>
 {% endblock %}
