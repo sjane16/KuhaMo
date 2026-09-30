@@ -17,6 +17,7 @@ from django.contrib.auth.models import User
 from .models import Report, SurveyResponse, UserProfile, Notification
 from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
+from .notifications import notify_status_change
 from ml.predictor import predict_image
 
 REPORTS_PAGE_SIZE = 5
@@ -478,13 +479,7 @@ def submitSurvey(request, report_id):
 
     messages.success(request, f"Thank you for your feedback! Report {report.job_order_id} is now Closed.")
 
-    for admin_user in get_admin_users():
-        Notification.objects.create(
-            user=admin_user,
-            report=report,
-            message=f"Report {report.job_order_id} is now closed — client survey received.",
-            status_snapshot=report.status,
-        )
+    notify_status_change(report, 'closed', f"Report {report.job_order_id} is now closed — client survey received.")
 
     return JsonResponse({
         'success': True
