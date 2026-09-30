@@ -480,7 +480,15 @@ def submitSurvey(request, report_id):
 
     messages.success(request, f"Thank you for your feedback! Report {report.job_order_id} is now Closed.")
 
-    notify_status_change(report, 'closed', f"Report {report.job_order_id} is now closed — client survey received.")
+    notify_status_change(report, 'closed', f"Your report {report.job_order_id} is now Closed. Thank you for your feedback!")
+
+    for admin_user in get_admin_users():
+        Notification.objects.create(
+            user=admin_user,
+            report=report,
+            message=f"Report {report.job_order_id} is now closed — client survey received.",
+            status_snapshot=report.status,
+        )
 
     for admin_user in get_admin_users():
         Notification.objects.create(
