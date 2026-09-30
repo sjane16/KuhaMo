@@ -304,6 +304,76 @@ def dashboard(request):
     })
 
 
+def _build_resolution_buckets(period, now, start_date=None, end_date=None):
+    """
+    Return ordered resolution buckets as tuples: (label, bucket_start, bucket_end).
+    """
+    local_now = timezone.localtime(now)
+    buckets = []
+
+    # Month picker mode: split selected month into fixed week ranges.
+    if period is None and start_date is not None and end_date is not None:
+        local_start = timezone.localtime(start_date)
+        year, month = local_start.year, local_start.month
+        last_day = calendar.monthrange(year, month)[1]
+        week_ranges = [(1, 7), (8, 14), (15, 21), (22, last_day)]
+
+        for week_index, (day_start, day_end) in enumerate(week_ranges, start=1):
+            bucket_start = timezone.make_aware(datetime(year, month, day_start, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(year, month, day_end, 23, 59, 59))
+            buckets.append((f"Week {week_index}", bucket_start, bucket_end))
+        return buckets
+
+    # Last 7 Days: daily buckets.
+    if period == '7':
+        start_day = (local_now - timedelta(days=6)).date()
+        for day_offset in range(7):
+            day = start_day + timedelta(days=day_offset)
+            bucket_start = timezone.make_aware(datetime(day.year, day.month, day.day, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(day.year, day.month, day.day, 23, 59, 59))
+            buckets.append((day.strftime('%b %d'), bucket_start, bucket_end))
+        return buckets
+
+    # Last 30 Days: 4 weekly buckets going backward from today.
+    if period == '30':
+        for week_index in range(4, 0, -1):
+            start_delta = week_index * 7 - 1
+            end_delta = (week_index - 1) * 7
+            start_day = (local_now - timedelta(days=start_delta)).date()
+            end_day = (local_now - timedelta(days=end_delta)).date()
+            bucket_start = timezone.make_aware(datetime(start_day.year, start_day.month, start_day.day, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(end_day.year, end_day.month, end_day.day, 23, 59, 59))
+            buckets.append((f"Week {5 - week_index}", bucket_start, bucket_end))
+        return buckets
+
+    # All Time: monthly buckets (last 12 months).
+    if period == 'all':
+        year = local_now.year
+        month = local_now.month
+        month_pairs = []
+
+        for _ in range(12):
+            month_pairs.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        month_pairs.reverse()
+
+        for bucket_year, bucket_month in month_pairs:
+            last_day = calendar.monthrange(bucket_year, bucket_month)[1]
+            bucket_start = timezone.make_aware(datetime(bucket_year, bucket_month, 1, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(bucket_year, bucket_month, last_day, 23, 59, 59))
+            label = datetime(bucket_year, bucket_month, 1).strftime('%b %Y')
+            buckets.append((label, bucket_start, bucket_end))
+        return buckets
+
+    # Fallback: one bucket covering the explicit range if present.
+    if start_date is not None and end_date is not None:
+        buckets.append(('Range', start_date, end_date))
+    return buckets
+
+
 def _build_dashboard_data(period, start_date=None, end_date=None):
     now = timezone.now()
 
@@ -419,15 +489,20 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
     sla_total = 0
     sla_met = 0
 
-    for i in range(1, 5):
-        start = now - timedelta(weeks=(5 - i))
-        end = now - timedelta(weeks=(4 - i))
+    resolution_buckets = _build_resolution_buckets(
+        period,
+        now,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    for bucket_label, bucket_start, bucket_end in resolution_buckets:
         finished = Report.objects.filter(
             status__in=['resolved', 'closed'],
-            accomplished_at__range=(start, end),
+            accomplished_at__range=(bucket_start, bucket_end),
             submitted_at__isnull=False,
         )
-        resolution_weeks.append(f'Week {i}')
+        resolution_weeks.append(bucket_label)
         actual_list = []
         expected_list = []
         for r in finished:
@@ -791,7 +866,7 @@ def _build_report_summary(data, period_start, period_end):
         avg_actual = sum(actual_values) / len(actual_values)
         avg_expected = sum(expected_values) / len(expected_values)
         text += (
-            f" Over the past four weeks, the actual average resolution time ranged from "
+            f" During the reporting period, the weekly average resolution time ranged from "
             f"{_fmt_hours(min(actual_values))} to {_fmt_hours(max(actual_values))}, with an "
             f"overall average of {_fmt_hours(avg_actual)}, which is "
             f"{'within' if avg_actual <= avg_expected else 'above'} the overall expected "
@@ -807,7 +882,7 @@ def _build_report_summary(data, period_start, period_end):
         text += " The weekly comparison of expected and actual resolution time is shown in Figure 4."
     else:
         text += (
-            " No reports were completed over the past four weeks; hence, there is no actual "
+            " No reports were completed during the reporting period; hence, there is no actual "
             "resolution time available for comparison, as shown in Figure 4."
         )
     parts.append(text)
