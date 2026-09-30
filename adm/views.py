@@ -755,15 +755,16 @@ def report_status(request, report_id):
             report.status = new_status
             report.accomplished_at = accomplished_at
             report.completion_photo = completion_photo
-
-            notify_status_change(report, 'resolved', f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey.")
-            messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
         elif new_status == 'closed':
             return redirect('adm_report_detail', report_id=report_id)
 
         if new_status == 'in_progress' and not report.in_progress_at:
             report.in_progress_at = timezone.now()
         report.save()
+
+        if new_status == 'resolved':
+            notify_status_change(report, 'resolved', f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey.")
+            messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
     return redirect('adm_report_detail', report_id=report_id)
 
 def ProfileMenu(request):

@@ -163,6 +163,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 10
 EMAIL_HOST_USER = 'facchecknoreply@gmail.com'
 EMAIL_HOST_PASSWORD = 'gpwgpydpbgidxday'   # the 16-character App Password, no spaces
 DEFAULT_FROM_EMAIL = 'Fac-Check <facchecknoreply@gmail.com>'
