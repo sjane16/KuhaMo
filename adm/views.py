@@ -19,6 +19,7 @@ from user.validators import validate_password_strength
 from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
 from user.views import link_callback
+from user.notifications import notify_status_change
 from .models import Building 
 
 
@@ -1190,12 +1191,7 @@ def report_save(request, report_id):
         report.save()
 
         if became_in_progress:
-            Notification.objects.create(
-                user=report.user,
-                report=report,
-                message=f"Your report {report.job_order_id} is now In Progress.",
-                status_snapshot=report.status,
-            )
+            notify_status_change(report, 'in_progress', f"Your report {report.job_order_id} is now In Progress.")
             messages.success(request, f"Report {report.job_order_id} is now In Progress.")
         elif report.status == 'pending':
             missing = []
@@ -1249,20 +1245,16 @@ def report_status(request, report_id):
             report.status = new_status
             report.accomplished_at = accomplished_at
             report.completion_photo = completion_photo
-
-            Notification.objects.create(
-                user=report.user,
-                report=report,
-                message=f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey.",
-                status_snapshot=report.status,
-            )
-            messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
         elif new_status == 'closed':
             return redirect('adm_report_detail', report_id=report_id)
 
         if new_status == 'in_progress' and not report.in_progress_at:
             report.in_progress_at = timezone.now()
         report.save()
+
+        if new_status == 'resolved':
+            notify_status_change(report, 'resolved', f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey.")
+            messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
     return redirect('adm_report_detail', report_id=report_id)
 
 def ProfileMenu(request):
