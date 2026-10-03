@@ -25,6 +25,8 @@ urlpatterns = [
     path('notifications/<int:notification_id>/view/', admin_required(views.view_notification_admin), name='view_notification_admin'),
     path('ajax/reports/', admin_required(views.adm_reports_ajax), name='adm_reports_ajax'),
     path('ajax/dashboard/', admin_required(views.adm_dashboard_ajax), name='adm_dashboard_ajax'),
+    path('dashboard/report/pdf/', admin_required(views.export_dashboard_report_pdf), name='export_dashboard_report_pdf'),
+    path('dashboard/report/summary/', admin_required(views.dashboard_report_summary), name='dashboard_report_summary'),
 
     
 

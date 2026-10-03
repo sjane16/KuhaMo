@@ -1,0 +1,272 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            @page {
+                size: 8.5in 11in;
+                margin: 1.8cm 1.3cm 1.3cm 1.3cm;
+            }
+
+            .pdf-footer {
+                text-align: center;
+                font-size: 8pt;
+                color: #6b7280;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 4px;
+                margin-top: 16px;
+            }
+
+            body {
+                font-family: "Times New Roman", Times, serif;
+                font-size: 9.5pt;
+                color: #000;
+            }
+
+            table {
+                border-collapse: collapse;
+                width: 100%;
+            }
+
+            td {
+                border: 1px solid #000;
+                padding: 3px 4px;
+                vertical-align: top;
+            }
+
+            th {
+                border: 1px solid #000;
+                padding: 3px 4px;
+                background-color: #e5e7eb;
+                font-weight: bold;
+                text-align: center;
+            }
+
+            .no-border {
+                border: none;
+                padding: 0;
+            }
+
+            .center {
+                text-align: center;
+            }
+
+            .bold {
+                font-weight: bold;
+            }
+
+            .logo-row {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 22px;
+                margin-bottom: 3px;
+            }
+
+            .logo {
+                width: 58px;
+                height: 58px;
+                object-fit: contain;
+            }
+
+            .title-main {
+                font-size: 16pt;
+                font-family: "Times New Roman", Times, serif;
+                line-height: 1;
+                margin: 0;
+            }
+
+            .title-sub {
+                font-size: 12pt;
+                font-weight: bold;
+                margin: 0;
+                line-height: 0.95;
+                margin-top: 24px;
+            }
+
+            .part-title {
+                font-size: 12pt;
+                font-weight: bold;
+                margin-top: 24px;
+                margin-bottom: 2px;
+            }
+
+            .section-title {
+                font-size: 10pt;
+                font-weight: bold;
+                margin-top: 10px;
+                margin-bottom: 4px;
+            }
+
+            .note {
+                font-size: 7.5pt;
+                font-style: italic;
+                margin-top: 3px;
+            }
+
+            .para {
+                text-align: justify;
+                text-indent: 24px;
+                line-height: 19pt;
+                margin-top: 0;
+                margin-bottom: 8px;
+            }
+
+            .figure-caption {
+                font-size: 9pt;
+                font-style: italic;
+                text-align: center;
+                margin-top: 4px;
+                margin-bottom: 10px;
+            }
+
+            .legend {
+                width: 92%;
+                margin-top: 4px;
+            }
+
+            .lg {
+                border: none;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 2px 3px;
+                font-size: 8.5pt;
+                text-align: left;
+                vertical-align: middle;
+            }
+
+            .dot {
+                width: 8px;
+                height: 8px;
+                font-size: 1pt;
+                line-height: 1pt;
+            }
+
+            .chart-title {
+                font-size: 10pt;
+                font-weight: bold;
+                text-align: center;
+                margin-top: 10px;
+                margin-bottom: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <table class="no-border">
+            <!-- Header (same as Job Order) -->
+            <tr>
+                <td class="no-border center">
+                    <div class="logo-row">
+                        <img src="{% static 'user/images/UDM logo.png' %}"
+                             class="logo"
+                             alt="UDM Logo">
+                        <img src="{% static 'user/images/Manila logo.png' %}"
+                             class="logo"
+                             alt="City of Manila Seal">
+                        <img src="{% static 'user/images/BP logo.png' %}"
+                             class="logo"
+                             alt="Bagong Pilipinas">
+                    </div>
+                    <div class="title-sub">MED MONTHLY DASHBOARD REPORT</div>
+                </td>
+            </tr>
+        </table>
+        {% if summary_text %}
+            <div class="part-title">SUMMARY</div>
+            {% for para in summary_paragraphs %}
+                <p class="para">{{ para|linebreaksbr }}</p>
+            {% endfor %}
+        {% endif %}
+        {% comment %} <pdf:nextpage /> {% endcomment %}
+        <div class="part-title">CHARTS</div>
+        <table class="no-border">
+            <tr>
+                <td class="no-border center" style="width:50%;">
+                    {% if chart_status %}
+                        <img src="{{ chart_status }}" width="170">
+                    {% else %}
+                        <div class="note">Chart not available.</div>
+                    {% endif %}
+                    <table class="legend no-border" align="center">
+                        {% for row in status_rows %}
+                            <tr>
+                                <td class="lg" style="width:12px;"><div class="dot" style="background-color:{{ row.color }};">&nbsp;</div></td>
+                                <td class="lg">{{ row.label }}</td>
+                                <td class="lg bold" style="width:22px; text-align:right;">{{ row.count }}</td>
+                                <td class="lg" style="width:40px; text-align:right; color:#6b7280;">{{ row.pct|floatformat:1 }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                    <div class="figure-caption">Figure 1. Report Status Overview</div>
+                </td>
+                <td class="no-border center" style="width:50%;">
+                    {% if chart_categories %}
+                        <img src="{{ chart_categories }}" width="170">
+                    {% else %}
+                        <div class="note">Chart not available.</div>
+                    {% endif %}
+                    <table class="legend no-border" align="center">
+                        {% for row in category_rows %}
+                            <tr>
+                                <td class="lg" style="width:12px;"><div class="dot" style="background-color:{{ row.color }};">&nbsp;</div></td>
+                                <td class="lg">{{ row.label }}</td>
+                                <td class="lg bold" style="width:22px; text-align:right;">{{ row.count }}</td>
+                                <td class="lg" style="width:40px; text-align:right; color:#6b7280;">{{ row.pct|floatformat:1 }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                    <div class="figure-caption">Figure 2. Reports by Category</div>
+                </td>
+            </tr>
+        </table>
+        <pdf:nextpage />
+        <div class="center">
+            {% if chart_buildings %}
+                <img src="{{ chart_buildings }}" width="480">
+            {% else %}
+                <div class="note">Chart not available.</div>
+            {% endif %}
+        </div>
+        <div class="figure-caption">Figure 3. Reports by Building</div>
+        <table>
+            <tr>
+                <th style="text-align:left;">Building</th>
+                {% for label in status_labels %}<th>{{ label }}</th>{% endfor %}
+                <th>Total</th>
+            </tr>
+            {% for row in building_rows %}
+                <tr>
+                    <td>{{ row.name }}</td>
+                    {% for c in row.counts %}<td class="center">{{ c }}</td>{% endfor %}
+                    <td class="center bold">{{ row.total }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        <div class="center" style="margin-top:14px;">
+            {% if chart_resolution %}
+                <img src="{{ chart_resolution }}" width="440">
+            {% else %}
+                <div class="note">Chart not available.</div>
+            {% endif %}
+        </div>
+        <div class="figure-caption">Figure 4. Resolution Time: Expected vs. Actual</div>
+        <table>
+            <tr>
+                <th>Week</th>
+                <th>Expected</th>
+                <th>Actual</th>
+            </tr>
+            {% for row in resolution_rows %}
+                <tr>
+                    <td class="center">{{ row.week }}</td>
+                    <td class="center">{{ row.expected_label }}</td>
+                    <td class="center">{{ row.actual_label }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        <p class="para" style="font-size:9pt; color:#6b7280; line-height:12pt; margin-top:10px;">
+            Note: Expected is the average target time of the reports completed that week, based on each report's priority. N/A means no report was completed that week.
+        </p>
+        <div class="pdf-footer">{{ footer_text }}</div>
+    </body>
+</html>

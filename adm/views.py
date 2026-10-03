@@ -4,8 +4,11 @@ from django.utils.dateparse import parse_datetime
 from requests import request
 from user.models import Report, SurveyResponse, Notification
 from django.db.models import Count, Avg, Q
-from datetime import timedelta
+from datetime import timedelta, datetime
+import calendar
 import json
+import re
+from django.conf import settings
 from collections import defaultdict
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
@@ -81,6 +84,17 @@ PRIORITY_SLA_HOURS = {
     'high': 24,
     'critical': 3,
 }
+
+
+def _fmt_hours(h):
+    """Format oras: N/A, minutes (<1h), hours (<=48h), o days (>48h)."""
+    if h is None:
+        return 'N/A'
+    if h < 1:
+        return f"{round(h * 60)} min"
+    if h <= 48:
+        return f"{h:.1f} h"
+    return f"{h / 24:.1f} days"
 
 
 def _delay_score(delay_hours):
@@ -290,18 +304,95 @@ def dashboard(request):
     })
 
 
-def adm_dashboard_ajax(request):
-    now = timezone.now()
-    period = request.GET.get('period', '30')
+def _build_resolution_buckets(period, now, start_date=None, end_date=None):
+    """
+    Return ordered resolution buckets as tuples: (label, bucket_start, bucket_end).
+    """
+    local_now = timezone.localtime(now)
+    buckets = []
 
+    # Month picker mode: split selected month into fixed week ranges.
+    if period is None and start_date is not None and end_date is not None:
+        local_start = timezone.localtime(start_date)
+        year, month = local_start.year, local_start.month
+        last_day = calendar.monthrange(year, month)[1]
+        week_ranges = [(1, 7), (8, 14), (15, 21), (22, last_day)]
+
+        for week_index, (day_start, day_end) in enumerate(week_ranges, start=1):
+            bucket_start = timezone.make_aware(datetime(year, month, day_start, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(year, month, day_end, 23, 59, 59))
+            buckets.append((f"Week {week_index}", bucket_start, bucket_end))
+        return buckets
+
+    # Last 7 Days: daily buckets.
     if period == '7':
-        start_date = now - timedelta(days=7)
-    elif period == '30':
-        start_date = now - timedelta(days=30)
-    else:
-        start_date = None
+        start_day = (local_now - timedelta(days=6)).date()
+        for day_offset in range(7):
+            day = start_day + timedelta(days=day_offset)
+            bucket_start = timezone.make_aware(datetime(day.year, day.month, day.day, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(day.year, day.month, day.day, 23, 59, 59))
+            buckets.append((day.strftime('%b %d'), bucket_start, bucket_end))
+        return buckets
+
+    # Last 30 Days: 4 weekly buckets going backward from today.
+    if period == '30':
+        for week_index in range(4, 0, -1):
+            start_delta = week_index * 7 - 1
+            end_delta = (week_index - 1) * 7
+            start_day = (local_now - timedelta(days=start_delta)).date()
+            end_day = (local_now - timedelta(days=end_delta)).date()
+            bucket_start = timezone.make_aware(datetime(start_day.year, start_day.month, start_day.day, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(end_day.year, end_day.month, end_day.day, 23, 59, 59))
+            buckets.append((f"Week {5 - week_index}", bucket_start, bucket_end))
+        return buckets
+
+    # All Time: monthly buckets (last 12 months).
+    if period == 'all':
+        year = local_now.year
+        month = local_now.month
+        month_pairs = []
+
+        for _ in range(12):
+            month_pairs.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        month_pairs.reverse()
+
+        for bucket_year, bucket_month in month_pairs:
+            last_day = calendar.monthrange(bucket_year, bucket_month)[1]
+            bucket_start = timezone.make_aware(datetime(bucket_year, bucket_month, 1, 0, 0, 0))
+            bucket_end = timezone.make_aware(datetime(bucket_year, bucket_month, last_day, 23, 59, 59))
+            label = datetime(bucket_year, bucket_month, 1).strftime('%b %Y')
+            buckets.append((label, bucket_start, bucket_end))
+        return buckets
+
+    # Fallback: one bucket covering the explicit range if present.
+    if start_date is not None and end_date is not None:
+        buckets.append(('Range', start_date, end_date))
+    return buckets
+
+
+def _build_dashboard_data(period, start_date=None, end_date=None):
+    now = timezone.now()
+
+    # If caller didn't provide explicit start/end dates, derive from period
+    if start_date is None and end_date is None:
+        if period == '7':
+            start_date = now - timedelta(days=7)
+            end_date = now
+        elif period == '30':
+            start_date = now - timedelta(days=30)
+            end_date = now
+        else:
+            start_date = None
+            end_date = None
 
     def filter_periods(qs):
+        # Support both open-ended (>= start) and closed ranges (start..end)
+        if start_date and end_date:
+            return qs.filter(submitted_at__range=(start_date, end_date))
         if start_date:
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
@@ -395,33 +486,46 @@ def adm_dashboard_ajax(request):
     resolution_weeks = []
     expected_hours = []
     actual_hours = []
+    sla_total = 0
+    sla_met = 0
 
-    for i in range(1, 5):
-        start = now - timedelta(weeks=(5 - i))
-        end = now - timedelta(weeks=(4 - i))
-        resolved = Report.objects.filter(
-            status='resolved',
-            accomplished_at__range=(start, end)
+    resolution_buckets = _build_resolution_buckets(
+        period,
+        now,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    for bucket_label, bucket_start, bucket_end in resolution_buckets:
+        finished = Report.objects.filter(
+            status__in=['resolved', 'closed'],
+            accomplished_at__range=(bucket_start, bucket_end),
+            submitted_at__isnull=False,
         )
-        resolution_weeks.append(f'Week {i}')
-        expected_hours.append(24)
-        total_hours = 0
-        count = resolved.count()
-        for r in resolved:
-            if r.accomplished_at and r.submitted_at:
-                diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
-                total_hours += diff
-        actual_hours.append(round(total_hours / count, 1) if count else 0)
+        resolution_weeks.append(bucket_label)
+        actual_list = []
+        expected_list = []
+        for r in finished:
+            diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
+            if diff < 0:
+                continue  # invalid: natapos bago ma-submit
+            target = PRIORITY_SLA_HOURS.get(r.priority, 72)
+            actual_list.append(diff)
+            expected_list.append(target)
+            sla_total += 1
+            if diff <= target:
+                sla_met += 1
+        if actual_list:
+            actual_hours.append(round(sum(actual_list) / len(actual_list), 2))
+            expected_hours.append(round(sum(expected_list) / len(expected_list), 1))
+        else:
+            actual_hours.append(None)
+            expected_hours.append(None)
 
-    context = {
+    sla_within_pct = round(sla_met / sla_total * 100, 1) if sla_total else None
+
+    return {
         'avg_satisfaction': avg_satisfaction,
-        'period': period,
-    }
-
-    html = render_to_string('partials/_dashboard_content.html', context, request=request)
-
-    return JsonResponse({
-        'html': html,
         'satisfaction_labels': satisfaction_labels,
         'satisfaction_counts': satisfaction_counts,
         'categories': categories,
@@ -431,8 +535,47 @@ def adm_dashboard_ajax(request):
         'resolution_weeks': resolution_weeks,
         'expected_hours': expected_hours,
         'actual_hours': actual_hours,
+        'sla_total': sla_total,
+        'sla_met': sla_met,
+        'sla_within_pct': sla_within_pct,
         'status_labels': status_labels,
         'status_data': status_data,
+    }
+
+
+def adm_dashboard_ajax(request):
+    period = request.GET.get('period', '30')
+    report_month = (request.GET.get('report_month') or '').strip()
+
+    if report_month:
+        try:
+            start_dt, end_dt = _parse_report_month(report_month)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+    else:
+        data = _build_dashboard_data(period)
+
+    html = render_to_string(
+        'partials/_dashboard_content.html',
+        {
+            'avg_satisfaction': data['avg_satisfaction'],
+            'period': period,
+            'sla_within_pct': data['sla_within_pct'],
+            'sla_met': data['sla_met'],
+            'sla_total': data['sla_total'],
+        },
+        request=request,
+    )
+
+    today = timezone.localtime(timezone.now()).date()
+    last_day = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+
+    return JsonResponse({
+        'html': html,
+        'can_generate_report': settings.DEBUG or _is_last_day_of_month(today) or bool(report_month),
+        'report_available_on': last_day.strftime('%b %d, %Y'),
+        **data,
     })
 
 
@@ -612,6 +755,353 @@ def export_personnel_performance_pdf(request):
         return HttpResponse("Something went wrong generating the Personnel Performance PDF.", status=500)
 
     return response
+
+
+DASHBOARD_CHART_PATTERN = re.compile(r'^data:image/png;base64,[A-Za-z0-9+/=]+$')
+DASHBOARD_CHART_MAX_LEN = 1_500_000
+DASHBOARD_SUMMARY_MAX_LEN = 3000
+
+
+def _is_last_day_of_month(day):
+    return day.day == calendar.monthrange(day.year, day.month)[1]
+
+
+def _clean_chart_image(value):
+    """Accept only a small PNG data URI, so pisa never fetches arbitrary paths/URLs."""
+    if not value or len(value) > DASHBOARD_CHART_MAX_LEN:
+        return None
+    return value if DASHBOARD_CHART_PATTERN.match(value) else None
+
+
+def _join_and(items):
+    items = list(items)
+    if len(items) <= 1:
+        return ''.join(items)
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return f"{', '.join(items[:-1])}, and {items[-1]}"
+
+
+def _build_report_summary(data, period_start, period_end):
+    """Plain-text summary paragraph (system-suggested; admin can edit before PDF)."""
+    fmt = lambda d: f"{d:%B} {d.day}, {d:%Y}"
+    parts = [
+        "This report summarizes the corrective maintenance reports received by the "
+        "Maintenance and Engineering Division of Universidad de Manila from "
+        f"{fmt(period_start)} to {fmt(period_end)}, based on the analytics of the Admin Dashboard."
+    ]
+
+    total = sum(data['status_data'])
+    if total:
+        status_bits = [
+            f"{count} ({count / total * 100:.1f}%) {label.lower()}"
+            for label, count in zip(data['status_labels'], data['status_data'])
+        ]
+        parts.append(
+            f"During this period, a total of {total} report{'' if total == 1 else 's'} "
+            f"{'was' if total == 1 else 'were'} received. The reports are distributed by "
+            f"status as follows: {_join_and(status_bits)}, as shown in Figure 1."
+        )
+    else:
+        parts.append("No reports were received during this period.")
+
+    category_total = sum(data['categories_counts'])
+    active_categories = [
+        (label, count) for label, count in zip(data['categories'], data['categories_counts'])
+        if count > 0
+    ]
+    if active_categories:
+        pct = lambda c: f"{c / category_total * 100:.1f}"
+        top_label, top_count = active_categories[0]
+        text = (
+            f"By category, the {top_label} category accounted for the largest share of "
+            f"reports with {top_count} ({pct(top_count)}%)"
+        )
+        rest = active_categories[1:3]
+        if rest:
+            text += ", followed by " + _join_and(
+                f"the {label} category with {count} ({pct(count)}%)" for label, count in rest
+            )
+        text += "."
+        others = active_categories[3:]
+        if others:
+            text += " The remaining reports were classified under " + _join_and(
+                f"{label} ({count})" for label, count in others
+            ) + "."
+        text += " The distribution of reports by category is shown in Figure 2."
+        parts.append(text)
+
+    building_totals = []
+    for index, name in enumerate(data['building_labels']):
+        b_total = sum(
+            data['building_status_data'][code][index]
+            for code, _ in Report.STATUS_CHOICES
+        )
+        if b_total > 0:
+            building_totals.append((name, b_total))
+    if building_totals:
+        text = (
+            f"By location, {building_totals[0][0]} recorded the highest number of reports "
+            f"with {building_totals[0][1]}"
+        )
+        rest = building_totals[1:3]
+        if rest:
+            text += ", followed by " + _join_and(f"{n} with {t}" for n, t in rest)
+        text += ". The breakdown of reports per building by status is presented in Figure 3."
+        parts.append(text)
+
+    pairs = [
+        (exp, act)
+        for exp, act in zip(data['expected_hours'], data['actual_hours'])
+        if act is not None
+    ]
+    text = (
+        "With respect to resolution time, the Division's target turnaround depends on the "
+        "priority of the report: 3 hours for Critical/Urgent, 24 hours for High Priority, "
+        "and 72 hours for Standard."
+    )
+    if pairs:
+        actual_values = [act for _, act in pairs]
+        expected_values = [exp for exp, _ in pairs]
+        avg_actual = sum(actual_values) / len(actual_values)
+        avg_expected = sum(expected_values) / len(expected_values)
+        text += (
+            f" During the reporting period, the weekly average resolution time ranged from "
+            f"{_fmt_hours(min(actual_values))} to {_fmt_hours(max(actual_values))}, with an "
+            f"overall average of {_fmt_hours(avg_actual)}, which is "
+            f"{'within' if avg_actual <= avg_expected else 'above'} the overall expected "
+            f"average of {_fmt_hours(avg_expected)}."
+        )
+        if data['sla_total']:
+            sla_total = data['sla_total']
+            text += (
+                f" Of the {sla_total} completed report{'' if sla_total == 1 else 's'}, "
+                f"{data['sla_met']} ({data['sla_within_pct']:.1f}%) met the target time "
+                f"for their priority level."
+            )
+        text += " The weekly comparison of expected and actual resolution time is shown in Figure 4."
+    else:
+        text += (
+            " No reports were completed during the reporting period; hence, there is no actual "
+            "resolution time available for comparison, as shown in Figure 4."
+        )
+    parts.append(text)
+
+    return " ".join(parts)
+
+
+def _parse_report_month(report_month):
+    parsed = datetime.strptime(report_month, '%Y-%m')
+    first_day = datetime(parsed.year, parsed.month, 1)
+    last_day = calendar.monthrange(parsed.year, parsed.month)[1]
+    last_dt = datetime(parsed.year, parsed.month, last_day, 23, 59, 59)
+    return timezone.make_aware(first_day), timezone.make_aware(last_dt)
+
+
+def export_dashboard_report_pdf(request):
+    if request.method != 'POST':
+        return HttpResponse("Invalid request.", status=405)
+
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+
+    # Allow admins to explicitly request any month via the "report_month" POST field (format: YYYY-MM).
+    # If no month is specified, keep the original restriction: only allow generation on the last day
+    # of the current month (unless DEBUG).
+    report_month = (request.POST.get('report_month') or '').strip()
+    start_dt = None
+    end_dt = None
+    if report_month:
+        try:
+            start_dt, end_dt = _parse_report_month(report_month)
+        except ValueError:
+            return HttpResponse("Invalid report_month format. Expected YYYY-MM.", status=400)
+
+    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
+        return HttpResponse(
+            "The monthly report can only be generated on the last day of the month.",
+            status=403,
+        )
+
+    if report_month:
+        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        period_start = start_dt.date()
+        period_end = end_dt.date()
+    else:
+        data = _build_dashboard_data('30')
+        period_end = today
+        period_start = today - timedelta(days=30)
+
+    # Admin's edited text wins (even if blank -> no SUMMARY section).
+    # If the field wasn't sent at all, fall back to the system-generated summary.
+    if 'summary_text' in request.POST:
+        summary_text = request.POST.get('summary_text', '').strip()[:DASHBOARD_SUMMARY_MAX_LEN]
+    else:
+        summary_text = _build_report_summary(data, period_start, period_end)
+
+    total = sum(data['status_data'])
+    status_colors = ['#f59e0b', '#6366f1', '#10b981', '#64748b']
+    category_colors = [
+        '#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b',
+        '#f43f5e', '#64748b', '#06b6d4',
+    ]
+
+    status_rows = [
+        {
+            'label': label,
+            'count': count,
+            'pct': round(count / total * 100, 1) if total else 0,
+            'color': status_colors[index % len(status_colors)],
+        }
+        for index, (label, count) in enumerate(
+            zip(data['status_labels'], data['status_data'])
+        )
+    ]
+
+    category_total = sum(data['categories_counts'])
+    category_rows = [
+        {
+            'label': label,
+            'count': count,
+            'pct': round(count / category_total * 100, 1) if category_total else 0,
+            'color': category_colors[index % len(category_colors)],
+        }
+        for index, (label, count) in enumerate(
+            zip(data['categories'], data['categories_counts'])
+        )
+    ]
+
+    building_rows = []
+    for index, name in enumerate(data['building_labels']):
+        counts = [
+            data['building_status_data'][code][index]
+            for code, _ in Report.STATUS_CHOICES
+        ]
+        building_rows.append({'name': name, 'counts': counts, 'total': sum(counts)})
+
+    resolution_rows = [
+        {
+            'week': week,
+            'expected_label': _fmt_hours(exp),
+            'actual_label': _fmt_hours(act),
+            'has_data': act is not None,
+        }
+        for week, exp, act in zip(
+            data['resolution_weeks'],
+            data['expected_hours'],
+            data['actual_hours'],
+        )
+    ]
+
+    active_categories = [row for row in category_rows if row['count'] > 0]
+    top_categories = active_categories[:3]
+    other_categories = active_categories[3:]
+    top_buildings = [row for row in building_rows if row['total'] > 0][:3]
+
+    pairs = [
+        (exp, act)
+        for exp, act in zip(data['expected_hours'], data['actual_hours'])
+        if act is not None
+    ]
+    actual_values = [act for _, act in pairs]
+    expected_values = [exp for exp, _ in pairs]
+    has_resolution = bool(actual_values)
+    avg_actual = sum(actual_values) / len(actual_values) if has_resolution else None
+    avg_expected = sum(expected_values) / len(expected_values) if has_resolution else None
+    resolution_summary = {
+        'has_data': has_resolution,
+        'min': _fmt_hours(min(actual_values)) if has_resolution else None,
+        'max': _fmt_hours(max(actual_values)) if has_resolution else None,
+        'avg': _fmt_hours(avg_actual),
+        'expected_avg': _fmt_hours(avg_expected),
+        'within_target': avg_actual <= avg_expected if has_resolution else None,
+        'sla_pct': data['sla_within_pct'],
+        'sla_met': data['sla_met'],
+        'sla_total': data['sla_total'],
+    }
+
+    html = render_to_string('dashboard_report_pdf.html', {
+        'period_start': period_start,
+        'period_end': period_end,
+        'generated_at': now,
+        'generated_by': request.user.get_full_name() or request.user.get_username(),
+        'total_reports': total,
+        'category_active_count': len(active_categories),
+        'top_categories': top_categories,
+        'other_categories': other_categories,
+        'top_buildings': top_buildings,
+        'resolution_summary': resolution_summary,
+        'summary_text': summary_text,
+        'summary_paragraphs': [
+            p.strip()
+            for p in re.split(r'\n\s*\n', summary_text.replace('\r\n', '\n'))
+            if p.strip()
+        ],
+        'status_labels': data['status_labels'],
+        'status_rows': status_rows,
+        'category_rows': category_rows,
+        'building_rows': building_rows,
+        'resolution_rows': resolution_rows,
+        'chart_status': _clean_chart_image(request.POST.get('chart_status')),
+        'chart_categories': _clean_chart_image(request.POST.get('chart_categories')),
+        'chart_buildings': _clean_chart_image(request.POST.get('chart_buildings')),
+        'chart_resolution': _clean_chart_image(request.POST.get('chart_resolution')),
+        'footer_text': f"Report Period: {period_start.strftime('%b %d, %Y')} to {period_end.strftime('%b %d, %Y')}  |  Generated: {now.strftime('%b %d, %Y %I:%M %p')}",
+    })
+
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"Dashboard_Report_{period_end.strftime('%Y-%m')}.pdf"
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    response['X-Frame-Options'] = 'SAMEORIGIN'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    pisa_status = pisa.CreatePDF(
+        html,
+        dest=response,
+        link_callback=link_callback
+    )
+
+    if pisa_status.err:
+        return HttpResponse("Something went wrong generating the Dashboard Report PDF.", status=500)
+
+    return response
+
+
+def dashboard_report_summary(request):
+    """Returns the system-suggested summary paragraph to prefill the editable textarea."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Invalid request.'}, status=405)
+
+    now = timezone.localtime(timezone.now())
+    today = now.date()
+
+    report_month = (request.GET.get('report_month') or '').strip()
+    start_dt = None
+    end_dt = None
+    if report_month:
+        try:
+            start_dt, end_dt = _parse_report_month(report_month)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+
+    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
+        return JsonResponse(
+            {'error': 'The monthly report can only be generated on the last day of the month.'},
+            status=403,
+        )
+
+    if report_month:
+        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        period_start = start_dt.date()
+        period_end = end_dt.date()
+    else:
+        data = _build_dashboard_data('30')
+        period_end = today
+        period_start = today - timedelta(days=30)
+
+    return JsonResponse({'summary': _build_report_summary(data, period_start, period_end)})
 
 
 def report_save(request, report_id):
