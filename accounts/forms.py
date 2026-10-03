@@ -1,6 +1,5 @@
 from django import forms 
 from django.contrib.auth.models import User
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength
 
@@ -205,18 +204,13 @@ class SignUpForm(forms.Form):
         return email 
 
     def clean_password(self):
+        # Same rules and messages as Edit Profile > Change Password (user/views.py)
         password = self.cleaned_data.get('password')
-        errors = []
-        try:
-            validate_password(password)
-        except DjangoValidationError as e:
-            errors.extend(e.messages)
-
-        errors.extend(validate_password_strength(password))
+        errors = validate_password_strength(password)
         if errors:
             raise forms.ValidationError(errors)
         return password
-        
+
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
@@ -224,7 +218,7 @@ class SignUpForm(forms.Form):
 
         if password and confirm_password:
             if password != confirm_password:
-                raise forms.ValidationError("Passwords do not match. Please try again")
+                self.add_error('confirm_password', "Passwords do not match.")
 
         return cleaned_data
 
@@ -311,14 +305,9 @@ class ResetPasswordForm(forms.Form):
         return value
 
     def clean_new_password(self):
+        # Same rules and messages as Edit Profile > Change Password (user/views.py)
         password = self.cleaned_data.get('new_password')
-        errors = []
-        try:
-            validate_password(password)
-        except DjangoValidationError as e:
-            errors.extend(e.messages)
-
-        errors.extend(validate_password_strength(password))
+        errors = validate_password_strength(password)
         if errors:
             raise forms.ValidationError(errors)
         return password
@@ -330,6 +319,6 @@ class ResetPasswordForm(forms.Form):
 
         if new_password and confirm_new_password:
             if new_password != confirm_new_password:
-                raise forms.ValidationError("Passwords do not match. Please try again")
+                self.add_error('confirm_new_password', "Passwords do not match.")
 
         return cleaned_data

@@ -11,8 +11,12 @@ from django_ratelimit.core import is_ratelimited
 from security.models import HoneypotHit
 from security.utils import is_ip_flagged
 from user.models import UserProfile
-import random
+import secrets
 import string
+from django.utils.crypto import constant_time_compare, salted_hmac
+from django.db.models import F
+from django.core import signing
+from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings 
 from django.utils import timezone
@@ -25,7 +29,110 @@ def _clear_messages(request):
 
 
 def _generate_otp():
-    return ''.join(random.choices(string.digits, k=6))
+    return ''.join(secrets.choice(string.digits) for _ in range(6))
+
+
+RESET_VERIFIED_WINDOW_SECONDS = 10 * 60
+OTP_EXPIRY_MINUTES = 10
+OTP_MAX_ATTEMPTS = 5
+
+# Trusted devices: after a successful OTP, the browser gets a signed cookie
+# so MFA is skipped on that device until the window runs out.
+ADMIN_MFA_WINDOW = timedelta(days=7)
+USER_MFA_WINDOW = timedelta(days=30)
+TRUSTED_DEVICE_SALT = 'accounts.trusted_device'
+
+def _is_admin(user):
+    return user.is_staff or user.is_superuser
+
+def _mfa_window(user):
+    return ADMIN_MFA_WINDOW if _is_admin(user) else USER_MFA_WINDOW
+
+def _trusted_cookie_name(user):
+    # One cookie per account, so shared computers don't mix users up
+    return f'fc_td_{user.pk}'
+
+def _password_fingerprint(user):
+    # Changes whenever the password changes, which kills every trusted device
+    return salted_hmac(TRUSTED_DEVICE_SALT, user.password).hexdigest()[:32]
+
+def _trust_device(response, request, user):
+    value = signing.dumps({'u': user.pk, 'p': _password_fingerprint(user)}, salt=TRUSTED_DEVICE_SALT)
+    response.set_cookie(
+        _trusted_cookie_name(user),
+        value,
+        max_age=int(_mfa_window(user).total_seconds()),
+        httponly=True,
+        secure=request.is_secure(),
+        samesite='Lax',
+    )
+    return response
+
+def _is_trusted_device(request, user):
+    raw = request.COOKIES.get(_trusted_cookie_name(user))
+    if not raw:
+        return False
+    try:
+        # max_age is checked against the role's window at login time,
+        # so a user promoted to admin drops to the 7-day rule right away
+        data = signing.loads(raw, salt=TRUSTED_DEVICE_SALT, max_age=_mfa_window(user))
+    except signing.BadSignature:  # also covers SignatureExpired
+        return False
+    return data.get('u') == user.pk and constant_time_compare(data.get('p', ''), _password_fingerprint(user))
+
+def _post_login_redirect(user):
+    if _is_admin(user):
+        return redirect('/adm/dashboard/')
+    return redirect('/user/user_dashboard/')
+
+def _check_otp(profile, submitted_otp):
+    """
+    Check a submitted code against the user's current OTP.
+    Returns (status, attempts_left) where status is 'ok', 'invalid', 'locked' or 'expired'.
+    Each code allows OTP_MAX_ATTEMPTS guesses, then it's locked until a new one is sent.
+    """
+    if profile.otp_attempts >= OTP_MAX_ATTEMPTS:
+        return 'locked', 0
+
+    if not profile.otp or not profile.otp_created_at:
+        return 'expired', 0
+    if (timezone.now() - profile.otp_created_at).total_seconds() > OTP_EXPIRY_MINUTES * 60:
+        return 'expired', 0
+
+    # Reserve an attempt atomically so parallel requests can't sneak past the limit
+    reserved = UserProfile.objects.filter(
+        pk=profile.pk, otp_attempts__lt=OTP_MAX_ATTEMPTS
+    ).update(otp_attempts=F('otp_attempts') + 1)
+    if not reserved:
+        return 'locked', 0
+
+    if constant_time_compare(submitted_otp, profile.otp):
+        # One-time use: burn the code so it can't be replayed
+        profile.otp = ''
+        profile.otp_attempts = 0
+        profile.save(update_fields=['otp', 'otp_attempts'])
+        return 'ok', 0
+
+    profile.refresh_from_db(fields=['otp_attempts'])
+    attempts_left = OTP_MAX_ATTEMPTS - profile.otp_attempts
+    if attempts_left <= 0:
+        return 'locked', 0
+    return 'invalid', attempts_left
+
+def _otp_error(request, status, attempts_left):
+    _clear_messages(request)
+    if status == 'expired':
+        messages.error(request, "Your code has expired. Please request a new one.")
+    elif status == 'locked':
+        messages.error(request, "Too many wrong attempts. This code is now locked. Please request a new one.")
+    else:
+        plural = '' if attempts_left == 1 else 's'
+        messages.error(request, f"Invalid verification code. You have {attempts_left} attempt{plural} left.")
+
+def _clear_reset_session(request):
+    for key in ('pending_reset_user_id', 'password_reset_verified_user_id',
+                'password_reset_verified_at', 'password_reset_verified'):
+        request.session.pop(key, None)
 
 def _log_honeypot(request):
     HoneypotHit.objects.create(
@@ -83,6 +190,12 @@ def login_view(request):
                        return render(request, 'accounts/login.html', {'form': LoginForm()})
 
                    reset_request(request)
+
+                   if _is_trusted_device(request, user):
+                       login(request, user)
+                       _clear_messages(request)
+                       return _post_login_redirect(user)
+
                    request.session['pending_login_backend'] = user.backend
 
                    
@@ -91,7 +204,8 @@ def login_view(request):
                        user=user,
                        defaults={
                            'otp': otp,
-                           'otp_created_at': timezone.now()
+                           'otp_created_at': timezone.now(),
+                           'otp_attempts': 0
                        }
                    )
 
@@ -162,26 +276,17 @@ def verify_login_otp(request):
                 messages.error(request, "Verification failed. Please log in again.")
                 return redirect('login')
 
-           expiry_minutes = 10
-           is_expired = (timezone.now() - profile.otp_created_at).total_seconds() > expiry_minutes * 60
+           status, attempts_left = _check_otp(profile, submitted_otp)
 
-           if is_expired:
-               _clear_messages(request)
-               messages.error(request, "Your code has expired. Please request a new one.")
-           elif submitted_otp == profile.otp:
-                profile.otp = ''
-                profile.save()
+           if status != 'ok':
+               _otp_error(request, status, attempts_left)
+           else:
                 del request.session['pending_login_user_id']
 
                 user.backend = request.session.pop('pending_login_backend', 'django.contrib.auth.backends.ModelBackend')
                 login(request, user)
 
-                if user.is_staff or user.is_superuser:
-                    return redirect('/adm/dashboard/')
-                return redirect('/user/user_dashboard/')
-           else:
-               _clear_messages(request)
-               messages.error(request, "Invalid verification code. Please try again.")
+                return _trust_device(_post_login_redirect(user), request, user)
        else:
             _clear_messages(request)
             messages.error(request, "Please enter a valid 6-digit code")
@@ -214,7 +319,8 @@ def resend_login_otp(request):
         user=user,
         defaults={
             'otp': otp,
-            'otp_created_at': timezone.now()
+            'otp_created_at': timezone.now(),
+            'otp_attempts': 0
         }
     )
 
@@ -284,7 +390,8 @@ def signup(request):
                             'department': department,
                             'phone': phone,
                             'otp': otp,
-                            'otp_created_at': timezone.now()
+                            'otp_created_at': timezone.now(),
+                            'otp_attempts': 0
                         }
                     )
 
@@ -307,7 +414,6 @@ def signup(request):
        else:
            print(form.errors)
            _clear_messages(request)
-           messages.error(request, "Please fill up all required fields correctly")
     else:
         initial = {}
         if request.session.get('privacy_accepted'):
@@ -348,24 +454,18 @@ def verify_otp(request):
                 messages.error(request, "Verification failed. Please sign up again.")
                 return redirect('signup')
 
-           expiry_minutes = 10
-           is_expired = (timezone.now() - profile.otp_created_at).total_seconds() > expiry_minutes * 60
+           status, attempts_left = _check_otp(profile, submitted_otp)
 
-           if is_expired:
-               _clear_messages(request)
-               messages.error(request, "Your code has expired. Please request a new verification code.")
-           elif submitted_otp == profile.otp:
+           if status != 'ok':
+               _otp_error(request, status, attempts_left)
+           else:
                 user.is_active = True
                 user.save()
-                profile.otp = ''
-                profile.save()
                 del request.session['pending_verification_user_id']
                 _clear_messages(request)
                 messages.success(request, "Your account has been verified successfully! You can now log in.")
-                return redirect('login')
-           else:
-               _clear_messages(request)
-               messages.error(request, "Invalid verification code. Please try again.")
+                # The device that verified the signup is trusted, so the first login skips MFA
+                return _trust_device(redirect('login'), request, user)
        else:
             _clear_messages(request)
             messages.error(request, "Please enter a valid 6-digit code")
@@ -397,7 +497,8 @@ def resend_otp(request):
         user=user, 
         defaults={
             'otp': otp, 
-            'otp_created_at': timezone.now()
+            'otp_created_at': timezone.now(),
+            'otp_attempts': 0
         }
     )
 
@@ -453,7 +554,8 @@ def forgot_password(request):
                 user=user,
                 defaults={
                     'otp': otp,
-                    'otp_created_at': timezone.now()
+                    'otp_created_at': timezone.now(),
+                    'otp_attempts': 0
                 }
             )
 
@@ -470,6 +572,7 @@ def forgot_password(request):
                 messages.error(request, "We couldn't send your reset code right now. Please try again in a moment.")
                 return render(request, 'accounts/forgot_password.html', {'form': ForgotPasswordForm()})
 
+            _clear_reset_session(request)
             request.session['pending_reset_user_id'] = user.id
             _clear_messages(request)
             return redirect('verify_reset_otp')
@@ -513,19 +616,16 @@ def verify_reset_otp(request):
                 messages.error(request, "Verification failed. Please try again.")
                 return redirect('forgot_password')
 
-            expiry_minutes = 10
-            is_expired = (timezone.now() - profile.otp_created_at).total_seconds() > expiry_minutes * 60
+            status, attempts_left = _check_otp(profile, submitted_otp)
 
-            if is_expired:
-                _clear_messages(request)
-                messages.error(request, "Your code has expired. Please request a new one.")
-            elif submitted_otp == profile.otp:
-                request.session['password_reset_verified'] = True
+            if status != 'ok':
+                _otp_error(request, status, attempts_left)
+            else:
+                # Bind verification to THIS user, not just a True flag
+                request.session['password_reset_verified_user_id'] = user.id
+                request.session['password_reset_verified_at'] = timezone.now().timestamp()
                 _clear_messages(request)
                 return redirect('reset_password')
-            else:
-                _clear_messages(request)
-                messages.error(request, "Invalid verification code. Please try again.")
         else:
             _clear_messages(request)
             messages.error(request, "Please enter a valid 6-digit code")
@@ -558,7 +658,8 @@ def resend_reset_otp(request):
         user=user,
         defaults={
             'otp': otp,
-            'otp_created_at': timezone.now()
+            'otp_created_at': timezone.now(),
+            'otp_attempts': 0
         }
     )
 
@@ -581,9 +682,18 @@ def resend_reset_otp(request):
 @never_cache
 def reset_password(request):
     user_id = request.session.get('pending_reset_user_id')
-    verified = request.session.get('password_reset_verified')
+    verified_user_id = request.session.get('password_reset_verified_user_id')
+    verified_at = request.session.get('password_reset_verified_at')
 
-    if not user_id or not verified:
+    verification_valid = (
+        user_id
+        and verified_user_id == user_id
+        and verified_at
+        and timezone.now().timestamp() - verified_at <= RESET_VERIFIED_WINDOW_SECONDS
+    )
+
+    if not verification_valid:
+        _clear_reset_session(request)
         messages.error(request, "Please verify your identity before resetting your password.")
         return redirect('forgot_password')
 
@@ -605,6 +715,10 @@ def reset_password(request):
             return render(request, 'accounts/reset_password.html', {'form': ResetPasswordForm()})
 
         form = ResetPasswordForm(request.POST)
+        # Same rule as Edit Profile: the new password can't be the current one
+        if form.is_valid() and user.check_password(form.cleaned_data['new_password']):
+            form.add_error('new_password', "New Password must be different from your current password.")
+
         if form.is_valid():
             new_password = form.cleaned_data['new_password']
 
@@ -618,15 +732,14 @@ def reset_password(request):
             except UserProfile.DoesNotExist:
                 pass
 
-            del request.session['pending_reset_user_id']
-            del request.session['password_reset_verified']
+            _clear_reset_session(request)
 
             _clear_messages(request)
             messages.success(request, "Your password has been reset successfully. You can now log in with your new password.")
             return redirect('login')
         else:
+            # Each specific error is listed on the page, like the signup form
             _clear_messages(request)
-            messages.error(request, "Please fill up all required fields correctly")
     else:
         form = ResetPasswordForm()
 

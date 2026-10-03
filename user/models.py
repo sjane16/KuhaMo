@@ -208,6 +208,7 @@ class UserProfile(models.Model):
 
     otp = models.CharField(max_length=6, blank=True, default='')
     otp_created_at = models.DateTimeField(null=True, blank=True)
+    otp_attempts = models.PositiveSmallIntegerField(default=0, db_default=0)
 
     def __str__(self):
         return f"{self.user.username} - Profile"
