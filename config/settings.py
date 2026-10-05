@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-pc@%c9xf17@)(u%nv)qlfsdiayv!*7s_i_asq5rdw4ro9t6hx4'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -100,6 +100,8 @@ AXES_RAISE_PERMISSION_DENIED = True
 AXES_RESET_ON_SUCCESS = True 
 AXES_LOCKOUT_CALLABLE = 'accounts.views.custom_lockout'
 
+LOGIN_URL = 'login'
+
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_AGE = 3600  # 1 hour
 
@@ -165,7 +167,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 10
 EMAIL_HOST_USER = 'facchecknoreply@gmail.com'
-EMAIL_HOST_PASSWORD = 'gpwgpydpbgidxday'   # the 16-character App Password, no spaces
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')   # Gmail App Password, stored in .env
 DEFAULT_FROM_EMAIL = 'Fac-Check <facchecknoreply@gmail.com>'
 SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
 
@@ -198,10 +200,20 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'kuhamo-local-cache',
-    }
+    },
+    # Logins live in their own file-based store so they survive server restarts
+    # and aren't evicted when the default cache (rate limits) fills up.
+    'sessions': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': BASE_DIR / '.django_cache' / 'sessions',
+        'OPTIONS': {'MAX_ENTRIES': 10000},
+    },
 }
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'sessions'
+# Restart the 1-hour timer on every request, so it's 1 hour of inactivity, not 1 hour after login
+SESSION_SAVE_EVERY_REQUEST = True
 # Media files (user uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 from django.db.models import Q
 from google import genai
 from django.contrib.auth.models import User
-from .models import Report, SurveyResponse, UserProfile, Notification
+from .models import Report, SurveyResponse, UserProfile, Notification, invalidate_trusted_devices
 from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
 from .notifications import notify_status_change
@@ -93,6 +93,7 @@ def menu(request):
                 else:
                     request.user.set_password(new_password1)
                     request.user.save()
+                    invalidate_trusted_devices(request.user)
                     update_session_auth_hash(request, request.user)
                     messages.success(request, "New password saved successfully!", extra_tags='password_changed')
                     return redirect('menu')

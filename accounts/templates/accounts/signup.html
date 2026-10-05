@@ -241,6 +241,7 @@
           </svg>
           {{ form.phone }}
         </div>
+        <p id="phone-validation" class="text-xs text-red-500 -mt-3 mb-3 hidden">Phone number must be exactly 11 digits, numbers only.</p>
       </div>
       <div class="signup_email">
         <div class="flex items-center w-full p-3 bg-slate-50 border border-slate-500 rounded-xl focus-within:ring-2 focus-within:ring-purple-100 transition mb-4">
@@ -352,9 +353,14 @@
         </div>
         <p id="password-match-validation" class="text-xs text-red-500 -mt-1 mb-3 hidden">Passwords do not match.</p>
       </div>
-      <div class="flex items-center gap-3 mb-5">
-        {{ form.agree_to_terms }}
-        <label for="privacy_consent" class="text-sm leading-5 text-slate-700 cursor-pointer">I agree to the <a href="{% url 'privacy_policy' %}" id="tos_link" class="text-blue-600 hover:underline">Privacy Policy and Terms of Service </a>.</label>
+      <div class="mb-5">
+        <div class="flex items-center gap-3">
+          {{ form.agree_to_terms }}
+          <label for="id_agree_to_terms" id="terms_label" class="text-sm leading-5 {% if privacy_viewed %}text-slate-700 cursor-pointer{% else %}text-slate-400 cursor-not-allowed{% endif %}">I agree to the <a href="{% url 'privacy_policy' %}" id="tos_link" class="text-blue-600 hover:underline cursor-pointer">Privacy Policy and Terms of Service</a>.</label>
+        </div>
+        {% if not privacy_viewed %}
+          <p id="terms_locked_hint" class="text-xs text-amber-600 mt-1.5 ml-7">Open the Privacy Policy and Terms of Service first to enable this checkbox.</p>
+        {% endif %}
       </div>
       <div class="absolute -left-[9999px] -top-[9999px]" aria-hidden="true">
         {{ form.website.label_tag }}
@@ -371,7 +377,7 @@
           </div>
         </div>
       </div>
-      <button class="w-full bg-blue-600 p-3 rounded-xl text-white" type="submit">Register</button>
+      <button class="w-full bg-blue-600 p-3 rounded-xl text-white cursor-pointer" type="submit">Register</button>
       <a href="{% url 'login' %}"
          class="text-sm text-center pt-5 text-gray-700 block hover:text-blue-600 transition-all">Already have an account? Login here</a>
     </form>
@@ -416,6 +422,61 @@
                 confirmSlashEye.classList.remove("hidden");
             }
         });
+    </script>
+
+    <script>
+        // Terms checkbox stays locked until the Privacy Policy link is opened.
+        // The server tracks the visit; this only covers opening it in a new tab.
+        (function () {
+            var link = document.getElementById('tos_link');
+            var box = document.getElementById('id_agree_to_terms');
+            var label = document.getElementById('terms_label');
+            var hint = document.getElementById('terms_locked_hint');
+            if (!link || !box) return;
+
+            function unlock() {
+                box.disabled = false;
+                if (hint) hint.remove();
+                if (label) {
+                    label.classList.remove('text-slate-400', 'cursor-not-allowed');
+                    label.classList.add('text-slate-700', 'cursor-pointer');
+                }
+            }
+            link.addEventListener('click', unlock);     // normal click and Ctrl+click
+            link.addEventListener('auxclick', unlock);  // middle-click (new tab)
+        })();
+    </script>
+
+    <script>
+        // Phone: digits only, max 11 — same as Edit Profile > Contact Number (user/templates/user/menu.html)
+        (function () {
+            var phone = document.getElementById('id_phone');
+            var hint = document.getElementById('phone-validation');
+            if (!phone || !hint) return;
+
+            function validatePhone() {
+                if (phone.value.length === 0) {
+                    hint.classList.add('hidden');
+                    return true;
+                }
+                var isValid = /^\d{11}$/.test(phone.value);
+                hint.classList.toggle('hidden', isValid);
+                return isValid;
+            }
+
+            // Strips letters, spaces, dashes etc. as the user types or pastes
+            phone.addEventListener('input', function () {
+                phone.value = phone.value.replace(/\D/g, '').slice(0, 11);
+                validatePhone();
+            });
+
+            phone.form.addEventListener('submit', function (event) {
+                if (!validatePhone()) {
+                    event.preventDefault();
+                    phone.focus();
+                }
+            });
+        })();
     </script>
 
     <script>

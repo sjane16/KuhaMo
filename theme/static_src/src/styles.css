@@ -14,6 +14,19 @@
   */
 @source "../../../**/*.{html,py,js}";
 
+/* Tailwind v4 shows the default arrow on buttons; bring back the hand pointer
+   for every clickable button. In the base layer, so a class like
+   cursor-not-allowed on a specific button still wins. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="reset"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 /* Skeleton loader — shimmer animation (Facebook-style placeholders) */
 @keyframes skeleton-shimmer {
   0% {

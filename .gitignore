@@ -2,7 +2,6 @@
 .virtualenvs/
 venv/
 ENV/
-Pipfile.lock
 
 # Environment variables 
 .env
@@ -242,3 +241,5 @@ media/
 
 # Tailwind compiled output
 theme/static/css/dist/
+# Django file-based cache (login sessions)
+.django_cache/

@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from requests import request
-from user.models import Report, SurveyResponse, Notification
+from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices
 from django.db.models import Count, Avg, Q
 from datetime import timedelta, datetime
 import calendar
@@ -1302,6 +1302,7 @@ def ProfileMenu(request):
                 else:
                     request.user.set_password(new_password1)
                     request.user.save()
+                    invalidate_trusted_devices(request.user)
                     update_session_auth_hash(request, request.user)
                     messages.success(request, "Password changed successfully.")
                     return redirect('ProfileMenu')

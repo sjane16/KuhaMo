@@ -1,5 +1,6 @@
-from django.urls import path 
-from . import views 
+from django.urls import path
+from . import views
+from . import passkeys
 from django.conf import settings
 
 
@@ -16,5 +17,13 @@ urlpatterns = [
     path('verify-reset-otp/', views.verify_reset_otp, name='verify_reset_otp'),
     path('resend-reset-otp/', views.resend_reset_otp, name='resend_reset_otp'),
     path('reset-password/', views.reset_password, name='reset_password'),
+
+    # Passkeys (fingerprint / face / screen-lock sign-in)
+    path('passkeys/register/options/', passkeys.register_options, name='passkey_register_options'),
+    path('passkeys/register/verify/', passkeys.register_verify, name='passkey_register_verify'),
+    path('passkeys/login/options/', passkeys.login_options, name='passkey_login_options'),
+    path('passkeys/login/verify/', passkeys.login_verify, name='passkey_login_verify'),
+    path('passkeys/<int:passkey_id>/rename/', passkeys.rename, name='passkey_rename'),
+    path('passkeys/<int:passkey_id>/remove/', passkeys.remove, name='passkey_remove'),
 ]
 
