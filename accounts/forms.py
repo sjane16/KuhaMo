@@ -96,9 +96,16 @@ class SignUpForm(forms.Form):
     )
 
     phone = forms.CharField(
-        max_length=20,
+        max_length=11,
+        # Same behavior as Edit Profile > Contact Number: digits only, 11 max, number keypad on phones
         widget=forms.TextInput(attrs={
-            'placeholder': 'Enter your phone number',
+            'type': 'tel',
+            'inputmode': 'numeric',
+            'maxlength': '11',
+            'pattern': r'\d{11}',
+            'title': 'Phone number must be exactly 11 digits, numbers only',
+            'placeholder': '09XXXXXXXXX',
+            'autocomplete': 'tel',
             'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
         })
     )
@@ -122,7 +129,7 @@ class SignUpForm(forms.Form):
     agree_to_terms = forms.BooleanField(
         required=True,
         widget=forms.CheckboxInput(attrs={
-            'class': 'w-4 h-4 mt-[2px] text-blue-600 rounded border-gray-300 cursor-pointer'
+            'class': 'w-4 h-4 mt-[2px] text-blue-600 rounded border-gray-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50'
         }),
         error_messages = {
             'required': 'You must agree to the Terms and Conditions and Privacy Policy to continue'

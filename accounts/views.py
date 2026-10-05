@@ -10,10 +10,10 @@ from django.core.exceptions import PermissionDenied
 from django_ratelimit.core import is_ratelimited
 from security.models import HoneypotHit
 from security.utils import is_ip_flagged
-from user.models import UserProfile
+from user.models import UserProfile, invalidate_trusted_devices
 import secrets
 import string
-from django.utils.crypto import constant_time_compare, salted_hmac
+from django.utils.crypto import constant_time_compare
 from django.db.models import F
 from django.core import signing
 from datetime import timedelta
@@ -52,12 +52,15 @@ def _trusted_cookie_name(user):
     # One cookie per account, so shared computers don't mix users up
     return f'fc_td_{user.pk}'
 
-def _password_fingerprint(user):
-    # Changes whenever the password changes, which kills every trusted device
-    return salted_hmac(TRUSTED_DEVICE_SALT, user.password).hexdigest()[:32]
+def _credentials_version(user):
+    # Goes up only on a real password change (invalidate_trusted_devices).
+    # Not tied to the password hash, because Django rewrites the hash on login
+    # whenever a server with a different Django version checks the password.
+    version = UserProfile.objects.filter(user=user).values_list('credentials_version', flat=True).first()
+    return version or 0
 
 def _trust_device(response, request, user):
-    value = signing.dumps({'u': user.pk, 'p': _password_fingerprint(user)}, salt=TRUSTED_DEVICE_SALT)
+    value = signing.dumps({'u': user.pk, 'v': _credentials_version(user)}, salt=TRUSTED_DEVICE_SALT)
     response.set_cookie(
         _trusted_cookie_name(user),
         value,
@@ -78,7 +81,7 @@ def _is_trusted_device(request, user):
         data = signing.loads(raw, salt=TRUSTED_DEVICE_SALT, max_age=_mfa_window(user))
     except signing.BadSignature:  # also covers SignatureExpired
         return False
-    return data.get('u') == user.pk and constant_time_compare(data.get('p', ''), _password_fingerprint(user))
+    return data.get('u') == user.pk and data.get('v') == _credentials_version(user)
 
 def _post_login_redirect(user):
     if _is_admin(user):
@@ -339,6 +342,16 @@ def resend_login_otp(request):
     messages.success(request, "A new login code has been sent to your email.")
     return redirect('verify_login_otp')
 
+def _privacy_viewed(request):
+    return bool(request.session.get('privacy_viewed') or request.session.get('privacy_accepted'))
+
+def _render_signup(request, form):
+    viewed = _privacy_viewed(request)
+    # Until the Privacy Policy page has been opened, the checkbox can't be ticked
+    if not viewed:
+        form.fields['agree_to_terms'].widget.attrs['disabled'] = True
+    return render(request, 'accounts/signup.html', {'form': form, 'privacy_viewed': viewed})
+
 @never_cache
 def signup(request):
     if request.method == 'POST':
@@ -348,21 +361,27 @@ def signup(request):
            _clear_messages(request)
            messages.error(request, "Unable to process your request. Please contact system administrator")
 
-           return render(request, 'accounts/signup.html', {'form': SignUpForm()})
+           return _render_signup(request, SignUpForm())
 
        if request.POST.get('website'):
            _log_honeypot(request)
            _clear_messages(request)
            messages.error(request, "Unable to process your request. Please contact system administrator")
 
-           return render(request, 'accounts/signup.html', {'form': SignUpForm()})
+           return _render_signup(request, SignUpForm())
 
        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=signup):
            messages.error(request, "Too many signup attempts. Please try again later")
-           return render(request, 'accounts/signup.html', {'form': SignUpForm()})
+           return _render_signup(request, SignUpForm())
 
        form = SignUpForm(request.POST)
-       if form.is_valid():
+       is_valid = form.is_valid()
+       if not _privacy_viewed(request):
+           # The checkbox is locked on the page, but enforce it here too
+           form.add_error('agree_to_terms', "Please open and read the Privacy Policy and Terms of Service before agreeing.")
+           is_valid = False
+
+       if is_valid:
             first_name = form.cleaned_data['first_name']
             last_name = form.cleaned_data['last_name']
             email = form.cleaned_data['email']
@@ -405,7 +424,7 @@ def signup(request):
             except (SMTPException, OSError) as e:
                 _clear_messages(request)
                 messages.error(request, "We couldn't send your verification email right now. Please try again in a moment.")
-                return render(request, 'accounts/signup.html', {'form': form})
+                return _render_signup(request, form)
 
             request.session['pending_verification_user_id'] = user.id
             _clear_messages(request)
@@ -420,7 +439,7 @@ def signup(request):
             initial['agree_to_terms'] = True
         form = SignUpForm(initial=initial)
 
-    return render(request, 'accounts/signup.html', {'form': form})
+    return _render_signup(request, form)
 
 @never_cache
 def verify_otp(request):
@@ -724,6 +743,7 @@ def reset_password(request):
 
             user.set_password(new_password)
             user.save()
+            invalidate_trusted_devices(user)
 
             try:
                 profile = UserProfile.objects.get(user=user)
@@ -747,6 +767,9 @@ def reset_password(request):
 
 @never_cache
 def privacy_policy(request):
+    # Opening this page unlocks the "I agree" checkbox on the signup form
+    request.session['privacy_viewed'] = True
+
     if request.method == 'POST':
         if request.POST.get('website'):
             _log_honeypot(request)

@@ -209,6 +209,9 @@ class UserProfile(models.Model):
     otp = models.CharField(max_length=6, blank=True, default='')
     otp_created_at = models.DateTimeField(null=True, blank=True)
     otp_attempts = models.PositiveSmallIntegerField(default=0, db_default=0)
+    # Bumped on every real password change; trusted-device cookies carry it,
+    # so a password change logs out every trusted device (see accounts/views.py)
+    credentials_version = models.PositiveIntegerField(default=0, db_default=0)
 
     def __str__(self):
         return f"{self.user.username} - Profile"
@@ -265,3 +268,26 @@ class Notification(models.Model):
     def is_recent(self):
         """True if this notification was created less than 24 hours ago."""
         return (timezone.now() - self.created_at) < timedelta(hours=24)
+
+def invalidate_trusted_devices(user):
+    """Call after a real password change so every trusted device needs MFA again."""
+    UserProfile.objects.filter(user=user).update(credentials_version=models.F('credentials_version') + 1)
+
+
+class Passkey(models.Model):
+    """A WebAuthn passkey a user can sign in with (fingerprint, face or screen lock)."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='passkeys')
+    name = models.CharField(max_length=60)
+    # base64url-encoded credential ID, as sent by the browser
+    credential_id = models.CharField(max_length=512, unique=True)
+    public_key = models.BinaryField()
+    sign_count = models.PositiveBigIntegerField(default=0)
+    transports = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.name}"
