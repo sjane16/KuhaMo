@@ -22,6 +22,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
 from smtplib import SMTPException
+from django.utils.http import url_has_allowed_host_and_scheme #helps with redirecting users together with the next parameter.
 
 def _clear_messages(request):
     storage = get_messages(request)
@@ -83,7 +84,14 @@ def _is_trusted_device(request, user):
         return False
     return data.get('u') == user.pk and data.get('v') == _credentials_version(user)
 
-def _post_login_redirect(user):
+def _post_login_redirect(request, user):
+    next_url = request.session.pop('pending_login_next', '')
+    if url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
     if _is_admin(user):
         return redirect('/adm/dashboard/')
     return redirect('/user/user_dashboard/')
@@ -159,6 +167,18 @@ def splash_screen(request):
 
 @never_cache
 def login_view(request):
+    # remembers the selected page before directing to login
+    if request.method == 'GET':
+        next_url = request.GET.get('next', '')
+
+        if url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={request.get_host()}, #only allows redirects to its host 
+            require_https=request.is_secure(),
+        ):
+            request.session['pending_login_next'] = next_url
+        else:
+            request.session.pop('pending_login_next', None)
 
     if request.method == 'POST':
        ip = request.META.get('REMOTE_ADDR')
@@ -197,7 +217,7 @@ def login_view(request):
                    if _is_trusted_device(request, user):
                        login(request, user)
                        _clear_messages(request)
-                       return _post_login_redirect(user)
+                       return _post_login_redirect(request, user)
 
                    request.session['pending_login_backend'] = user.backend
 
@@ -289,7 +309,7 @@ def verify_login_otp(request):
                 user.backend = request.session.pop('pending_login_backend', 'django.contrib.auth.backends.ModelBackend')
                 login(request, user)
 
-                return _trust_device(_post_login_redirect(user), request, user)
+                return _trust_device(_post_login_redirect(request, user), request, user)
        else:
             _clear_messages(request)
             messages.error(request, "Please enter a valid 6-digit code")
