@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Figure 7. Login &amp; Access Control Process</title>
+<style>
+  body { background:#e5e7eb; margin:0; font-family:'Times New Roman', serif; }
+  .sheet { background:#fff; max-width:1350px; margin:24px auto; padding:28px 28px 20px; box-shadow:0 2px 14px rgba(0,0,0,.18); }
+  svg { width:100%; height:auto; display:block; }
+  .notes { max-width:1350px; margin:0 auto 30px; background:#fff; padding:16px 22px; box-shadow:0 2px 14px rgba(0,0,0,.12); font-size:15px; }
+  .notes h3 { margin:0 0 8px; font-size:17px; }
+  .notes ul { margin:0; padding-left:22px; }
+  .notes li { margin:3px 0; }
+  @media print {
+    body { background:#fff; }
+    .sheet, .notes { box-shadow:none; margin:0 auto; max-width:none; }
+    .notes { page-break-before:always; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+<svg viewBox="0 0 1700 2600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arw" markerWidth="14" markerHeight="14" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L12,6 L0,12 z" fill="#000"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family:'Times New Roman', serif; fill:#000; }
+    .title { font-size:42px; font-weight:bold; }
+    .lanehdr { font-size:38px; font-weight:bold; }
+    .ntext { font-size:22px; font-weight:bold; }
+    .ntext-s { font-size:19px; font-weight:bold; }
+    .dtext { font-size:20px; font-weight:bold; font-style:italic; }
+    .dtext-s { font-size:18px; font-weight:bold; font-style:italic; }
+    .elbl { font-size:18px; font-weight:bold; }
+    .note { font-size:15px; font-style:italic; }
+    .node { fill:#e9e9e9; stroke:#000; stroke-width:2; }
+    .node-d { fill:#e9e9e9; stroke:#000; stroke-width:2; stroke-dasharray:7 5; }
+    .flow { fill:none; stroke:#000; stroke-width:2; }
+    .flow-d { fill:none; stroke:#000; stroke-width:2; stroke-dasharray:7 5; }
+    .lane { fill:none; stroke:#000; stroke-width:2; }
+    .thick { fill:none; stroke:#000; stroke-width:3.5; }
+  </style>
+
+  <!-- ================= SWIMLANES ================= -->
+  <rect x="10" y="90" width="1680" height="2470" class="thick"/>
+  <line x1="400" y1="90" x2="400" y2="2560" class="lane"/>
+  <line x1="1360" y1="90" x2="1360" y2="2560" class="lane"/>
+  <line x1="10" y1="150" x2="1690" y2="150" class="thick"/>
+  <text x="850" y="62" text-anchor="middle" class="title">Figure 7. Login &amp; Access Control Process</text>
+  <text x="205" y="133" text-anchor="middle" class="lanehdr">USER</text>
+  <text x="880" y="133" text-anchor="middle" class="lanehdr">SYSTEM</text>
+  <text x="1525" y="133" text-anchor="middle" class="lanehdr">ADMIN</text>
+
+  <!-- ================= USER LANE ================= -->
+  <circle cx="200" cy="215" r="22" fill="#000"/>
+  <text x="258" y="222" class="elbl">[START]</text>
+
+  <rect x="95" y="304" width="210" height="52" rx="10" class="node"/>
+  <text x="200" y="336" text-anchor="middle" class="ntext">Enter Credentials</text>
+
+  <rect x="95" y="414" width="210" height="52" rx="10" class="node"/>
+  <text x="200" y="445" text-anchor="middle" class="ntext-s">Submit Login Request</text>
+
+  <rect x="95" y="1436" width="210" height="68" rx="10" class="node"/>
+  <text x="200" y="1464" text-anchor="middle" class="ntext-s">Retrieve 6-Digit Code</text>
+  <text x="200" y="1490" text-anchor="middle" class="ntext-s">from Email</text>
+
+  <rect x="95" y="1564" width="210" height="52" rx="10" class="node"/>
+  <text x="200" y="1596" text-anchor="middle" class="ntext">Enter OTP Code</text>
+
+  <rect x="95" y="1674" width="210" height="52" rx="10" class="node"/>
+  <text x="200" y="1706" text-anchor="middle" class="ntext">Submit OTP</text>
+
+  <rect x="95" y="1784" width="210" height="52" rx="10" class="node-d"/>
+  <text x="200" y="1816" text-anchor="middle" class="ntext-s">Click Resend Code</text>
+
+  <!-- ================= ADMIN LANE ================= -->
+  <circle cx="1530" cy="215" r="22" fill="#000"/>
+  <text x="1588" y="222" class="elbl">[START]</text>
+
+  <rect x="1425" y="304" width="210" height="52" rx="10" class="node"/>
+  <text x="1530" y="336" text-anchor="middle" class="ntext">Enter Credentials</text>
+
+  <rect x="1425" y="414" width="210" height="52" rx="10" class="node"/>
+  <text x="1530" y="445" text-anchor="middle" class="ntext-s">Submit Login Request</text>
+
+  <!-- ================= SYSTEM LANE : MAIN SPINE ================= -->
+  <rect x="595" y="189" width="210" height="52" rx="10" class="node"/>
+  <text x="700" y="221" text-anchor="middle" class="ntext">Check IP Address</text>
+
+  <polygon points="700,295 785,345 700,395 615,345" class="node"/>
+  <text x="700" y="351" text-anchor="middle" class="dtext">IP flagged?</text>
+
+  <rect x="595" y="456" width="210" height="68" rx="10" class="node"/>
+  <text x="700" y="484" text-anchor="middle" class="ntext">Validate Honeypot</text>
+  <text x="700" y="510" text-anchor="middle" class="ntext">Field</text>
+
+  <polygon points="700,580 785,630 700,680 615,630" class="node"/>
+  <text x="700" y="624" text-anchor="middle" class="dtext">Honeypot</text>
+  <text x="700" y="648" text-anchor="middle" class="dtext">Triggered?</text>
+
+  <rect x="595" y="741" width="210" height="68" rx="10" class="node"/>
+  <text x="700" y="769" text-anchor="middle" class="ntext">Validate Login</text>
+  <text x="700" y="795" text-anchor="middle" class="ntext-s">Request Rate (5/min)</text>
+
+  <polygon points="700,865 785,915 700,965 615,915" class="node"/>
+  <text x="700" y="909" text-anchor="middle" class="dtext">Rate limit</text>
+  <text x="700" y="933" text-anchor="middle" class="dtext">exceeded?</text>
+
+  <rect x="595" y="1026" width="210" height="68" rx="10" class="node"/>
+  <text x="700" y="1054" text-anchor="middle" class="ntext">System Validate</text>
+  <text x="700" y="1080" text-anchor="middle" class="ntext">Credentials</text>
+
+  <polygon points="700,1150 785,1200 700,1250 615,1200" class="node"/>
+  <text x="700" y="1194" text-anchor="middle" class="dtext">Credentials</text>
+  <text x="700" y="1218" text-anchor="middle" class="dtext">valid?</text>
+
+  <polygon points="700,1290 785,1340 700,1390 615,1340" class="node"/>
+  <text x="700" y="1334" text-anchor="middle" class="dtext">Email</text>
+  <text x="700" y="1358" text-anchor="middle" class="dtext">verified?</text>
+
+  <rect x="595" y="1446" width="210" height="68" rx="10" class="node"/>
+  <text x="700" y="1474" text-anchor="middle" class="ntext">Reset Failed Login</text>
+  <text x="700" y="1500" text-anchor="middle" class="ntext">Counter</text>
+
+  <rect x="595" y="1576" width="210" height="68" rx="10" class="node"/>
+  <text x="700" y="1604" text-anchor="middle" class="ntext-s">Generate 6-Digit OTP</text>
+  <text x="700" y="1630" text-anchor="middle" class="ntext-s">&amp; Send to Email</text>
+
+  <polygon points="700,1700 785,1750 700,1800 615,1750" class="node"/>
+  <text x="700" y="1744" text-anchor="middle" class="dtext">Email</text>
+  <text x="700" y="1768" text-anchor="middle" class="dtext">sent?</text>
+
+  <rect x="595" y="1856" width="210" height="68" rx="10" class="node"/>
+  <text x="700" y="1884" text-anchor="middle" class="ntext">Display OTP</text>
+  <text x="700" y="1910" text-anchor="middle" class="ntext">Verification Screen</text>
+
+  <polygon points="700,1975 800,2030 700,2085 600,2030" class="node"/>
+  <text x="700" y="2010" text-anchor="middle" class="dtext-s">OTP valid &amp;</text>
+  <text x="700" y="2034" text-anchor="middle" class="dtext-s">not expired?</text>
+  <text x="700" y="2058" text-anchor="middle" class="dtext-s">(10 min)</text>
+
+  <rect x="595" y="2136" width="210" height="68" rx="10" class="node"/>
+  <text x="700" y="2164" text-anchor="middle" class="ntext-s">Create User / Admin</text>
+  <text x="700" y="2190" text-anchor="middle" class="ntext-s">Session</text>
+
+  <polygon points="700,2260 785,2310 700,2360 615,2310" class="node"/>
+  <text x="700" y="2304" text-anchor="middle" class="dtext">Admin /</text>
+  <text x="700" y="2328" text-anchor="middle" class="dtext">Staff?</text>
+
+  <rect x="460" y="2430" width="200" height="52" rx="10" class="node"/>
+  <text x="560" y="2461" text-anchor="middle" class="ntext-s">Open Admin Dashboard</text>
+
+  <rect x="740" y="2430" width="200" height="52" rx="10" class="node"/>
+  <text x="840" y="2461" text-anchor="middle" class="ntext-s">Open Student Dashboard</text>
+
+  <circle cx="700" cy="2550" r="20" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="700" cy="2550" r="11" fill="#000"/>
+  <text x="745" y="2557" class="elbl">[END]</text>
+
+  <!-- ================= SYSTEM LANE : ERROR COLUMN A ================= -->
+  <rect x="920" y="311" width="200" height="68" rx="10" class="node"/>
+  <text x="1020" y="339" text-anchor="middle" class="ntext-s">Display Invalid</text>
+  <text x="1020" y="365" text-anchor="middle" class="ntext-s">Credentials</text>
+
+  <circle cx="1020" cy="465" r="20" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="1020" cy="465" r="11" fill="#000"/>
+
+  <rect x="920" y="596" width="200" height="68" rx="10" class="node"/>
+  <text x="1020" y="624" text-anchor="middle" class="ntext-s">Log Suspicious</text>
+  <text x="1020" y="650" text-anchor="middle" class="ntext-s">Login Attempt</text>
+
+  <rect x="920" y="726" width="200" height="68" rx="10" class="node"/>
+  <text x="1020" y="754" text-anchor="middle" class="ntext-s">Display Invalid</text>
+  <text x="1020" y="780" text-anchor="middle" class="ntext-s">Credentials</text>
+
+  <circle cx="1020" cy="880" r="20" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="1020" cy="880" r="11" fill="#000"/>
+
+  <rect x="920" y="966" width="200" height="68" rx="10" class="node"/>
+  <text x="1020" y="994" text-anchor="middle" class="ntext-s">Display Too Many</text>
+  <text x="1020" y="1020" text-anchor="middle" class="ntext-s">Login Attempts</text>
+
+  <circle cx="1020" cy="1120" r="20" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="1020" cy="1120" r="11" fill="#000"/>
+
+  <rect x="920" y="1174" width="200" height="52" rx="10" class="node"/>
+  <text x="1020" y="1205" text-anchor="middle" class="ntext-s">Record Failed Login</text>
+
+  <polygon points="1020,1275 1115,1330 1020,1385 925,1330" class="node"/>
+  <text x="1020" y="1318" text-anchor="middle" class="dtext-s">Maximum failed</text>
+  <text x="1020" y="1342" text-anchor="middle" class="dtext-s">attempts reached?</text>
+
+  <rect x="920" y="1426" width="200" height="68" rx="10" class="node"/>
+  <text x="1020" y="1454" text-anchor="middle" class="ntext-s">Lock Account</text>
+  <text x="1020" y="1480" text-anchor="middle" class="ntext-s">(30 Minutes)</text>
+
+  <rect x="920" y="1556" width="200" height="68" rx="10" class="node"/>
+  <text x="1020" y="1584" text-anchor="middle" class="ntext-s">Display Account</text>
+  <text x="1020" y="1610" text-anchor="middle" class="ntext-s">Locked Message</text>
+
+  <circle cx="1020" cy="1710" r="20" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="1020" cy="1710" r="11" fill="#000"/>
+
+  <rect x="920" y="1796" width="200" height="68" rx="10" class="node"/>
+  <text x="1020" y="1824" text-anchor="middle" class="ntext-s">Display Verify-Email</text>
+  <text x="1020" y="1850" text-anchor="middle" class="ntext-s">Message</text>
+
+  <circle cx="1020" cy="1950" r="20" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="1020" cy="1950" r="11" fill="#000"/>
+
+  <!-- ================= SYSTEM LANE : ERROR COLUMN B ================= -->
+  <rect x="1175" y="1716" width="180" height="68" rx="10" class="node"/>
+  <text x="1265" y="1744" text-anchor="middle" class="ntext-s" style="font-size:17px">Display Couldn't-</text>
+  <text x="1265" y="1770" text-anchor="middle" class="ntext-s" style="font-size:17px">Send-Code Error</text>
+
+  <circle cx="1265" cy="1870" r="20" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="1265" cy="1870" r="11" fill="#000"/>
+
+  <!-- ================= FLOWS : USER ================= -->
+  <line x1="200" y1="237" x2="200" y2="304" class="flow" marker-end="url(#arw)"/>
+  <line x1="200" y1="356" x2="200" y2="414" class="flow" marker-end="url(#arw)"/>
+  <polyline points="305,440 480,440 480,215 595,215" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="200" y1="1504" x2="200" y2="1564" class="flow" marker-end="url(#arw)"/>
+  <line x1="200" y1="1616" x2="200" y2="1674" class="flow" marker-end="url(#arw)"/>
+  <line x1="200" y1="1726" x2="200" y2="1784" class="flow" marker-end="url(#arw)"/>
+
+  <!-- dashed resend loop -->
+  <polyline points="95,1810 80,1810 80,1470 95,1470" class="flow-d" marker-end="url(#arw)"/>
+  <text x="86" y="1650" class="note" transform="rotate(-90 86 1650)" text-anchor="middle">new code sent (2/min limit)</text>
+
+  <!-- user submits OTP -> validation -->
+  <polyline points="305,1700 580,1700 580,2002 648,2002" class="flow" marker-end="url(#arw)"/>
+
+  <!-- ================= FLOWS : ADMIN ================= -->
+  <line x1="1530" y1="237" x2="1530" y2="304" class="flow" marker-end="url(#arw)"/>
+  <line x1="1530" y1="356" x2="1530" y2="414" class="flow" marker-end="url(#arw)"/>
+  <polyline points="1635,440 1660,440 1660,170 700,170 700,189" class="flow" marker-end="url(#arw)"/>
+
+  <!-- ================= FLOWS : MAIN SPINE ================= -->
+  <line x1="700" y1="241" x2="700" y2="295" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="700" y1="395" x2="700" y2="456" class="flow" marker-end="url(#arw)"/>
+  <text x="722" y="432" class="elbl">[No]</text>
+
+  <line x1="700" y1="524" x2="700" y2="580" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="700" y1="680" x2="700" y2="741" class="flow" marker-end="url(#arw)"/>
+  <text x="722" y="716" class="elbl">[No]</text>
+
+  <line x1="700" y1="809" x2="700" y2="865" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="700" y1="965" x2="700" y2="1026" class="flow" marker-end="url(#arw)"/>
+  <text x="722" y="1000" class="elbl">[No]</text>
+
+  <line x1="700" y1="1094" x2="700" y2="1150" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="700" y1="1250" x2="700" y2="1290" class="flow" marker-end="url(#arw)"/>
+  <text x="722" y="1276" class="elbl">[Yes]</text>
+
+  <line x1="700" y1="1390" x2="700" y2="1446" class="flow" marker-end="url(#arw)"/>
+  <text x="722" y="1424" class="elbl">[Yes]</text>
+
+  <line x1="700" y1="1514" x2="700" y2="1576" class="flow" marker-end="url(#arw)"/>
+  <line x1="700" y1="1644" x2="700" y2="1700" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="700" y1="1800" x2="700" y2="1856" class="flow" marker-end="url(#arw)"/>
+  <text x="722" y="1834" class="elbl">[Yes]</text>
+
+  <line x1="700" y1="1924" x2="700" y2="1975" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="700" y1="2085" x2="700" y2="2136" class="flow" marker-end="url(#arw)"/>
+  <text x="722" y="2116" class="elbl">[Yes]</text>
+
+  <line x1="700" y1="2204" x2="700" y2="2260" class="flow" marker-end="url(#arw)"/>
+
+  <polyline points="615,2310 560,2310 560,2430" class="flow" marker-end="url(#arw)"/>
+  <text x="570" y="2298" class="elbl">[Yes]</text>
+
+  <polyline points="785,2310 840,2310 840,2430" class="flow" marker-end="url(#arw)"/>
+  <text x="795" y="2298" class="elbl">[No]</text>
+
+  <polyline points="560,2482 560,2550 678,2550" class="flow" marker-end="url(#arw)"/>
+  <polyline points="840,2482 840,2550 722,2550" class="flow" marker-end="url(#arw)"/>
+
+  <!-- ================= FLOWS : ERROR BRANCHES ================= -->
+  <line x1="785" y1="345" x2="920" y2="345" class="flow" marker-end="url(#arw)"/>
+  <text x="838" y="331" class="elbl">[Yes]</text>
+  <line x1="1020" y1="379" x2="1020" y2="445" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="785" y1="630" x2="920" y2="630" class="flow" marker-end="url(#arw)"/>
+  <text x="838" y="616" class="elbl">[Yes]</text>
+  <line x1="1020" y1="664" x2="1020" y2="726" class="flow" marker-end="url(#arw)"/>
+  <line x1="1020" y1="794" x2="1020" y2="860" class="flow" marker-end="url(#arw)"/>
+
+  <polyline points="785,915 870,915 870,1000 920,1000" class="flow" marker-end="url(#arw)"/>
+  <text x="800" y="901" class="elbl">[Yes]</text>
+  <line x1="1020" y1="1034" x2="1020" y2="1100" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="785" y1="1200" x2="920" y2="1200" class="flow" marker-end="url(#arw)"/>
+  <text x="838" y="1186" class="elbl">[No]</text>
+  <line x1="1020" y1="1226" x2="1020" y2="1275" class="flow" marker-end="url(#arw)"/>
+
+  <line x1="1020" y1="1385" x2="1020" y2="1426" class="flow" marker-end="url(#arw)"/>
+  <text x="1042" y="1412" class="elbl">[Yes]</text>
+  <line x1="1020" y1="1494" x2="1020" y2="1556" class="flow" marker-end="url(#arw)"/>
+  <line x1="1020" y1="1624" x2="1020" y2="1690" class="flow" marker-end="url(#arw)"/>
+
+  <!-- max attempts -> no -> back to invalid credentials -->
+  <polyline points="1115,1330 1165,1330 1165,345 1120,345" class="flow" marker-end="url(#arw)"/>
+  <text x="1130" y="1316" class="elbl">[No]</text>
+
+  <!-- email not verified -->
+  <polyline points="785,1340 860,1340 860,1830 920,1830" class="flow" marker-end="url(#arw)"/>
+  <text x="795" y="1326" class="elbl">[No]</text>
+  <line x1="1020" y1="1864" x2="1020" y2="1930" class="flow" marker-end="url(#arw)"/>
+
+  <!-- email send failed -->
+  <line x1="785" y1="1750" x2="1175" y2="1750" class="flow" marker-end="url(#arw)"/>
+  <text x="800" y="1736" class="elbl">[No]</text>
+  <line x1="1265" y1="1784" x2="1265" y2="1850" class="flow" marker-end="url(#arw)"/>
+
+  <!-- OTP invalid -> retry -->
+  <polyline points="600,2030 330,2030 330,1590 305,1590" class="flow" marker-end="url(#arw)"/>
+  <text x="430" y="2016" class="elbl">[No] - invalid/expired code error</text>
+</svg>
+</div>
+
+<div class="notes">
+  <h3>Updates made to Figure 7 (based on accounts/views.py):</h3>
+  <ul>
+    <li><b>Added Email-verified check</b> — unverified accounts cannot log in ("Please verify your email before logging in").</li>
+    <li><b>Added the full OTP step</b> — system generates a 6-digit code, emails it (10-minute expiry), user retrieves and submits it; invalid/expired codes are rejected and retried.</li>
+    <li><b>Added OTP send-failure branch</b> — SMTP errors show "couldn't send your login code".</li>
+    <li><b>Added Resend Code loop</b> for the user, rate-limited to 2 requests/min (login &amp; OTP verification are 5/min per IP).</li>
+    <li><b>Added form-validation branch</b> ("Please fill up all required fields correctly").</li>
+    <li><b>Role decision</b> checks <i>Admin / Staff?</i> (is_staff / is_superuser) &rarr; Admin Dashboard, otherwise Student Dashboard.</li>
+  </ul>
+</div>
+
+</body>
+</html>

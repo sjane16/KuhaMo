@@ -418,7 +418,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         "3-Satisfactory",
         "2-Fair",
         "1-Unsatisfactory"
-    ]
+    ]   
     satisfaction_counts = [
         SurveyResponse.objects.filter(rating=i).count()
         for i in range(5, 0, -1)

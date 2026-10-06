@@ -3,14 +3,10 @@
 {% block content %}
     <!---->
     {% include 'user/components/toast.html' %}
-    <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
+    <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-24 lg:pb-10 w-full">
         <div class="mb-6">
             <h1 class="text-xl font-bold text-gray-900 leading-tight">Hello, {{ user.first_name }} {{ user.last_name }}! 👋</h1>
-            <p class="text-base text-gray-600 pt-2 mb-6">Monitor and manage facility maintenance easily.</p>
-            <div class="flex items-center gap-3 mb-4">
-                <h2 class="text-lg font-bold text-gray-800 whitespace-nowrap">Corrective Maintenance Analytics</h2>
-                <div class="flex-1 h-px bg-gray-300"></div>
-            </div>
+            <p class="text-base text-gray-600 pt-2">Monitor and manage facility maintenance easily.</p>
         </div>
         <div id="dashboardButtonsSkeleton" class="flex items-center gap-2 mb-6">
             <div class="skeleton h-3 w-14 rounded"></div>
@@ -115,6 +111,62 @@
         <div style="position:relative; width:640px; height:300px;"><canvas id="report_resolutionChart"></canvas></div>
     </div>
     <style>
+        /* Dashboard actions row: mobile = button first (full width), then Showing + pills on one row */
+        #dashboardActionsRow {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .dashboard-generate-btn {
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .dashboard-period-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .dashboard-period-group .period-filter-btn {
+            flex: 1 1 0;
+            min-width: 0;
+            white-space: nowrap;
+            padding-left: 6px;
+            padding-right: 6px;
+            font-size: 11px;
+        }
+
+        .dashboard-period-group>span {
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 1024px) {
+            #dashboardActionsRow {
+                flex-direction: row-reverse;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .dashboard-generate-btn {
+                width: auto;
+            }
+
+            .dashboard-period-group {
+                justify-content: flex-start;
+                gap: 8px;
+            }
+
+            .dashboard-period-group .period-filter-btn {
+                flex: none;
+                padding-left: 16px;
+                padding-right: 16px;
+                font-size: 12px;
+            }
+        }
+
         #reportMonthPicker {
             color: #111827;
             background-color: #ffffff;

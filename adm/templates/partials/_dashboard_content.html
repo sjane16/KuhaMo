@@ -1,26 +1,36 @@
-<div class="flex flex-wrap items-center gap-2 mb-6">
-    <span class="text-xs text-gray-500 mr-1">Showing:</span>
-    <button type="button"
-            data-period="7"
-            class="period-filter-btn px-4 py-1.5 rounded-full text-xs font-medium border transition {% if period == '7' %}bg-blue-600 text-white border-blue-600 {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
-        Last 7 Days
-    </button>
-    <button type="button"
-            data-period="30"
-            class="period-filter-btn px-4 py-1.5 rounded-full text-xs font-medium border transition {% if period == '30' %}bg-blue-600 text-white border-blue-600 {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
-        Last 30 Days
-    </button>
-    <button type="button"
-            data-period="all"
-            class="period-filter-btn px-4 py-1.5 rounded-full text-xs font-medium border transition {% if period == 'all' %}bg-blue-600 text-white border-blue-600 {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
-        All Time
-    </button>
+<div id="dashboardActionsRow" class="mb-6">
     <button type="button"
             id="generateReportBtn"
             disabled
-            class="ml-auto inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium border border-blue-600 bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-600">
+            class="dashboard-generate-btn inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600 hover:bg-blue-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-50">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="w-4 h-4"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke-width="2"
+             stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
         <span id="generateReportLabel">Generate Monthly Report</span>
     </button>
+    <div class="dashboard-period-group">
+        <span class="text-xs text-gray-500">Showing:</span>
+        <button type="button"
+                data-period="7"
+                class="period-filter-btn px-4 py-1.5 rounded-full text-xs font-medium border transition {% if period == '7' %}bg-blue-600 text-white border-blue-600 {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
+            Last 7 Days
+        </button>
+        <button type="button"
+                data-period="30"
+                class="period-filter-btn px-4 py-1.5 rounded-full text-xs font-medium border transition {% if period == '30' %}bg-blue-600 text-white border-blue-600 {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
+            Last 30 Days
+        </button>
+        <button type="button"
+                data-period="all"
+                class="period-filter-btn px-4 py-1.5 rounded-full text-xs font-medium border transition {% if period == 'all' %}bg-blue-600 text-white border-blue-600 {% else %}bg-white text-gray-600 border-gray-300 hover:border-blue-400{% endif %}">
+            All Time
+        </button>
+    </div>
 </div>
 <section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
     <div class="report-status-card rounded-2xl border border-gray-200 p-6 shadow-sm bg-white h-full flex flex-col">

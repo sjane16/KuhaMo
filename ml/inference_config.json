@@ -1,6 +1,6 @@
 {
   "confidence_threshold": 0.3,
-  "margin_threshold": 0.28,
+  "margin_threshold": 0.02,
   "fallback_label": "Others",
   "has_trained_others_class": true,
   "class_names": [
