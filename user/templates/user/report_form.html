@@ -541,18 +541,32 @@
                 // Gibberish/keymash detection — mirrors validate_no_gibberish() server-side.
                 // Flags 5+ consecutive consonants with no vowel in between (e.g. "dlasdpasdosa").
                 const gibberishPattern = /[bcdfghjklmnpqrstvwxyz]{5,}/i;
+
+                // Foul-word detection — mirrors validate_no_profanity() server-side.
+                // Catches common Filipino/English curse words incl. basic letter
+                // substitutions (4->a, 1/!->i, 0->o) and spacing/punctuation tricks.
+                const profanityPattern = /\b(?:f+u*c+k+|p+u*t+[a@4]*n+g+[i1!]*n+[a@4]*|p+u*t+[a@4]*n+g+|t+[a@4]*n+g+[i1!]*n+[a@4]*|g+[a@4]*g+[a@4o0]*|t+[a@4]*r+[a@4]*n+t+[a@4]*d+[a@4o0]*|t+[a@4]*n+g+[a@4]*)\b/i;
+
+                function hasInvalidInput(value) {
+                    const trimmed = value.trim();
+                    const stripped = trimmed.replace(/[\s\-_.]+/g, "");
+                    return gibberishPattern.test(trimmed) ||
+                        profanityPattern.test(trimmed) ||
+                        profanityPattern.test(stripped);
+                }
+
                 const customCategoryField = document.getElementById("id_custom_category");
 
-                if (gibberishPattern.test(descriptionField.value.trim())) {
+                if (hasInvalidInput(descriptionField.value)) {
                     e.preventDefault();
-                    showClientToast("Please enter a valid, descriptive input — random or nonsensical text is not allowed.", "error");
+                    showClientToast("Invalid input. Nonsense or foul words are not accepted.", "error");
                     return;
                 }
 
                 if (customCategoryField && !customCategoryField.closest("#custom-category-wrapper").classList.contains("hidden")) {
-                    if (gibberishPattern.test(customCategoryField.value.trim())) {
+                    if (hasInvalidInput(customCategoryField.value)) {
                         e.preventDefault();
-                        showClientToast("Please enter a valid, descriptive input — random or nonsensical text is not allowed.", "error");
+                        showClientToast("Invalid input. Nonsense or foul words are not accepted.", "error");
                         return;
                     }
                 }

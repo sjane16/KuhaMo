@@ -491,6 +491,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             'target': PRIORITY_SLA_HOURS[code],
             'expected': [],
             'actual': [],
+            'counts': [],
         }
         for code, label in Report.PRIORITY_CHOICES
     }
@@ -529,6 +530,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             series['actual'].append(
                 round(sum(values) / len(values), 2) if values else None
             )
+            series['counts'].append(len(values))
 
     sla_within_pct = round(sla_met / sla_total * 100, 1) if sla_total else None
 
@@ -1300,6 +1302,10 @@ def report_status(request, report_id):
 
             if accomplished_at < report.submitted_at:
                 messages.error(request, "Date and Time Completed cannot be earlier than the Date Submitted.")
+                return redirect('adm_report_detail', report_id=report_id)
+
+            if report.in_progress_at and accomplished_at < report.in_progress_at.replace(second=0, microsecond=0):
+                messages.error(request, "Date and Time Completed cannot be earlier than the Date In Progress.")
                 return redirect('adm_report_detail', report_id=report_id)
 
             if accomplished_at > timezone.now():

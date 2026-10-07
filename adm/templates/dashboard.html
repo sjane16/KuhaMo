@@ -1015,6 +1015,12 @@
             });
 
             if (!reportMode) {
+                Chart.Tooltip.positioners.onActual = function (items) {
+                    if (!items.length) return false;
+                    const pick = items.find(function (i) { return i.datasetIndex === 1; }) || items[0];
+                    return { x: pick.element.x, y: pick.element.y };
+                };
+
                 const priorityChartDefs = [
                     { code: 'critical', canvasId: 'resolutionChartCritical', color: '#dc2626' },
                     { code: 'high', canvasId: 'resolutionChartHigh', color: '#ea580c' },
@@ -1035,32 +1041,45 @@
                                 borderColor: '#aaa',
                                 backgroundColor: 'rgba(200,200,200,0.15)',
                                 fill: true,
-                                tension: 0.3,
+                                tension: 0,
                                 pointRadius: 0,
-                                pointHoverRadius: 4,
+                                pointHoverRadius: 0,
+                                order: 2,
                             }, {
                                 label: 'Actual Time (hours)',
                                 data: series.actual,
                                 borderColor: def.color,
                                 backgroundColor: 'transparent',
-                                tension: 0.3,
+                                tension: 0,
                                 spanGaps: true,
                                 borderWidth: 2,
-                                pointRadius: 4,
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
                                 pointBackgroundColor: def.color,
+                                pointBorderColor: '#ffffff',
+                                pointBorderWidth: 2,
+                                order: 1,
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
                             plugins: {
                                 tooltip: {
+                                    position: 'onActual',
+                                    caretPadding: 10,
                                     callbacks: {
                                         label: function (ctx) {
                                             const h = ctx.parsed.y;
-                                            if (h === null || h === undefined) return ctx.dataset.label + ': N/A';
+                                            const name = ctx.dataset.label.replace(' Time (hours)', '');
+                                            if (h === null || h === undefined) return name + ': N/A';
                                             const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
-                                            return ctx.dataset.label.replace(' (hours)', '') + ': ' + txt;
+                                            if (ctx.datasetIndex === 1) {
+                                                const n = (series.counts || [])[ctx.dataIndex] || 0;
+                                                return [name + ': ' + txt, 'Reports: ' + n];
+                                            }
+                                            return name + ': ' + txt;
                                         }
                                     }
                                 },

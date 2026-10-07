@@ -1,8 +1,9 @@
 import logging
+from html import escape
 from smtplib import SMTPException
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.urls import NoReverseMatch, reverse
 
@@ -16,31 +17,67 @@ STATUS_LABELS = {
     'closed': 'Closed',
 }
 
+IMG_WIDTH = 200
+
+
+def _photo_url(field):
+    if not field:
+        return ''
+    try:
+        return field.url.replace('http://res.cloudinary.com', 'https://res.cloudinary.com')
+    except Exception:
+        return ''
+
 
 def _send_status_email(email, report, status, message):
     label = STATUS_LABELS.get(status, status)
+    job_order = str(report.job_order_id or '')
+    first_name = (report.user.first_name or '').strip()
+    greeting = f"Hello {first_name}," if first_name else "Hello,"
+
     site_url = getattr(settings, 'SITE_URL', '').rstrip('/')
     try:
-        link = site_url + reverse('userNotifications')
+        link = site_url + reverse('reportedIssue', args=[report.id])
     except NoReverseMatch:
         link = site_url
-    body = (
-        f"{message}\n\n"
-        f"Job Order: {report.job_order_id}\n"
-        f"Status: {label}\n\n"
-        f"View your notifications: {link}\n\n"
-        "This is an automated message from Fac-Check. Please do not reply."
-    )
+
+    show_details = status in ('in_progress', 'resolved')
+    concern = (report.description or '').strip() if show_details else ''
+    photo = _photo_url(report.photo) if show_details else ''
+    proof = _photo_url(report.completion_photo) if status == 'resolved' else ''
+
+    text = [greeting, "", message, "", f"Job Order: {job_order}", f"Status: {label}"]
+    html = [
+        f"<p>{escape(greeting)}</p>",
+        f"<p>{escape(message)}</p>",
+        f"<p><b>Job Order:</b> {escape(job_order)}<br><b>Status:</b> {escape(label)}</p>",
+    ]
+
+    if concern:
+        text += ["", f"Your Concern: {concern}"]
+        html.append(f"<p><b>Your Concern:</b><br>{escape(concern).replace(chr(10), '<br>')}</p>")
+    if photo:
+        html.append(f'<p><b>Submitted Photo:</b><br><img src="{escape(photo)}" width="{IMG_WIDTH}"></p>')
+    if proof:
+        html.append(f'<p><b>Resolution Proof:</b><br><img src="{escape(proof)}" width="{IMG_WIDTH}"></p>')
+
+    text += ["", f"View report details: {link}", "", "Thank you,", "Fac-Check Team",
+             "", "This is an automated message. Please do not reply."]
+    html.append(f'<p><a href="{escape(link)}">View report details</a></p>')
+    html.append("<p>Thank you,<br>Fac-Check Team</p>")
+    html.append("<p><small>This is an automated message. Please do not reply.</small></p>")
+
     try:
-        send_mail(
-            subject=f"[Fac-Check] Report {report.job_order_id} is now {label}",
-            message=body,
+        msg = EmailMultiAlternatives(
+            subject=f"[Fac-Check] Report {job_order} is now {label}",
+            body="\n".join(text),
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
+            to=[email],
         )
+        msg.attach_alternative("".join(html), "text/html")
+        msg.send(fail_silently=False)
     except (SMTPException, OSError):
-        logger.exception("Failed to send status email for report %s", report.job_order_id)
+        logger.exception("Failed to send status email for report %s", job_order)
 
 
 def notify_status_change(report, status, message):
