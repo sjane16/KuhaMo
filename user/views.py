@@ -490,14 +490,6 @@ def submitSurvey(request, report_id):
             status_snapshot=report.status,
         )
 
-    for admin_user in get_admin_users():
-        Notification.objects.create(
-            user=admin_user,
-            report=report,
-            message=f"Report {report.job_order_id} is now closed — client survey received.",
-            status_snapshot=report.status,
-        )
-
     return JsonResponse({
         'success': True
     })
