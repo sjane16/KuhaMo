@@ -243,3 +243,8 @@ media/
 theme/static/css/dist/
 # Django file-based cache (login sessions)
 .django_cache/
+
+# Local files
+.agents/
+.vscode/settings.json
+skills.md
