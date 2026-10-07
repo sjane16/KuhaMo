@@ -13,6 +13,8 @@ from django.core.paginator import Paginator
 from django.template.loader import render_to_string
 from django.db.models import Q
 from google import genai
+from django_ratelimit.core import is_ratelimited
+from security.audit import log_event
 from django.contrib.auth.models import User
 from .models import Report, SurveyResponse, UserProfile, Notification, invalidate_trusted_devices
 from adm.models import Floor, Room, Building 
@@ -94,6 +96,7 @@ def menu(request):
                     request.user.set_password(new_password1)
                     request.user.save()
                     invalidate_trusted_devices(request.user)
+                    log_event(request, 'password_changed', user=request.user, where='Edit Profile')
                     update_session_auth_hash(request, request.user)
                     messages.success(request, "New password saved successfully!", extra_tags='password_changed')
                     return redirect('menu')
@@ -547,11 +550,32 @@ If the image does not clearly belong to any defined category, it will be categor
 """
 
 
+CHATBOT_MAX_MESSAGE_LENGTH = 500
+# Each message is a paid Gemini call, so cap it per user (and per IP, in case
+# several accounts are used from one machine).
+CHATBOT_RATE_LIMITS = [
+    ('chatbot-user-minute', 'user', '10/m', "You're sending messages too quickly. Please wait a minute and try again."),
+    ('chatbot-user-day', 'user', '100/d', "You've reached today's chatbot limit. Please try again tomorrow."),
+    ('chatbot-ip-minute', 'ip', '30/m', "Too many chatbot requests from this network. Please wait a minute and try again."),
+]
+
+def _chatbot_rate_limited(request):
+    for group, key, rate, message in CHATBOT_RATE_LIMITS:
+        if is_ratelimited(request, group=group, key=key, rate=rate, method='POST', increment=True):
+            return message
+    return None
+
 def chatbot_response(request):
     if request.method == 'POST':
         user_message = request.POST.get('message', '').strip()
         if not user_message:
             return JsonResponse({'reply': "Please enter a message."})
+        if len(user_message) > CHATBOT_MAX_MESSAGE_LENGTH:
+            return JsonResponse({'reply': f"Your message is too long. Please keep it under {CHATBOT_MAX_MESSAGE_LENGTH} characters."}, status=400)
+
+        limited = _chatbot_rate_limited(request)
+        if limited:
+            return JsonResponse({'reply': limited}, status=429)
         try:
             api_key = getattr(settings, "GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
             client = genai.Client(api_key=api_key)

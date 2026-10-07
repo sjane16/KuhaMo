@@ -48,6 +48,7 @@
         {% csrf_token %}
         <input type="text"
                id="chat-input"
+               maxlength="500"
                class="flex-1 text-xs border border-gray-300 text-gray-900 dark:text-gray-900 dark:bg-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 placeholder-gray-400"
                placeholder="Type your question here...">
         <button type="submit"

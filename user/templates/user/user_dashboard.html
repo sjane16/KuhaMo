@@ -2,6 +2,10 @@
 {% load static %}
 {% block title %}Home{% endblock %}{% block content %}
 <main class="flex-1 w-full lg:mx-auto">
+  <div class="px-4 pt-5 -mb-5 lg:px-5 lg:pt-6 lg:mb-0 lg:max-w-4xl lg:mx-auto">
+    {% include 'accounts/components/passkey_setup_prompt.html' %}
+  </div>
+  <script src="{% static 'accounts/js/passkeys.js' %}"></script>
   <!-- MOBILE VIEW -->
   <div class="lg:hidden flex flex-col min-h-screen bg-gray-50">
     <div class="flex-1 px-4 pt-5 pb-28 overflow-y-auto">

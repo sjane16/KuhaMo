@@ -39,6 +39,7 @@ from webauthn.helpers.structs import (
 )
 
 from security.utils import is_ip_flagged
+from security.audit import log_event, LOGIN_PASSKEY
 from user.models import Passkey
 
 RP_NAME = 'Fac-Check'
@@ -71,7 +72,10 @@ def _host_supports_passkeys(rp_id):
     except ValueError:
         return True
 
-IP_HOST_MESSAGE = "Passkeys don't work on an IP address. Open the site at http://localhost:8000 instead."
+def _ip_host_message(request):
+    port = request.get_port()
+    local = f"http://localhost:{port}" if port not in ("80", "443") else "http://localhost"
+    return f"Passkeys don't work on an IP address. Open the site at {local} instead."
 
 def _read_json(request):
     try:
@@ -113,7 +117,7 @@ def register_options(request):
 
     rp_id, _ = _relying_party(request)
     if not _host_supports_passkeys(rp_id):
-        return _error(IP_HOST_MESSAGE)
+        return _error(_ip_host_message(request))
 
     user = request.user
     if user.passkeys.count() >= MAX_PASSKEYS_PER_USER:
@@ -189,6 +193,7 @@ def register_verify(request):
         f'{timezone.localtime(passkey.created_at):%b %d, %Y %I:%M %p}.\n\n'
         'If this wasn\'t you, log in and remove it under Profile > Passkeys, then change your password.',
     )
+    log_event(request, 'passkey_added', user=user, passkey=passkey.name, passkey_id=passkey.id)
     return JsonResponse({'ok': True, 'id': passkey.id, 'name': passkey.name})
 
 
@@ -199,7 +204,7 @@ def register_verify(request):
 def login_options(request):
     rp_id, _ = _relying_party(request)
     if not _host_supports_passkeys(rp_id):
-        return _error(IP_HOST_MESSAGE)
+        return _error(_ip_host_message(request))
 
     options = generate_authentication_options(
         rp_id=rp_id,
@@ -232,7 +237,8 @@ def login_verify(request):
 
     passkey = Passkey.objects.select_related('user').filter(credential_id=credential['rawId']).first()
     if not passkey:
-        return _error("This passkey isn't registered to any account. Log in with your email and password.")
+        return _error("This passkey isn't linked to any Fac-Check account (it may have been removed). "
+                      "Log in with your email and password, then set up a new passkey.")
 
     # If the browser says which account this passkey belongs to, it must match
     user_handle = credential.get('response', {}).get('userHandle')
@@ -255,10 +261,13 @@ def login_verify(request):
             require_user_verification=True,
         )
     except Exception:
+        log_event(request, 'login_failed', user=passkey.user, method='passkey',
+                  reason='passkey verification failed', passkey=passkey.name)
         return _error("Passkey sign-in failed. Please try again.")
 
     user = passkey.user
     if not user.is_active:
+        log_event(request, 'login_failed', user=user, method='passkey', reason='account not active', passkey=passkey.name)
         return _error("This account is not active. Please contact the administrator.", status=403)
 
     passkey.sign_count = verification.new_sign_count
@@ -269,8 +278,9 @@ def login_verify(request):
     for key in ('pending_login_user_id', 'pending_login_backend'):
         request.session.pop(key, None)
 
+    request.audit_login_method = LOGIN_PASSKEY
     login(request, user, backend=PASSKEY_BACKEND)
-    return JsonResponse({'ok': True, 'redirect': _post_login_redirect(user).url})
+    return JsonResponse({'ok': True, 'redirect': _post_login_redirect(request, user).url})
 
 
 # ---------- managing your passkeys ----------
@@ -288,8 +298,10 @@ def rename(request, passkey_id):
     name = (body.get('name') or '').strip()
     if not name:
         return _error("Please enter a name.")
+    old_name = passkey.name
     passkey.name = name[:60]
     passkey.save(update_fields=['name'])
+    log_event(request, 'passkey_renamed', user=request.user, passkey_id=passkey.id, old_name=old_name, new_name=passkey.name)
     return JsonResponse({'ok': True, 'name': passkey.name})
 
 
@@ -303,7 +315,9 @@ def remove(request, passkey_id):
         return _error("Passkey not found.", status=404)
 
     name = passkey.name
+    removed_id = passkey.id
     passkey.delete()
+    log_event(request, 'passkey_removed', user=request.user, passkey=name, passkey_id=removed_id)
     _notify(
         request.user,
         'A passkey was removed from your Fac-Check account',
