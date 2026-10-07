@@ -1,9 +1,11 @@
 {% extends "layouts/base.html" %} {% block title %}Home{% endblock %}
+{% load static %}
 <!---->
 {% block content %}
     <!---->
     {% include 'user/components/toast.html' %}
     <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
+        {% include 'accounts/components/passkey_setup_prompt.html' %}
         <div class="mb-6">
             <h1 class="text-xl font-bold text-gray-900 leading-tight">Hello, {{ user.first_name }} {{ user.last_name }}! 👋</h1>
             <p class="text-base text-gray-600 pt-2 mb-6">Monitor and manage facility maintenance easily.</p>
@@ -288,6 +290,7 @@
             }
         }
     </style>
+    <script src="{% static 'accounts/js/passkeys.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let dashboardCharts = {};

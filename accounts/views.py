@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied
 from django_ratelimit.core import is_ratelimited
 from security.models import HoneypotHit
 from security.utils import is_ip_flagged
+from security.audit import log_event, LOGIN_PASSWORD_OTP, LOGIN_TRUSTED_DEVICE
 from user.models import UserProfile, invalidate_trusted_devices
 import secrets
 import string
@@ -96,7 +97,7 @@ def _post_login_redirect(request, user):
         return redirect('/adm/dashboard/')
     return redirect('/user/user_dashboard/')
 
-def _check_otp(profile, submitted_otp):
+def _check_otp(profile, submitted_otp, request=None, purpose=''):
     """
     Check a submitted code against the user's current OTP.
     Returns (status, attempts_left) where status is 'ok', 'invalid', 'locked' or 'expired'.
@@ -127,6 +128,8 @@ def _check_otp(profile, submitted_otp):
     profile.refresh_from_db(fields=['otp_attempts'])
     attempts_left = OTP_MAX_ATTEMPTS - profile.otp_attempts
     if attempts_left <= 0:
+        # Logged once, on the guess that used up the last attempt
+        log_event(request, 'otp_locked', user=profile.user, purpose=purpose)
         return 'locked', 0
     return 'invalid', attempts_left
 
@@ -215,6 +218,7 @@ def login_view(request):
                    reset_request(request)
 
                    if _is_trusted_device(request, user):
+                       request.audit_login_method = LOGIN_TRUSTED_DEVICE
                        login(request, user)
                        _clear_messages(request)
                        return _post_login_redirect(request, user)
@@ -299,7 +303,7 @@ def verify_login_otp(request):
                 messages.error(request, "Verification failed. Please log in again.")
                 return redirect('login')
 
-           status, attempts_left = _check_otp(profile, submitted_otp)
+           status, attempts_left = _check_otp(profile, submitted_otp, request, 'login')
 
            if status != 'ok':
                _otp_error(request, status, attempts_left)
@@ -307,6 +311,7 @@ def verify_login_otp(request):
                 del request.session['pending_login_user_id']
 
                 user.backend = request.session.pop('pending_login_backend', 'django.contrib.auth.backends.ModelBackend')
+                request.audit_login_method = LOGIN_PASSWORD_OTP
                 login(request, user)
 
                 return _trust_device(_post_login_redirect(request, user), request, user)
@@ -493,7 +498,7 @@ def verify_otp(request):
                 messages.error(request, "Verification failed. Please sign up again.")
                 return redirect('signup')
 
-           status, attempts_left = _check_otp(profile, submitted_otp)
+           status, attempts_left = _check_otp(profile, submitted_otp, request, 'signup verification')
 
            if status != 'ok':
                _otp_error(request, status, attempts_left)
@@ -655,7 +660,7 @@ def verify_reset_otp(request):
                 messages.error(request, "Verification failed. Please try again.")
                 return redirect('forgot_password')
 
-            status, attempts_left = _check_otp(profile, submitted_otp)
+            status, attempts_left = _check_otp(profile, submitted_otp, request, 'password reset')
 
             if status != 'ok':
                 _otp_error(request, status, attempts_left)
@@ -764,6 +769,7 @@ def reset_password(request):
             user.set_password(new_password)
             user.save()
             invalidate_trusted_devices(user)
+            log_event(request, 'password_reset', user=user)
 
             try:
                 profile = UserProfile.objects.get(user=user)

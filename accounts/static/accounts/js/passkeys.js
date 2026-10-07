@@ -51,7 +51,9 @@
   }
 
   function unsupportedMessage() {
-    if (isIpHost()) return "Passkeys don't work on an IP address. Open the site at http://localhost:8000 instead.";
+    if (location.hostname === "127.0.0.1") return "Passkeys don't work on 127.0.0.1 — use localhost instead (log in again there).";
+    if (isIpHost()) return "Passkeys don't work on an IP address like " + location.hostname +
+                           ". Run the server on your own computer and open http://localhost:8000 instead.";
     return "This browser doesn't support passkeys. Use your email and password instead.";
   }
 
@@ -78,10 +80,23 @@
     }
   }
 
+  // Same page, but on localhost (passkeys are refused on 127.0.0.1)
+  function localhostUrl() {
+    return location.protocol + "//localhost" + (location.port ? ":" + location.port : "") +
+           location.pathname + location.search;
+  }
+
   function showMessage(id, text, isError) {
     const box = document.getElementById(id);
     if (!box) { if (isError) alert(text); return; }
     box.textContent = text;
+    if (isError && location.hostname === "127.0.0.1") {
+      const link = document.createElement("a");
+      link.href = localhostUrl();
+      link.textContent = " Open this page on localhost →";
+      link.className = "underline font-semibold";
+      box.appendChild(link);
+    }
     box.classList.remove("hidden", "text-red-600", "text-green-700", "bg-red-50", "bg-green-50", "border-red-200", "border-green-200");
     box.classList.add(...(isError ? ["text-red-600", "bg-red-50", "border-red-200"] : ["text-green-700", "bg-green-50", "border-green-200"]));
   }
@@ -118,7 +133,17 @@
       window.location.href = result.redirect;
     } catch (err) {
       setBusy(button, false);
-      showMessage("passkey-login-message", friendlyBrowserError(err), true);
+      // Closing the prompt and "no passkey for this site on this device/phone" look the
+      // same to the page, so explain both — most often the passkey was never set up.
+      const noneUsed = err && (err.name === "NotAllowedError" || err.name === "AbortError");
+      showMessage(
+        "passkey-login-message",
+        noneUsed
+          ? "No passkey was used. If you haven't set one up yet, log in with your email and password first, " +
+            "then choose \"Set up passkey\" on your dashboard (or Profile → Passkeys)."
+          : friendlyBrowserError(err),
+        true
+      );
     }
   }
 
@@ -136,7 +161,9 @@
 
   async function addPasskey(button) {
     const urls = button.dataset;
-    if (!supported()) return showMessage("passkey-card-message", unsupportedMessage(), true);
+    // The profile card and the dashboard prompt each have their own message box
+    const messageId = urls.messageId || "passkey-card-message";
+    if (!supported()) return showMessage(messageId, unsupportedMessage(), true);
 
     const name = window.prompt("Name this passkey so you can recognize it later:", suggestDeviceName());
     if (name === null) return;  // cancelled
@@ -164,11 +191,12 @@
           authenticatorAttachment: cred.authenticatorAttachment || null,
         },
       });
-      showMessage("passkey-card-message", "Passkey added. You can now sign in with it.", false);
-      setTimeout(function () { window.location.reload(); }, 900);
+      showMessage(messageId,
+        "Passkey added! Next time, click \"Sign in with a passkey\" on the login page and use this device.", false);
+      setTimeout(function () { window.location.reload(); }, 2500);
     } catch (err) {
       setBusy(button, false);
-      showMessage("passkey-card-message", friendlyBrowserError(err), true);
+      showMessage(messageId, friendlyBrowserError(err), true);
     }
   }
 
