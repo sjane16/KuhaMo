@@ -99,7 +99,7 @@
         </div>
     </div>
 </section>
-<section class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+<section class="mb-4">
     <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm min-w-0">
         <h2 class="text-base font-semibold text-gray-700 mb-4">Reports by Building</h2>
         <div class="h-[300px] relative">
@@ -108,18 +108,32 @@
                     aria-label="Reports by building, grouped by Pending, In Progress, Resolved, and Closed status"></canvas>
         </div>
     </div>
-    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <h2 class="text-base font-semibold text-gray-700 mb-4">Resolution Time: Expected vs. Actual</h2>
+</section>
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm min-w-0">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">Resolution Time: Expected vs. Actual (Critical / Urgent)</h2>
         <div class="h-[300px] relative">
-            <canvas id="resolutionChart" height="150"></canvas>
+            <canvas id="resolutionChartCritical"></canvas>
         </div>
-        <div class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-sm">
-            <span class="text-gray-500">Resolved within target time (by priority)</span>
-            {% if sla_total %}
-                <span class="font-semibold text-gray-700">{{ sla_within_pct|floatformat:1 }}% <span class="font-normal text-gray-400">({{ sla_met }} of {{ sla_total }})</span></span>
-            {% else %}
-                <span class="text-gray-400">N/A</span>
-            {% endif %}
+    </div>
+    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm min-w-0">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">Resolution Time: Expected vs. Actual (High Priority)</h2>
+        <div class="h-[300px] relative">
+            <canvas id="resolutionChartHigh"></canvas>
+        </div>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm min-w-0">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">Resolution Time: Expected vs. Actual (Standard)</h2>
+        <div class="h-[300px] relative">
+            <canvas id="resolutionChartStandard"></canvas>
         </div>
     </div>
 </section>
+<div class="bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm mb-4 flex items-center justify-between text-sm">
+    <span class="text-gray-500">Resolved within target time (by priority)</span>
+    {% if sla_total %}
+        <span class="font-semibold text-gray-700">{{ sla_within_pct|floatformat:1 }}% <span class="font-normal text-gray-400">({{ sla_met }} of {{ sla_total }})</span></span>
+    {% else %}
+        <span class="text-gray-400">N/A</span>
+    {% endif %}
+</div>
