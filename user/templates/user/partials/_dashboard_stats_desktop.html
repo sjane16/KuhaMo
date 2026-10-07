@@ -23,7 +23,7 @@
             </div>
             <div>
                 <h2 class="text-xl font-bold text-gray-900">Report a Concern</h2>
-                <p class="text-sm text-gray-400 line-through">Submit a new facility issue</p>
+                <p class="text-sm text-gray-400">Submit a new facility issue</p>
                 <p class="text-sm text-gray-500">with photo and details.</p>
             </div>
         </div>
@@ -351,9 +351,6 @@
             </div>
         </div>
     {% empty %}
-        <div class="text-center py-16 text-gray-400">
-            <p class="text-sm font-medium">No reports yet.</p>
-            <p class="text-xs mt-1">Submit a concern to see it here.</p>
-        </div>
+        {% include "user/partials/_empty_state_simple.html" with title="No reports yet" subtitle="Submit a concern to see it here." embedded=True %}
     {% endfor %}
 </div>
