@@ -50,6 +50,10 @@ class ReportForm(forms.ModelForm):
         self.fields['category'].widget.attrs.update({'class': tailwind_classes, 'id': 'id_category'})
         self.fields['custom_category'].widget.attrs.update({'class': 'w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent', 'id': 'id_custom_category'})
 
+        # Custom dropdown (cdd) para sa apat na select
+        for name in ('building', 'floor', 'location', 'category'):
+            self.fields[name].widget.attrs.update({'data-cdd': '', 'data-cdd-size': 'lg'})
+
         #For Catching Errors and Validationzzz
         if 'building' in self.data:
             try:

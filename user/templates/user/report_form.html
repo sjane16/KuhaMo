@@ -254,6 +254,7 @@
                                 "pointer-events-none",
                                 "text-gray-700"
                             );
+                            categoryField.setAttribute("data-cdd-locked", "");
                             document.getElementById("cnn-confidence").classList.remove("hidden");
                             document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
 
