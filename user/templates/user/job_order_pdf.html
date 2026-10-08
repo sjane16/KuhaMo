@@ -127,6 +127,12 @@
             .section-label {
                 font-weight: bold;
             }
+
+            .mat-row td {
+                height: 26px;
+                padding: 0 4px;
+                vertical-align: middle;
+            }
         </style>
     </head>
     <body>
@@ -273,30 +279,41 @@
                             <td class="bold center" style="width:17.5%; padding:3px 2px 1px 2px;">Unit</td>
                             <td style="width:65%; padding:3px 2px 1px 2px; border-right:none;">&nbsp;</td>
                         </tr>
-                        <tr>
-                            <td style="padding:3px 2px 1px 2px; border-left:none;">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px;">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px; border-right:none;">&nbsp;</td>
+                        {% for m in report.materials_rows|slice:":4" %}
+                        <tr class="mat-row">
+                            <td class="center" style="width:17.5%; border-left:none;">{{ m.qty|default:"" }}</td>
+                            <td class="center" style="width:17.5%;">{{ m.unit|default:"" }}</td>
+                            <td style="width:65%; border-right:none;">{{ m.description|default:"" }}</td>
                         </tr>
-                        <tr>
-                            <td style="padding:3px 2px 1px 2px; border-left:none;">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px;">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px; border-right:none;  ">&nbsp;</td>
+                        {% endfor %}
+                        {% if report.materials_rows|length < 1 %}
+                        <tr class="mat-row">
+                            <td style="border-left:none;">&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td style="border-right:none;">&nbsp;</td>
                         </tr>
-                        <tr>
-                            <td style="padding:3px 2px 1px 2px; border-left:none;">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px;">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px; border-right:none;  ">&nbsp;</td>
+                        {% endif %}
+                        {% if report.materials_rows|length < 2 %}
+                        <tr class="mat-row">
+                            <td style="border-left:none;">&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td style="border-right:none;">&nbsp;</td>
                         </tr>
-                        <tr>
-                            <td style="padding:3px 2px 1px 2px;
-                                       border-left:none;
-                                       border-bottom:1.5px solid #000">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px; border-bottom:1.5px solid #000;">&nbsp;</td>
-                            <td style="padding:3px 2px 1px 2px;
-                                       border-bottom:1.5px solid #000;
-                                       border-right:none">&nbsp;</td>
+                        {% endif %}
+                        {% if report.materials_rows|length < 3 %}
+                        <tr class="mat-row">
+                            <td style="border-left:none;">&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td style="border-right:none;">&nbsp;</td>
                         </tr>
+                        {% endif %}
+                        {% if report.materials_rows|length < 4 %}
+                        <tr class="mat-row">
+                            <td style="border-left:none;">&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td style="border-right:none;">&nbsp;</td>
+                        </tr>
+                        {% endif %}
                     </table>
                     <div class="small-italic "
                          style="margin-top: 5px;

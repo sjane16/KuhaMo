@@ -542,7 +542,7 @@
                             <button type="button"
                                     id="add-other-personnel"
                                     onclick="addOtherPersonnelRow()"
-                                    class="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1">
+                                    class="text-sm text-blue-600 hover:text-blue-700 font-medium flex w-fit ml-auto items-center gap-1">
                               <span class="text-base leading-none">+</span> Add personnel
                             </button>
                           {% endif %}
@@ -567,6 +567,55 @@
                                 {% if is_locked %}disabled{% endif %}
                                 placeholder="Recommended action or follow-up"
                                 class="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400 resize-none">{{ report.recommendation }}</textarea>
+                    </div>
+                    <!-- Materials Requirement (optional, max 4) -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1.5">Materials Requirement <span class="text-xs text-gray-400 font-normal">(optional, max 4)</span></label>
+                      <div class="space-y-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                        <div class="flex gap-2 text-xs font-semibold text-gray-400">
+                          <span style="width:18%;">Quantity</span>
+                          <span style="width:24%;">Unit</span>
+                          <span style="flex:1;">Item Description</span>
+                        </div>
+                        <div id="material-rows" class="space-y-2">
+                        {% for m in report.materials_rows %}
+                          {% if forloop.first or m.qty or m.unit or m.description %}
+                          <div class="material-row flex gap-2">
+                            <input type="text"
+                                   name="mat_qty"
+                                   value="{{ m.qty }}"
+                                   inputmode="numeric"
+                                   pattern="[0-9]*"
+                                   maxlength="6"
+                                   placeholder="Qty"
+                                   style="width:18%; padding:8px 10px;"
+                                   class="border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select name="mat_unit"
+                                    data-value="{{ m.unit }}"
+                                    style="width:24%; padding:8px 10px;"
+                                    class="mat-unit-select border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                            <input type="text"
+                                   name="mat_desc"
+                                   value="{{ m.description }}"
+                                   maxlength="100"
+                                   placeholder="Item description"
+                                   style="flex:1; min-width:0; padding:8px 10px;"
+                                   class="border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button"
+                                    class="remove-material shrink-0 text-gray-400 hover:text-red-500 text-sm px-2"
+                                    onclick="removeMaterialRow(this)">✕</button>
+                          </div>
+                          {% endif %}
+                        {% endfor %}
+                        </div>
+                        <button type="button"
+                                id="add-material"
+                                onclick="addMaterialRow()"
+                                class="text-sm text-blue-600 hover:text-blue-700 font-medium flex w-fit ml-auto items-center gap-1">
+                          <span class="text-base leading-none">+</span> Add material
+                        </button>
+                        <p class="text-xs text-gray-400">Appears on the Job Order PDF. Leave blank any fields you don't need.</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -652,6 +701,23 @@
     </div>
     <!-- end card -->
   </main>
+  <style>
+    .unit-dd { position: relative; }
+    .unit-dd-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; font-size: 0.875rem; color: #374151; text-align: left; cursor: pointer; }
+    .unit-dd-btn:focus, .unit-dd-btn.open { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
+    .unit-dd-btn svg { width: 14px; height: 14px; flex-shrink: 0; color: #9ca3af; }
+    .unit-dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .unit-dd-label.placeholder { color: #9ca3af; }
+    .unit-dd-list { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 50; min-width: 9rem; max-height: 14rem; overflow-y: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12); padding: 6px; }
+    .unit-dd-list.show { display: block; }
+    .unit-dd-list.up { top: auto; bottom: calc(100% + 6px); }
+    .unit-dd-item { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; font-size: 0.875rem; color: #374151; background: transparent; text-align: left; cursor: pointer; }
+    .unit-dd-item:hover { background: #2563eb; color: #fff; }
+    .unit-dd-item.selected { font-weight: 600; }
+    .unit-dd-item .chk { visibility: hidden; width: 16px; height: 16px; color: #2563eb; flex-shrink: 0; }
+    .unit-dd-item.selected .chk { visibility: visible; }
+    .unit-dd-item:hover .chk { color: #fff; }
+  </style>
   <!-- ═══════════════════════════════════
      PHOTO LIGHTBOX MODAL
 ════════════════════════════════════ -->
@@ -782,6 +848,150 @@
               setAssignPersonnelDisabled(!this.checked);
           });
       }
+
+      // ── Materials Requirement (add/remove rows, max 4) ──
+      const MAX_MATERIALS = 4;
+
+      function addMaterialRow() {
+          const container = document.getElementById("material-rows");
+          if (!container || container.querySelectorAll(".material-row").length >= MAX_MATERIALS) return;
+          const row = document.createElement("div");
+          row.className = "material-row flex gap-2";
+          row.innerHTML = `
+              <input type="text" name="mat_qty" value="" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Qty" style="width:18%; padding:8px 10px;" class="border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select name="mat_unit" data-value="" style="width:24%; padding:8px 10px;" class="mat-unit-select border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+              <input type="text" name="mat_desc" value="" maxlength="100" placeholder="Item description" style="flex:1; min-width:0; padding:8px 10px;" class="border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <button type="button" class="remove-material shrink-0 text-gray-400 hover:text-red-500 text-sm px-2" onclick="removeMaterialRow(this)">✕</button>
+          `;
+          container.appendChild(row);
+          enhanceUnitSelect(row.querySelector(".mat-unit-select"));
+          updateMaterialControls();
+      }
+
+      function removeMaterialRow(button) {
+          const rows = document.querySelectorAll("#material-rows .material-row");
+          if (rows.length <= 1) return;
+          button.closest(".material-row").remove();
+          updateMaterialControls();
+      }
+
+      const MATERIAL_UNITS = ["pcs", "box", "meter", "set", "roll", "pair", "pack", "bundle", "bag", "sheet", "kg", "liter", "gallon", "can"];
+
+      function buildUnitOptions(select) {
+          if (!select) return;
+          const current = select.dataset.value || "";
+          const units = MATERIAL_UNITS.slice();
+          if (current && !units.includes(current)) units.push(current);
+          select.innerHTML = "";
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "Unit";
+          select.appendChild(placeholder);
+          units.forEach(function(u) {
+              const opt = document.createElement("option");
+              opt.value = u;
+              opt.textContent = u;
+              if (u === current) opt.selected = true;
+              select.appendChild(opt);
+          });
+      }
+
+      function closeAllUnitDropdowns() {
+          document.querySelectorAll(".unit-dd-list.show").forEach(function(l) { l.classList.remove("show"); });
+          document.querySelectorAll(".unit-dd-btn.open").forEach(function(b) { b.classList.remove("open"); });
+      }
+
+      function enhanceUnitSelect(select) {
+          if (!select || select.dataset.enhanced) return;
+          buildUnitOptions(select);
+          select.dataset.enhanced = "1";
+          select.style.display = "none";
+
+          const wrap = document.createElement("div");
+          wrap.className = "unit-dd";
+          wrap.style.width = "24%";
+
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "unit-dd-btn";
+          const label = document.createElement("span");
+          label.className = "unit-dd-label";
+          btn.appendChild(label);
+          btn.insertAdjacentHTML("beforeend", '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>');
+
+          const list = document.createElement("div");
+          list.className = "unit-dd-list";
+
+          const CHECK = '<svg class="chk" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>';
+
+          function refresh() {
+              label.textContent = select.value ? (select.options[select.selectedIndex]?.textContent || select.value) : "Unit";
+              label.classList.toggle("placeholder", !select.value);
+              list.querySelectorAll(".unit-dd-item").forEach(function(item) {
+                  item.classList.toggle("selected", item.dataset.value === select.value);
+              });
+          }
+
+          Array.from(select.options).forEach(function(opt) {
+              const item = document.createElement("button");
+              item.type = "button";
+              item.className = "unit-dd-item";
+              item.dataset.value = opt.value;
+              item.innerHTML = "<span></span>" + CHECK;
+              item.firstChild.textContent = opt.textContent;
+              item.addEventListener("click", function(e) {
+                  e.stopPropagation();
+                  select.value = opt.value;
+                  select.dispatchEvent(new Event("change", { bubbles: true }));
+                  refresh();
+                  closeAllUnitDropdowns();
+              });
+              list.appendChild(item);
+          });
+
+          btn.addEventListener("click", function(e) {
+              e.stopPropagation();
+              const wasOpen = list.classList.contains("show");
+              closeAllUnitDropdowns();
+              if (wasOpen) return;
+              list.classList.remove("up");
+              list.classList.add("show");
+              btn.classList.add("open");
+              const lr = list.getBoundingClientRect();
+              const br = btn.getBoundingClientRect();
+              if (lr.bottom > window.innerHeight - 8 && br.top > lr.height + 16) {
+                  list.classList.add("up");
+              }
+              const sel = list.querySelector(".unit-dd-item.selected");
+              if (sel) sel.scrollIntoView({ block: "nearest" });
+          });
+
+          select.parentNode.insertBefore(wrap, select);
+          wrap.appendChild(btn);
+          wrap.appendChild(list);
+          wrap.appendChild(select);
+          refresh();
+      }
+
+      // ── Apply ONLY to mat_unit selects ──
+      document.addEventListener("click", closeAllUnitDropdowns);
+      document.addEventListener("keydown", function(e) {
+          if (e.key === "Escape") closeAllUnitDropdowns();
+      });
+
+      document.querySelectorAll(".mat-unit-select").forEach(enhanceUnitSelect);
+
+      // Quantity: digits only (works for existing and newly added rows)
+      const materialRowsBox = document.getElementById("material-rows");
+      if (materialRowsBox) {
+          materialRowsBox.addEventListener("input", function(e) {
+              if (e.target.name === "mat_qty") {
+                  e.target.value = e.target.value.replace(/\D/g, "");
+              }
+          });
+      }
+
+      updateMaterialControls();
 
       // ── Live Predicted Resolution Time (no save needed) ──
       const PRIORITY_HOURS = {

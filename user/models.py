@@ -69,6 +69,21 @@ class Report(models.Model):
     flagged_for_review = models.BooleanField(default=False)
     findings = models.TextField(blank=True)
     recommendation = models.TextField(blank=True)
+    materials_required = models.JSONField(default=list, blank=True)
+
+    @property
+    def materials_rows(self):
+        """Laging 4 na row (qty/unit/description) para sa Job Order PDF."""
+        rows = []
+        for item in (self.materials_required or [])[:4]:
+            rows.append({
+                'qty': (item.get('qty') or '').strip(),
+                'unit': (item.get('unit') or '').strip(),
+                'description': (item.get('description') or '').strip(),
+            })
+        while len(rows) < 4:
+            rows.append({'qty': '', 'unit': '', 'description': ''})
+        return rows
 
     @property
     def room_location(self):

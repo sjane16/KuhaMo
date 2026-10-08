@@ -1221,6 +1221,40 @@ def report_save(request, report_id):
             for item in assignments
         ) if assignments else None
 
+        # ── MATERIALS REQUIREMENT (Phase 3: Phase 1 save logic) ─────────────────
+        mat_qtys = request.POST.getlist('mat_qty')
+        mat_units = request.POST.getlist('mat_unit')
+        mat_descs = request.POST.getlist('mat_desc')
+
+        materials_rows = []
+        for qty, unit, desc in zip(mat_qtys, mat_units, mat_descs):
+            qty = qty.strip()
+            unit = unit.strip()
+            desc = desc.strip()
+
+            # Skip fully blank rows, and cap to 4 items.
+            if not qty and not unit and not desc:
+                continue
+
+            if len(materials_rows) >= 4:
+                break
+
+            # Row with qty/unit but no description is NOT saved.
+            if (qty or unit) and not desc:
+                messages.warning(
+                    request,
+                    f"Report {report.job_order_id}: a materials row was skipped because it has no Item Description."
+                )
+                continue
+
+            materials_rows.append({
+                'qty': qty,
+                'unit': unit,
+                'description': desc,
+            })
+
+        report.materials_required = materials_rows
+
         if awaiting_personnel and not report.pending_awaiting_personnel_at:
             report.pending_awaiting_personnel_at = now
         if awaiting_materials and not report.pending_awaiting_materials_at:
