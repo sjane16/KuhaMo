@@ -20,3 +20,34 @@ class HoneypotHit(models.Model):
     
     class Meta:
         ordering=['-time_stamp']
+
+
+class AuditLog(models.Model):
+    """Security audit trail: sign-ins, sign-outs, failed attempts, passkey and password changes.
+    Rows are written by security.audit.log_event() and are read-only in the admin."""
+    EVENT_TYPES = [
+        ('login_success', 'Login successful'),
+        ('login_failed', 'Login failed'),
+        ('logout', 'Logged out'),
+        ('otp_locked', 'Verification code locked (too many wrong attempts)'),
+        ('passkey_added', 'Passkey added'),
+        ('passkey_renamed', 'Passkey renamed'),
+        ('passkey_removed', 'Passkey removed'),
+        ('password_changed', 'Password changed'),
+        ('password_reset', 'Password reset via email code'),
+    ]
+
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES, db_index=True)
+    # Kept even if the account is deleted later, so the history stays readable
+    user = models.ForeignKey('auth.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='audit_logs')
+    username = models.CharField(max_length=150, blank=True, help_text="Email/username at the time of the event")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_event_type_display()} - {self.username or 'unknown'} at {self.created_at}"

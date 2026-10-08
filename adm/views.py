@@ -16,6 +16,7 @@ from django.core.paginator import Paginator
 from django.template.loader import render_to_string
 from user.forms import UserForm  
 from user.validators import validate_password_strength
+from security.audit import log_event
 from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
 from user.views import link_callback
@@ -1407,6 +1408,7 @@ def ProfileMenu(request):
                     request.user.set_password(new_password1)
                     request.user.save()
                     invalidate_trusted_devices(request.user)
+                    log_event(request, 'password_changed', user=request.user, where='Edit Profile')
                     update_session_auth_hash(request, request.user)
                     messages.success(request, "Password changed successfully.")
                     return redirect('ProfileMenu')
