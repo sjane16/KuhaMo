@@ -275,7 +275,7 @@ def build_survey_analysis_context():
             "avg_rating": personnel_avg_rating,
             "total_score": stats["rating_total"],
             "total_surveys": rating_count,
-            "complete_task": f"{stats['closed_count']}/{total_assigned}",
+            "complete_task": stats['closed_count'],
             "quality": quality,
             "quantity": quantity,
             "timeliness": timeliness,
