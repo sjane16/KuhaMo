@@ -23,7 +23,8 @@
       <div class="flex items-center gap-2 shrink-0">
         <button type="button"
                 data-passkey-dismiss
-                class="text-sm font-semibold text-gray-600 px-4 py-2 rounded-xl hover:bg-white/70 transition-colors">Not now</button>
+                id="passkey-dismiss-btn"
+                class="text-sm font-semibold text-gray-600 px-4 py-2 rounded-xl hover:bg-white/70 transition-opacity duration-200">Not now</button>
         <button type="button"
                 data-passkey-action="add"
                 data-message-id="passkey-setup-message"
@@ -40,10 +41,15 @@
       if (!box) return;
       var cookie = box.dataset.dismissCookie;
       if (document.cookie.split('; ').indexOf(cookie + '=1') === -1) box.classList.remove('hidden');
-      box.querySelector('[data-passkey-dismiss]').addEventListener('click', function () {
-        document.cookie = cookie + '=1; max-age=' + (30 * 24 * 60 * 60) + '; path=/; SameSite=Lax';
-        box.remove();
-      });
+      var dismissBtn = document.getElementById('passkey-dismiss-btn');
+      if (dismissBtn) {
+        dismissBtn.addEventListener('click', function () {
+          document.cookie = cookie + '=1; max-age=' + (30 * 24 * 60 * 60) + '; path=/; SameSite=Lax';
+          this.style.transition = 'opacity 0.3s ease-out';
+          this.style.opacity = '0';
+          setTimeout(function () { box.remove(); }, 300);
+        });
+      }
     })();
   </script>
 {% endif %}
