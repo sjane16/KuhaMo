@@ -174,8 +174,9 @@ def build_survey_responses_list():
         responses.append({
             "personnel": ", ".join(personnel_names),
             "category": report.get_category_display(),
-            "rating": survey.rating,
-            "feedback": survey.feedback,
+            "quality": survey.quality,
+            "quantity": survey.quantity,
+            "timeliness": survey.timeliness,
             "date_submitted": report.submitted_at,
             "expected_at": report.expected_resolution_at,
             "actual_at": report.accomplished_at,
@@ -191,8 +192,17 @@ def build_survey_responses_list():
 def build_survey_analysis_context():
     surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
     total_surveys = surveys.count()
-    avg_rating = round(surveys.aggregate(avg=Avg('rating'))['avg'] or 0, 1)
-    rating_counts = {rating: surveys.filter(rating=rating).count() for rating in range(1, 6)}
+    score_values = []
+    for survey in surveys:
+        score_values.extend(
+            value for value in (survey.quality, survey.quantity, survey.timeliness)
+            if value is not None
+        )
+    avg_rating = round(sum(score_values) / len(score_values), 1) if score_values else 0
+    rating_counts = {
+        rating: sum(score == rating for score in score_values)
+        for rating in range(1, 6)
+    }
     max_rating_count = max(rating_counts.values()) if rating_counts else 0
     rating_rows = []
     for rating in range(5, 0, -1):
@@ -206,10 +216,19 @@ def build_survey_analysis_context():
             "name": option["name"],
             "total_assigned": 0,
             "closed_count": 0,
-            "rating_total": 0,
-            "rating_count": 0,
+            "quality_total": 0,
+            "quantity_total": 0,
+            "timeliness_total": 0,
+            "quality_count": 0,
+            "quantity_count": 0,
+            "timeliness_count": 0,
             "categories": set(),
             "timeliness_scores": [],
+            "qqt_reports": 0,
+            "qqt_surveyed": 0,
+            "qqt_quality_sum": 0,
+            "qqt_quantity_sum": 0,
+            "qqt_timeliness_sum": 0,
         }
         for option in PERSONNEL_OPTIONS
     }
@@ -227,6 +246,16 @@ def build_survey_analysis_context():
             stats = personnel_stats[name]
             stats["total_assigned"] += 1
 
+            # QQT tally: bilang ng reports = resolved OR closed
+            if report.status in ('resolved', 'closed'):
+                stats["qqt_reports"] += 1
+                qqt_survey = getattr(report, 'survey', None)
+                if qqt_survey:
+                    stats["qqt_surveyed"] += 1
+                    stats["qqt_quality_sum"] += qqt_survey.quality or 0
+                    stats["qqt_quantity_sum"] += qqt_survey.quantity or 0
+                    stats["qqt_timeliness_sum"] += qqt_survey.timeliness or 0
+
             if report.status != 'closed':
                 continue
 
@@ -235,8 +264,11 @@ def build_survey_analysis_context():
 
             survey = getattr(report, 'survey', None)
             if survey:
-                stats["rating_total"] += survey.rating
-                stats["rating_count"] += 1
+                for field in ('quality', 'quantity', 'timeliness'):
+                    value = getattr(survey, field)
+                    if value is not None:
+                        stats[f"{field}_total"] += value
+                        stats[f"{field}_count"] += 1
 
             threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
 
@@ -256,32 +288,46 @@ def build_survey_analysis_context():
 
     personnel_rows = []
     for stats in personnel_stats.values():
-        rating_count = stats["rating_count"]
-        quality_avg = (stats["rating_total"] / rating_count) if rating_count else 0
-        quality = round(quality_avg, 1)
+        quality = round(stats["quality_total"] / stats["quality_count"], 1) if stats["quality_count"] else 0
+        quantity_survey = round(stats["quantity_total"] / stats["quantity_count"], 1) if stats["quantity_count"] else 0
 
         total_assigned = stats["total_assigned"]
         completion_pct = (stats["closed_count"] / total_assigned * 100) if total_assigned else 0
-        quantity = _percent_to_score(completion_pct) if total_assigned else 0
+        quantity = quantity_survey or (_percent_to_score(completion_pct) if total_assigned else 0)
 
         timeliness_scores = stats["timeliness_scores"]
         timeliness_avg = (sum(timeliness_scores) / len(timeliness_scores)) if timeliness_scores else 0
-        timeliness = round(timeliness_avg, 1)
+        timeliness_survey = round(stats["timeliness_total"] / stats["timeliness_count"], 1) if stats["timeliness_count"] else 0
+        timeliness = timeliness_survey or round(timeliness_avg, 1)
 
-        personnel_avg_rating = round((quality + quantity + timeliness) / 3, 2)
+        scores = [score for score in (quality, quantity, timeliness) if score]
+        personnel_avg_rating = round(sum(scores) / len(scores), 2) if scores else 0
+
+        # QQT = Σ score / number of reports (resolved + closed); None -> "-" kapag walang survey
+        qqt_reports = stats["qqt_reports"]
+        if qqt_reports and stats["qqt_surveyed"]:
+            qqt_quality = stats["qqt_quality_sum"] / qqt_reports
+            qqt_quantity = stats["qqt_quantity_sum"] / qqt_reports
+            qqt_timeliness = stats["qqt_timeliness_sum"] / qqt_reports
+            qqt_avg = (qqt_quality + qqt_quantity + qqt_timeliness) / 3
+        else:
+            qqt_quality = qqt_quantity = qqt_timeliness = qqt_avg = None
 
         personnel_rows.append({
             "name": stats["name"],
-            "avg_rating": personnel_avg_rating,
-            "total_score": stats["rating_total"],
-            "total_surveys": rating_count,
-            "complete_task": stats['closed_count'],
-            "quality": quality,
-            "quantity": quantity,
-            "timeliness": timeliness,
+            "avg_rating": qqt_avg,
+            "total_score": round(personnel_avg_rating, 1),
+            "total_surveys": max(stats["quality_count"], stats["quantity_count"], stats["timeliness_count"]),
+            "complete_task": qqt_reports,
+            "quality": qqt_quality,
+            "quantity": qqt_quantity,
+            "timeliness": qqt_timeliness,
         })
 
-    personnel_rows.sort(key=lambda row: row["avg_rating"], reverse=True)
+    personnel_rows.sort(
+        key=lambda row: row["avg_rating"] if row["avg_rating"] is not None else -1,
+        reverse=True,
+    )
     # (uses the dict key "avg_rating", unaffected by the personnel_avg_rating rename above)
 
     # ---- Individual Responses — official personnel only (outsourced-only reports are hidden) ----
@@ -399,8 +445,9 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
 
-    avg_satisfaction = SurveyResponse.objects.aggregate(avg=Avg('rating'))['avg'] or 0
-    avg_satisfaction = round(avg_satisfaction, 1)
+    survey_scores = SurveyResponse.objects.values_list('quality', 'quantity', 'timeliness')
+    survey_values = [value for scores in survey_scores for value in scores if value is not None]
+    avg_satisfaction = round(sum(survey_values) / len(survey_values), 1) if survey_values else 0
 
     status_counts_qs = (
         filter_periods(Report.objects)
@@ -420,8 +467,9 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         "2-Fair",
         "1-Unsatisfactory"
     ]   
+    # Per-score tally across Quality, Quantity, Timeliness (same pooling as avg_satisfaction)
     satisfaction_counts = [
-        SurveyResponse.objects.filter(rating=i).count()
+        sum(1 for value in survey_values if value == i)
         for i in range(5, 0, -1)
     ]
 

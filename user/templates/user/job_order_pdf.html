@@ -325,7 +325,15 @@
                     <table class="no-border" style="width:100%;">
                         <tr class="no-border">
                             <td class="no-border" style="width:50%;  padding:0px 2px 1px 2px"><span class="section-label">Checked and Inspected by:</span></td>
-                            <td class="no-border" style="width:50%;  padding:0px 2px 1px 2px"><span class="section-label">Assigned to:</span></td>
+                            <td class="no-border" style="width:50%;  padding:0px 2px 1px 2px">
+                                <table class="no-border" style="width:100%;">
+                                    <tr class="no-border">
+                                        <td class="no-border" style="width:28%; padding:0;"><span class="section-label">Assigned to:</span></td>
+                                        <td class="sig-underline-cell">{{ report.assigned_personnel_summary|default:"" }}</td>
+                                        <td class="no-border" style="width:10%; padding:0;"></td>
+                                    </tr>
+                                </table>
+                            </td>
                         </tr>
                         <tr class="no-border">
                             <td class="no-border">
@@ -339,16 +347,7 @@
                                 </table>
                                 <div class="signature-caption">Signature on Printed Name</div>
                             </td>
-                            <td class="no-border">
-                                <div class="sig-space"></div>
-                                <table class="no-border" style="width:100%;">
-                                    <tr class="no-border">
-                                        <td class="no-border" style="width:17.5%; padding:0;"></td>
-                                        <td class="sig-underline-cell">{{ report.assigned_personnel_summary|default:"" }}</td>
-                                        <td class="no-border" style="width:17.5%; padding:0;"></td>
-                                    </tr>
-                                </table>
-                            </td>
+                            <td class="no-border">&nbsp;</td>
                         </tr>
                         <tr class="no-border">
                             <td class="no-border" style=" padding:3px 2px 1px 2px">
@@ -416,20 +415,14 @@
             </tr>
             <tr>
                 <td colspan="2">
-                    Overall, please rate our customer service, as follows:
+                    Please rate the completed service from 1 to 5:
                     <table class="no-border">
                         <tr class="no-border">
-                            <td class="no-border" style="width:33%; padding: 1px 6px;">[{% if report.survey.rating == 5 %}✔{% else %} {% endif %}] 5-Outstanding</td>
-                            <td class="no-border" style="width:33%; padding: 1px 6px;">[{% if report.survey.rating == 4 %}✔{% else %} {% endif %}] 4-Very Satisfactory</td>
-                            <td class="no-border" style="width:34%; padding: 1px 6px;">[{% if report.survey.rating == 3 %}✔{% else %} {% endif %}] 3-Satisfactory</td>
-                        </tr>
-                        <tr class="no-border">
-                            <td class="no-border" style="width:33%; padding: 1px 6px;">[{% if report.survey.rating == 2 %}✔{% else %} {% endif %}] 2-Fair</td>
-                            <td class="no-border" style="width:33%; padding: 1px 6px;">[{% if report.survey.rating == 1 %}✔{% else %} {% endif %}] 1-Unsatisfactory</td>
-                            <td class="no-border" style="width:34%;"></td>
+                            <td class="no-border" style="width:33%; padding: 1px 6px;">Quality: {% if report.survey %}{{ report.survey.quality|default:"-" }}{% else %}-{% endif %}/5</td>
+                            <td class="no-border" style="width:33%; padding: 1px 6px;">Quantity: {% if report.survey %}{{ report.survey.quantity|default:"-" }}{% else %}-{% endif %}/5</td>
+                            <td class="no-border" style="width:34%; padding: 1px 6px;">Timeliness: {% if report.survey %}{{ report.survey.timeliness|default:"-" }}{% else %}-{% endif %}/5</td>
                         </tr>
                     </table>
-                    Remarks for extremely high or low rating (5 or 1): <span class="italic">{{ report.survey.feedback|default:"______________________________________________" }}</span>
                 </td>
             </tr>
             <tr>

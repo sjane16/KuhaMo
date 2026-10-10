@@ -574,6 +574,8 @@
 
                 submitButton.disabled = true;
                 submitButton.textContent = "Submitting...";
+                submitButton.style.backgroundColor = "#93c5fd"; // blue-300, kapareho ng survey submit button
+                submitButton.style.cursor = "not-allowed";
             });
 
             categoryWrapper.addEventListener("click", function() {

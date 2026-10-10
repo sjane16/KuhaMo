@@ -210,10 +210,10 @@
                         <td class="name-cell">{{ row.name }}</td>
                         <td class="center">{{ row.complete_task }}</td>
                         <td class="center">{{ row.total_score }}</td>
-                        <td class="center">{{ row.quality }}</td>
-                        <td class="center">{{ row.quantity }}</td>
-                        <td class="center">{{ row.timeliness }}</td>
-                        <td class="center"><span class="badge-avg">{{ row.avg_rating }}</span></td>
+                        <td class="center">{% if row.quality is not None %}{{ row.quality|floatformat:1 }}{% else %}-{% endif %}</td>
+                        <td class="center">{% if row.quantity is not None %}{{ row.quantity|floatformat:1 }}{% else %}-{% endif %}</td>
+                        <td class="center">{% if row.timeliness is not None %}{{ row.timeliness|floatformat:1 }}{% else %}-{% endif %}</td>
+                        <td class="center">{% if row.avg_rating is not None %}<span class="badge-avg">{{ row.avg_rating|floatformat:1 }}</span>{% else %}-{% endif %}</td>
                     </tr>
                 {% empty %}
                     <tr>
