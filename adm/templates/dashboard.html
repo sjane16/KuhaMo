@@ -4,15 +4,11 @@
 {% block content %}
     <!---->
     {% include 'user/components/toast.html' %}
-    <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
+    <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-24 lg:pb-10 w-full">
         {% include 'accounts/components/passkey_setup_prompt.html' %}
         <div class="mb-6">
             <h1 class="text-xl font-bold text-gray-900 leading-tight">Hello, {{ user.first_name }} {{ user.last_name }}! 👋</h1>
-            <p class="text-base text-gray-600 pt-2 mb-6">Monitor and manage facility maintenance easily.</p>
-            <div class="flex items-center gap-3 mb-4">
-                <h2 class="text-lg font-bold text-gray-800 whitespace-nowrap">Corrective Maintenance Analytics</h2>
-                <div class="flex-1 h-px bg-gray-300"></div>
-            </div>
+            <p class="text-base text-gray-600 pt-2">Monitor and manage facility maintenance easily.</p>
         </div>
         <div id="dashboardButtonsSkeleton" class="flex items-center gap-2 mb-6">
             <div class="skeleton h-3 w-14 rounded"></div>
@@ -29,14 +25,19 @@
                 </div>
             {% endfor %}
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4"
-             id="dashboardSkeletonRow2">
-            {% for n in "12" %}
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                    <div class="skeleton h-4 w-48 rounded mb-4"></div>
-                    <div class="skeleton h-[300px] w-full rounded-xl"></div>
-                </div>
-            {% endfor %}
+        <div id="dashboardSkeletonRow2">
+            <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-4">
+                <div class="skeleton h-4 w-48 rounded mb-4"></div>
+                <div class="skeleton h-[300px] w-full rounded-xl"></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                {% for n in "123" %}
+                    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                        <div class="skeleton h-4 w-48 rounded mb-4"></div>
+                        <div class="skeleton h-[300px] w-full rounded-xl"></div>
+                    </div>
+                {% endfor %}
+            </div>
         </div>
         <div id="dashboardContainer" class="hidden"></div>
     </main>
@@ -114,9 +115,64 @@
         <div style="position:relative; width:240px; height:240px;"><canvas id="report_statusChart"></canvas></div>
         <div style="position:relative; width:240px; height:240px;"><canvas id="report_categoriesChart"></canvas></div>
         <div style="position:relative; width:640px; height:300px;"><canvas id="report_buildingChart"></canvas></div>
-        <div style="position:relative; width:640px; height:300px;"><canvas id="report_resolutionChart"></canvas></div>
     </div>
     <style>
+        /* Dashboard actions row: mobile = button first (full width), then Showing + pills on one row */
+        #dashboardActionsRow {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .dashboard-generate-btn {
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .dashboard-period-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .dashboard-period-group .period-filter-btn {
+            flex: 1 1 0;
+            min-width: 0;
+            white-space: nowrap;
+            padding-left: 6px;
+            padding-right: 6px;
+            font-size: 11px;
+        }
+
+        .dashboard-period-group>span {
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 1024px) {
+            #dashboardActionsRow {
+                flex-direction: row-reverse;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .dashboard-generate-btn {
+                width: auto;
+            }
+
+            .dashboard-period-group {
+                justify-content: flex-start;
+                gap: 8px;
+            }
+
+            .dashboard-period-group .period-filter-btn {
+                flex: none;
+                padding-left: 16px;
+                padding-right: 16px;
+                font-size: 12px;
+            }
+        }
+
         #reportMonthPicker {
             color: #111827;
             background-color: #ffffff;
@@ -374,14 +430,12 @@
                     charts.status, statusTotal, statusTotal === 1 ? "report" : "reports"),
                 chart_categories: chartImageWithCenter(
                     charts.categories, categoryCount, categoryCount === 1 ? "category" : "categories"),
-                chart_buildings: charts.buildings.toBase64Image(),
-                chart_resolution: charts.resolution.toBase64Image(),
             };
         }
 
         function renderReportChartsForMonth(reportMonth) {
             return fetchDashboardData("30", reportMonth).then(function(data) {
-                ["statusChart", "categoriesChart", "buildingChart", "resolutionChart"].forEach(function(id) {
+                ["statusChart", "categoriesChart", "buildingChart"].forEach(function(id) {
                     const old = Chart.getChart("report_" + id);
                     if (old) old.destroy();
                 });
@@ -963,68 +1017,110 @@
                 }
             });
 
-            charts.resolution = new Chart(canvasOf('resolutionChart'), {
-                type: 'line',
-                data: {
-                    labels: data.resolution_weeks,
-                    datasets: [{
-                        label: 'Expected Time (hours)',
-                        data: data.expected_hours,
-                        borderColor: '#aaa',
-                        backgroundColor: 'rgba(200,200,200,0.15)',
-                        fill: true,
-                        tension: 0.3,
-                    }, {
-                        label: 'Actual Time (hours)',
-                        data: data.actual_hours,
-                        borderColor: '#5b8dee',
-                        backgroundColor: 'transparent',
-                        tension: 0.3,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function (ctx) {
-                                    const h = ctx.parsed.y;
-                                    if (h === null || h === undefined) return ctx.dataset.label + ': N/A';
-                                    const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
-                                    return ctx.dataset.label.replace(' (hours)', '') + ': ' + txt;
-                                }
-                            }
+            if (!reportMode) {
+                Chart.Tooltip.positioners.onActual = function (items) {
+                    if (!items.length) return false;
+                    const pick = items.find(function (i) { return i.datasetIndex === 1; }) || items[0];
+                    return { x: pick.element.x, y: pick.element.y };
+                };
+
+                const priorityChartDefs = [
+                    { code: 'critical', canvasId: 'resolutionChartCritical', color: '#dc2626' },
+                    { code: 'high', canvasId: 'resolutionChartHigh', color: '#ea580c' },
+                    { code: 'standard', canvasId: 'resolutionChartStandard', color: '#2563eb' },
+                ];
+                priorityChartDefs.forEach(function(def) {
+                    const series = (data.resolution_by_priority || {})[def.code];
+                    const canvas = document.getElementById(def.canvasId);
+                    if (!series || !canvas) return;
+
+                    charts['resolution_' + def.code] = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels: data.resolution_weeks,
+                            datasets: [{
+                                label: 'Expected Time (hours)',
+                                data: series.expected,
+                                borderColor: '#aaa',
+                                backgroundColor: 'rgba(200,200,200,0.15)',
+                                fill: true,
+                                tension: 0,
+                                pointRadius: 0,
+                                pointHoverRadius: 0,
+                                order: 2,
+                            }, {
+                                label: 'Actual Time (hours)',
+                                data: series.actual,
+                                borderColor: def.color,
+                                backgroundColor: 'transparent',
+                                tension: 0,
+                                spanGaps: true,
+                                borderWidth: 2,
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
+                                pointBackgroundColor: def.color,
+                                pointBorderColor: '#ffffff',
+                                pointBorderWidth: 2,
+                                order: 1,
+                            }]
                         },
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    size: 11
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                tooltip: {
+                                    position: 'onActual',
+                                    caretPadding: 10,
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            const h = ctx.parsed.y;
+                                            const name = ctx.dataset.label.replace(' Time (hours)', '');
+                                            if (h === null || h === undefined) return name + ': N/A';
+                                            const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
+                                            if (ctx.datasetIndex === 1) {
+                                                const n = (series.counts || [])[ctx.dataIndex] || 0;
+                                                return [name + ': ' + txt, 'Reports: ' + n];
+                                            }
+                                            return name + ': ' + txt;
+                                        }
+                                    }
+                                },
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        font: {
+                                            size: 11
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: '#f3f4f6'
+                                    },
+                                    ticks: {
+                                        color: '#9ca3af'
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        color: '#9ca3af',
+                                        font: {
+                                            size: 10
+                                        }
+                                    }
                                 }
                             }
                         }
-                    },
-                    scales: {
-                        y: {
-                            grid: {
-                                color: '#f3f4f6'
-                            },
-                            ticks: {
-                                color: '#9ca3af'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#9ca3af'
-                            }
-                        }
-                    }
-                }
-            });
+                    });
+                });
+            }
 
             if (reportMode) {
                 // walang animation para kumpleto na ang drawing pag kinuha ang image

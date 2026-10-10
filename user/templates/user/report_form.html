@@ -64,6 +64,27 @@
             </div>
         </div>
     </div>
+    <!-- Photo preview lightbox (same style as admin) -->
+    <div id="reportPhotoModal"
+         class="hidden fixed inset-0 z-[9998] items-center justify-center bg-black/70 p-4">
+        <div class="relative max-w-[90vw] max-h-[90vh]">
+            <button type="button"
+                    aria-label="Close"
+                    class="absolute -top-3 -right-3 w-9 h-9 rounded-full bg-white text-gray-700 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="w-5 h-5"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke-width="2.5"
+                     stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <img id="reportPhotoModalImg"
+                 alt="Photo preview (enlarged)"
+                 class="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-2xl shadow-2xl" />
+        </div>
+    </div>
     <script>
         function initReportForm() {
             const input = document.getElementById("photo-upload");
@@ -72,6 +93,104 @@
             const status = document.getElementById("uploaded-status");
             const errorMsg = document.getElementById("error-message");
             const MAX_SIZE = 10 * 1024 * 1024;
+
+            const dropzone = document.getElementById("dropzone");
+            const previewActions = document.getElementById("preview-actions");
+            const photoModal = document.getElementById("reportPhotoModal");
+            const photoModalImg = document.getElementById("reportPhotoModalImg");
+
+            function showPreview(src) {
+                preview.src = src;
+                preview.classList.remove("hidden");
+                uploadContent.classList.add("hidden");
+                previewActions.classList.remove("hidden");
+            }
+
+            function resetPreview() {
+                preview.classList.add("hidden");
+                preview.removeAttribute("src");
+                uploadContent.classList.remove("hidden");
+                previewActions.classList.add("hidden");
+            }
+
+            function closePhotoModal() {
+                photoModal.classList.add("hidden");
+                photoModal.classList.remove("flex");
+                document.body.style.overflow = "";
+            }
+
+            // Click preview -> lightbox (preventDefault so the label doesn't open the file picker)
+            preview.addEventListener("click", function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                photoModalImg.src = preview.src;
+                photoModal.classList.remove("hidden");
+                photoModal.classList.add("flex");
+                document.body.style.overflow = "hidden";
+            });
+
+            photoModal.addEventListener("click", function(e) {
+                if (e.target === photoModal || e.target.closest('button[aria-label="Close"]')) {
+                    closePhotoModal();
+                }
+            });
+
+            document.addEventListener("keydown", function(e) {
+                if (e.key === "Escape" && !photoModal.classList.contains("hidden")) {
+                    closePhotoModal();
+                }
+            });
+
+            document.getElementById("change-photo-btn").addEventListener("click", function() {
+                input.click();
+            });
+
+            document.getElementById("remove-photo-btn").addEventListener("click", function() {
+                input.value = "";
+                resetPreview();
+                errorMsg.classList.add("hidden");
+
+                // clear the AI result tied to the removed photo
+                categoryLocked = false;
+                categoryField.classList.remove("bg-gray-100", "cursor-not-allowed", "pointer-events-none", "text-gray-700");
+                categoryField.value = "";
+                document.getElementById("cnn-confidence").classList.add("hidden");
+                ["cnn_raw_prediction", "cnn_confidence", "cnn_margin", "flagged_for_review"].forEach(function(id) {
+                    document.getElementById(id).value = "";
+                });
+                document.getElementById("custom-category-wrapper").classList.add("hidden");
+            });
+
+            // ---- Drag and drop ----
+            ["dragenter", "dragover"].forEach(function(evt) {
+                dropzone.addEventListener(evt, function(e) {
+                    e.preventDefault();
+                    dropzone.classList.add("border-blue-400", "bg-blue-50");
+                });
+            });
+
+            ["dragleave", "drop"].forEach(function(evt) {
+                dropzone.addEventListener(evt, function(e) {
+                    e.preventDefault();
+                    dropzone.classList.remove("border-blue-400", "bg-blue-50");
+                });
+            });
+
+            dropzone.addEventListener("drop", function(e) {
+                const file = e.dataTransfer.files[0];
+                if (!file) return;
+
+                if (!["image/jpeg", "image/png"].includes(file.type)) {
+                    errorMsg.textContent = "Only JPG or PNG files are allowed";
+                    errorMsg.classList.remove("hidden");
+                    return;
+                }
+
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                input.files = dt.files;
+                input.dispatchEvent(new Event("change"));
+            });
 
 
 
@@ -84,17 +203,16 @@
 
 
                 if (!file) {
-                    preview.classList.add("hidden");
-                    uploadContent.classList.remove("hidden");
+                    resetPreview();
                     return;
                 }
 
 
                 if (file.size > MAX_SIZE) {
                     this.value = "";
+                    errorMsg.textContent = "File too large (max 10MB)";
                     errorMsg.classList.remove("hidden");
-                    preview.classList.add("hidden");
-                    uploadContent.classList.remove("hidden");
+                    resetPreview();
                     return;
                 }
 
@@ -103,9 +221,7 @@
 
 
                 reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.classList.remove("hidden");
-                    uploadContent.classList.add("hidden");
+                    showPreview(e.target.result);
                     status.classList.remove("hidden");
                     cnnLoading.classList.remove("hidden");
                     cnnLoading.classList.add("flex");
@@ -138,6 +254,7 @@
                                 "pointer-events-none",
                                 "text-gray-700"
                             );
+                            categoryField.setAttribute("data-cdd-locked", "");
                             document.getElementById("cnn-confidence").classList.remove("hidden");
                             document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
 
@@ -425,24 +542,40 @@
                 // Gibberish/keymash detection — mirrors validate_no_gibberish() server-side.
                 // Flags 5+ consecutive consonants with no vowel in between (e.g. "dlasdpasdosa").
                 const gibberishPattern = /[bcdfghjklmnpqrstvwxyz]{5,}/i;
+
+                // Foul-word detection — mirrors validate_no_profanity() server-side.
+                // Catches common Filipino/English curse words incl. basic letter
+                // substitutions (4->a, 1/!->i, 0->o) and spacing/punctuation tricks.
+                const profanityPattern = /\b(?:f+u*c+k+|p+u*t+[a@4]*n+g+[i1!]*n+[a@4]*|p+u*t+[a@4]*n+g+|t+[a@4]*n+g+[i1!]*n+[a@4]*|g+[a@4]*g+[a@4o0]*|t+[a@4]*r+[a@4]*n+t+[a@4]*d+[a@4o0]*|t+[a@4]*n+g+[a@4]*)\b/i;
+
+                function hasInvalidInput(value) {
+                    const trimmed = value.trim();
+                    const stripped = trimmed.replace(/[\s\-_.]+/g, "");
+                    return gibberishPattern.test(trimmed) ||
+                        profanityPattern.test(trimmed) ||
+                        profanityPattern.test(stripped);
+                }
+
                 const customCategoryField = document.getElementById("id_custom_category");
 
-                if (gibberishPattern.test(descriptionField.value.trim())) {
+                if (hasInvalidInput(descriptionField.value)) {
                     e.preventDefault();
-                    showClientToast("Please enter a valid, descriptive input — random or nonsensical text is not allowed.", "error");
+                    showClientToast("Invalid input. Nonsense or foul words are not accepted.", "error");
                     return;
                 }
 
                 if (customCategoryField && !customCategoryField.closest("#custom-category-wrapper").classList.contains("hidden")) {
-                    if (gibberishPattern.test(customCategoryField.value.trim())) {
+                    if (hasInvalidInput(customCategoryField.value)) {
                         e.preventDefault();
-                        showClientToast("Please enter a valid, descriptive input — random or nonsensical text is not allowed.", "error");
+                        showClientToast("Invalid input. Nonsense or foul words are not accepted.", "error");
                         return;
                     }
                 }
 
                 submitButton.disabled = true;
                 submitButton.textContent = "Submitting...";
+                submitButton.style.backgroundColor = "#93c5fd"; // blue-300, kapareho ng survey submit button
+                submitButton.style.cursor = "not-allowed";
             });
 
             categoryWrapper.addEventListener("click", function() {

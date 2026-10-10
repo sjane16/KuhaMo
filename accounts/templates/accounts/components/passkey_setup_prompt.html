@@ -23,7 +23,8 @@
       <div class="flex items-center gap-2 shrink-0">
         <button type="button"
                 data-passkey-dismiss
-                class="text-sm font-semibold text-gray-600 px-4 py-2 rounded-xl hover:bg-white/70 transition-colors">Not now</button>
+                id="passkey-dismiss-btn"
+                class="text-sm font-semibold text-gray-600 bg-white border border-gray-300 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">Not now</button>
         <button type="button"
                 data-passkey-action="add"
                 data-message-id="passkey-setup-message"
@@ -39,11 +40,22 @@
       var box = document.getElementById('passkey-setup-prompt');
       if (!box) return;
       var cookie = box.dataset.dismissCookie;
-      if (document.cookie.split('; ').indexOf(cookie + '=1') === -1) box.classList.remove('hidden');
-      box.querySelector('[data-passkey-dismiss]').addEventListener('click', function () {
-        document.cookie = cookie + '=1; max-age=' + (30 * 24 * 60 * 60) + '; path=/; SameSite=Lax';
-        box.remove();
-      });
+      var dismissed = document.cookie.split('; ').indexOf(cookie + '=1') !== -1;
+      if (!dismissed) box.classList.remove('hidden');
+      var dismissBtn = document.getElementById('passkey-dismiss-btn');
+      if (dismissBtn) {
+        dismissBtn.addEventListener('click', function () {
+          document.cookie = cookie + '=1; max-age=' + (30 * 24 * 60 * 60) + '; path=/; SameSite=Lax';
+          box.style.transition = 'opacity 0.5s ease-out';
+          box.style.opacity = '0';
+          setTimeout(function () { box.remove(); }, 500);
+        });
+        setTimeout(function () {
+          if (!dismissed) {
+            dismissBtn.click();
+          }
+        }, 5000);
+      }
     })();
   </script>
 {% endif %}

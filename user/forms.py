@@ -5,6 +5,7 @@ from .models import UserProfile
 from .models import Report
 from adm.models import Building, Floor, Room
 from .validators import validate_no_gibberish
+from .validators import validate_no_profanity
 from .validators import validate_name  # name sanitizer
 
 class ReportForm(forms.ModelForm):
@@ -49,6 +50,10 @@ class ReportForm(forms.ModelForm):
         self.fields['category'].widget.attrs.update({'class': tailwind_classes, 'id': 'id_category'})
         self.fields['custom_category'].widget.attrs.update({'class': 'w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent', 'id': 'id_custom_category'})
 
+        # Custom dropdown (cdd) para sa apat na select
+        for name in ('building', 'floor', 'location', 'category'):
+            self.fields[name].widget.attrs.update({'data-cdd': '', 'data-cdd-size': 'lg'})
+
         #For Catching Errors and Validationzzz
         if 'building' in self.data:
             try:
@@ -69,18 +74,16 @@ class ReportForm(forms.ModelForm):
         if value:
             if len(value) > 30:
                 raise forms.ValidationError("Custom category must not exceed 30 characters.")
-            gibberish_errors = validate_no_gibberish(value)
-            if gibberish_errors:
-                raise forms.ValidationError(gibberish_errors[0])
+            if validate_no_profanity(value) or validate_no_gibberish(value):
+                raise forms.ValidationError("Invalid input. Nonsense or foul words are not accepted.")
         return value
 
     def clean_description(self):
         value = self.cleaned_data.get('description', '').strip()
         if len(value) > 300:
             raise forms.ValidationError("Description must not exceed 300 characters.")
-        gibberish_errors = validate_no_gibberish(value)
-        if gibberish_errors:
-            raise forms.ValidationError(gibberish_errors[0])
+        if validate_no_profanity(value) or validate_no_gibberish(value):
+            raise forms.ValidationError("Invalid input. Nonsense or foul words are not accepted.")
         return value
 
 

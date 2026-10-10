@@ -331,6 +331,24 @@
                       if (mobilePageInfo) mobilePageInfo.textContent = pageText;
                       if (desktopPageInfo) desktopPageInfo.textContent = pageText;
 
+                      // Hide pagination when there is no data
+                      const mobilePagination = document.getElementById('mobilePagination');
+                      const desktopPagination = document.getElementById('desktopPagination');
+                      if (mobilePagination) {
+                          if (data.total_count === 0) {
+                              mobilePagination.classList.add('hidden');
+                          } else {
+                              mobilePagination.classList.remove('hidden');
+                          }
+                      }
+                      if (desktopPagination) {
+                          if (data.total_count === 0) {
+                              desktopPagination.classList.add('hidden');
+                          } else {
+                              desktopPagination.classList.remove('hidden');
+                          }
+                      }
+
                       if (mobilePrevBtn) mobilePrevBtn.disabled = !data.has_previous;
                       if (mobileNextBtn) mobileNextBtn.disabled = !data.has_next;
                       if (desktopPrevBtn) desktopPrevBtn.disabled = !data.has_previous;

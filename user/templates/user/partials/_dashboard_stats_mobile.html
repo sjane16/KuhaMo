@@ -177,9 +177,6 @@
             {% endif %}
         </a>
     {% empty %}
-        <div class="text-center py-10 text-gray-400">
-            <p class="text-sm font-medium">No reports yet.</p>
-            <p class="text-xs mt-1">Submit a concern to see it here.</p>
-        </div>
+        {% include "user/partials/_empty_state_simple.html" with title="No reports yet" subtitle="Submit a concern to see it here." %}
     {% endfor %}
 </div>

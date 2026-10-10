@@ -20,7 +20,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25" />
           </svg>
           <select id="mobileStatusFilter"
-                  class="text-xs border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                  data-cdd
+                  data-cdd-plain-empty
+                  data-cdd-width="8.5rem"
+                  data-cdd-class="cdd-sm shrink-0"
+                  aria-label="Filter by status">
             <option value="" {% if not status_filter %}selected{% endif %}>All Status</option>
             <option value="pending"
                     {% if status_filter == "pending" %}selected{% endif %}>Pending</option>
@@ -119,7 +123,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25" />
           </svg>
           <select id="statusFilter"
-                  class="text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                  data-cdd
+                  data-cdd-plain-empty
+                  data-cdd-width="9rem"
+                  data-cdd-class="shrink-0"
+                  aria-label="Filter by status">
             <option value="" {% if not status_filter %}selected{% endif %}>All Status</option>
             <option value="pending"
                     {% if status_filter == "pending" %}selected{% endif %}>Pending</option>

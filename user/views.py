@@ -21,8 +21,30 @@ from adm.models import Floor, Room, Building
 from .validators import validate_password_strength
 from .notifications import notify_status_change
 from ml.predictor import predict_image
+import logging
+
+logger = logging.getLogger(__name__)
 
 REPORTS_PAGE_SIZE = 5
+
+
+def normalize_cnn_prediction(value):
+    """Convert an AI confidence/margin value to a validated float in [0.0, 1.0], or None.
+
+    Django's FloatField will raise on bad input, so this safely parses incoming
+    text, rejects out-of-range values, and logs warnings instead of crashing.
+    """
+    if not value:
+        return None
+    try:
+        num = float(value)
+    except (ValueError, TypeError):
+        logger.warning("Invalid CNN confidence/margin value received: %r", value)
+        return None
+    if not (0.0 <= num <= 1.0):
+        logger.warning("CNN confidence/margin out of range [0.0-1.0]: %r", value)
+        return None
+    return num
 
 @login_required
 def menu(request):
@@ -191,8 +213,8 @@ def reportForm(request):
             report.custom_category = form.cleaned_data['custom_category']
 
             report.cnn_raw_prediction = request.POST.get('cnn_raw_prediction')
-            report.cnn_confidence = request.POST.get('cnn_confidence') or None
-            report.cnn_margin = request.POST.get('cnn_margin') or None
+            report.cnn_confidence = normalize_cnn_prediction(request.POST.get('cnn_confidence'))
+            report.cnn_margin = normalize_cnn_prediction(request.POST.get('cnn_margin'))
             report.flagged_for_review = request.POST.get('flagged_for_review') == 'true'
 
             report.save()
@@ -337,6 +359,11 @@ def reportedIssue(request, report_id):
         "already_surveyed": already_surveyed,
         "show_survey": show_survey,
         "emojis": emojis,
+        "survey_questions": (
+            ('quality', 'Quality of Work'),
+            ('quantity', 'Quantity of Work'),
+            ('timeliness', 'Timeliness of Service'),
+        ),
     })
 
 def link_callback(uri, rel):
@@ -443,22 +470,21 @@ def submitSurvey(request, report_id):
         user=request.user
     )
 
-    rating = request.POST.get('rating')
-    feedback = request.POST.get('feedback', '').strip()
+    ratings = {}
+    for field in ('quality', 'quantity', 'timeliness'):
+        try:
+            ratings[field] = int(request.POST.get(field))
+        except (TypeError, ValueError):
+            return JsonResponse({
+                'success': False,
+                'error': f'Please select a valid {field} rating.'
+            }, status=400)
 
-    try:
-        rating = int(rating)
-    except (TypeError, ValueError):
-        return JsonResponse({
-            'success': False,
-            'error': 'Please select a valid rating.'
-        }, status=400)
-
-    if rating not in [1, 2, 3, 4, 5]:
-        return JsonResponse({
-            'success': False,
-            'error': 'Rating must be between 1 and 5.'
-        }, status=400)
+        if ratings[field] not in range(1, 6):
+            return JsonResponse({
+                'success': False,
+                'error': f'{field.title()} rating must be between 1 and 5.'
+            }, status=400)
 
     if SurveyResponse.objects.filter(report=report).exists():
         return JsonResponse({
@@ -474,8 +500,7 @@ def submitSurvey(request, report_id):
 
     SurveyResponse.objects.create(
         report=report,
-        rating=rating,
-        feedback=feedback,
+        **ratings,
     )
 
     report.status = 'closed'

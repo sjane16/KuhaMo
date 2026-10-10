@@ -174,8 +174,9 @@ def build_survey_responses_list():
         responses.append({
             "personnel": ", ".join(personnel_names),
             "category": report.get_category_display(),
-            "rating": survey.rating,
-            "feedback": survey.feedback,
+            "quality": survey.quality,
+            "quantity": survey.quantity,
+            "timeliness": survey.timeliness,
             "date_submitted": report.submitted_at,
             "expected_at": report.expected_resolution_at,
             "actual_at": report.accomplished_at,
@@ -191,8 +192,17 @@ def build_survey_responses_list():
 def build_survey_analysis_context():
     surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
     total_surveys = surveys.count()
-    avg_rating = round(surveys.aggregate(avg=Avg('rating'))['avg'] or 0, 1)
-    rating_counts = {rating: surveys.filter(rating=rating).count() for rating in range(1, 6)}
+    score_values = []
+    for survey in surveys:
+        score_values.extend(
+            value for value in (survey.quality, survey.quantity, survey.timeliness)
+            if value is not None
+        )
+    avg_rating = round(sum(score_values) / len(score_values), 1) if score_values else 0
+    rating_counts = {
+        rating: sum(score == rating for score in score_values)
+        for rating in range(1, 6)
+    }
     max_rating_count = max(rating_counts.values()) if rating_counts else 0
     rating_rows = []
     for rating in range(5, 0, -1):
@@ -206,10 +216,19 @@ def build_survey_analysis_context():
             "name": option["name"],
             "total_assigned": 0,
             "closed_count": 0,
-            "rating_total": 0,
-            "rating_count": 0,
+            "quality_total": 0,
+            "quantity_total": 0,
+            "timeliness_total": 0,
+            "quality_count": 0,
+            "quantity_count": 0,
+            "timeliness_count": 0,
             "categories": set(),
             "timeliness_scores": [],
+            "qqt_reports": 0,
+            "qqt_surveyed": 0,
+            "qqt_quality_sum": 0,
+            "qqt_quantity_sum": 0,
+            "qqt_timeliness_sum": 0,
         }
         for option in PERSONNEL_OPTIONS
     }
@@ -227,6 +246,16 @@ def build_survey_analysis_context():
             stats = personnel_stats[name]
             stats["total_assigned"] += 1
 
+            # QQT tally: bilang ng reports = resolved OR closed
+            if report.status in ('resolved', 'closed'):
+                stats["qqt_reports"] += 1
+                qqt_survey = getattr(report, 'survey', None)
+                if qqt_survey:
+                    stats["qqt_surveyed"] += 1
+                    stats["qqt_quality_sum"] += qqt_survey.quality or 0
+                    stats["qqt_quantity_sum"] += qqt_survey.quantity or 0
+                    stats["qqt_timeliness_sum"] += qqt_survey.timeliness or 0
+
             if report.status != 'closed':
                 continue
 
@@ -235,8 +264,11 @@ def build_survey_analysis_context():
 
             survey = getattr(report, 'survey', None)
             if survey:
-                stats["rating_total"] += survey.rating
-                stats["rating_count"] += 1
+                for field in ('quality', 'quantity', 'timeliness'):
+                    value = getattr(survey, field)
+                    if value is not None:
+                        stats[f"{field}_total"] += value
+                        stats[f"{field}_count"] += 1
 
             threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
 
@@ -256,32 +288,46 @@ def build_survey_analysis_context():
 
     personnel_rows = []
     for stats in personnel_stats.values():
-        rating_count = stats["rating_count"]
-        quality_avg = (stats["rating_total"] / rating_count) if rating_count else 0
-        quality = round(quality_avg, 1)
+        quality = round(stats["quality_total"] / stats["quality_count"], 1) if stats["quality_count"] else 0
+        quantity_survey = round(stats["quantity_total"] / stats["quantity_count"], 1) if stats["quantity_count"] else 0
 
         total_assigned = stats["total_assigned"]
         completion_pct = (stats["closed_count"] / total_assigned * 100) if total_assigned else 0
-        quantity = _percent_to_score(completion_pct) if total_assigned else 0
+        quantity = quantity_survey or (_percent_to_score(completion_pct) if total_assigned else 0)
 
         timeliness_scores = stats["timeliness_scores"]
         timeliness_avg = (sum(timeliness_scores) / len(timeliness_scores)) if timeliness_scores else 0
-        timeliness = round(timeliness_avg, 1)
+        timeliness_survey = round(stats["timeliness_total"] / stats["timeliness_count"], 1) if stats["timeliness_count"] else 0
+        timeliness = timeliness_survey or round(timeliness_avg, 1)
 
-        personnel_avg_rating = round((quality + quantity + timeliness) / 3, 2)
+        scores = [score for score in (quality, quantity, timeliness) if score]
+        personnel_avg_rating = round(sum(scores) / len(scores), 2) if scores else 0
+
+        # QQT = Σ score / number of reports (resolved + closed); None -> "-" kapag walang survey
+        qqt_reports = stats["qqt_reports"]
+        if qqt_reports and stats["qqt_surveyed"]:
+            qqt_quality = stats["qqt_quality_sum"] / qqt_reports
+            qqt_quantity = stats["qqt_quantity_sum"] / qqt_reports
+            qqt_timeliness = stats["qqt_timeliness_sum"] / qqt_reports
+            qqt_avg = (qqt_quality + qqt_quantity + qqt_timeliness) / 3
+        else:
+            qqt_quality = qqt_quantity = qqt_timeliness = qqt_avg = None
 
         personnel_rows.append({
             "name": stats["name"],
-            "avg_rating": personnel_avg_rating,
-            "total_score": stats["rating_total"],
-            "total_surveys": rating_count,
-            "complete_task": f"{stats['closed_count']}/{total_assigned}",
-            "quality": quality,
-            "quantity": quantity,
-            "timeliness": timeliness,
+            "avg_rating": qqt_avg,
+            "total_score": round(personnel_avg_rating, 1),
+            "total_surveys": max(stats["quality_count"], stats["quantity_count"], stats["timeliness_count"]),
+            "complete_task": qqt_reports,
+            "quality": qqt_quality,
+            "quantity": qqt_quantity,
+            "timeliness": qqt_timeliness,
         })
 
-    personnel_rows.sort(key=lambda row: row["avg_rating"], reverse=True)
+    personnel_rows.sort(
+        key=lambda row: row["avg_rating"] if row["avg_rating"] is not None else -1,
+        reverse=True,
+    )
     # (uses the dict key "avg_rating", unaffected by the personnel_avg_rating rename above)
 
     # ---- Individual Responses — official personnel only (outsourced-only reports are hidden) ----
@@ -318,12 +364,12 @@ def _build_resolution_buckets(period, now, start_date=None, end_date=None):
         local_start = timezone.localtime(start_date)
         year, month = local_start.year, local_start.month
         last_day = calendar.monthrange(year, month)[1]
-        week_ranges = [(1, 7), (8, 14), (15, 21), (22, last_day)]
-
-        for week_index, (day_start, day_end) in enumerate(week_ranges, start=1):
-            bucket_start = timezone.make_aware(datetime(year, month, day_start, 0, 0, 0))
-            bucket_end = timezone.make_aware(datetime(year, month, day_end, 23, 59, 59))
-            buckets.append((f"Week {week_index}", bucket_start, bucket_end))
+        month_periods = _pdf_week_periods(
+            datetime(year, month, 1).date(),
+            datetime(year, month, last_day).date(),
+        )
+        for p in month_periods:
+            buckets.append((_fmt_period_label_short(p['start'], p['end']), p['start'], p['end']))
         return buckets
 
     # Last 7 Days: daily buckets.
@@ -345,7 +391,7 @@ def _build_resolution_buckets(period, now, start_date=None, end_date=None):
             end_day = (local_now - timedelta(days=end_delta)).date()
             bucket_start = timezone.make_aware(datetime(start_day.year, start_day.month, start_day.day, 0, 0, 0))
             bucket_end = timezone.make_aware(datetime(end_day.year, end_day.month, end_day.day, 23, 59, 59))
-            buckets.append((f"Week {5 - week_index}", bucket_start, bucket_end))
+            buckets.append((_fmt_period_label_short(bucket_start, bucket_end), bucket_start, bucket_end))
         return buckets
 
     # All Time: monthly buckets (last 12 months).
@@ -399,8 +445,9 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
 
-    avg_satisfaction = SurveyResponse.objects.aggregate(avg=Avg('rating'))['avg'] or 0
-    avg_satisfaction = round(avg_satisfaction, 1)
+    survey_scores = SurveyResponse.objects.values_list('quality', 'quantity', 'timeliness')
+    survey_values = [value for scores in survey_scores for value in scores if value is not None]
+    avg_satisfaction = round(sum(survey_values) / len(survey_values), 1) if survey_values else 0
 
     status_counts_qs = (
         filter_periods(Report.objects)
@@ -419,9 +466,10 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         "3-Satisfactory",
         "2-Fair",
         "1-Unsatisfactory"
-    ]
+    ]   
+    # Per-score tally across Quality, Quantity, Timeliness (same pooling as avg_satisfaction)
     satisfaction_counts = [
-        SurveyResponse.objects.filter(rating=i).count()
+        sum(1 for value in survey_values if value == i)
         for i in range(5, 0, -1)
     ]
 
@@ -486,8 +534,16 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
     }
 
     resolution_weeks = []
-    expected_hours = []
-    actual_hours = []
+    resolution_by_priority = {
+        code: {
+            'label': label,
+            'target': PRIORITY_SLA_HOURS[code],
+            'expected': [],
+            'actual': [],
+            'counts': [],
+        }
+        for code, label in Report.PRIORITY_CHOICES
+    }
     sla_total = 0
     sla_met = 0
 
@@ -505,24 +561,25 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             submitted_at__isnull=False,
         )
         resolution_weeks.append(bucket_label)
-        actual_list = []
-        expected_list = []
+        priority_actuals = {code: [] for code in resolution_by_priority}
         for r in finished:
             diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
             if diff < 0:
                 continue  # invalid: natapos bago ma-submit
             target = PRIORITY_SLA_HOURS.get(r.priority, 72)
-            actual_list.append(diff)
-            expected_list.append(target)
             sla_total += 1
             if diff <= target:
                 sla_met += 1
-        if actual_list:
-            actual_hours.append(round(sum(actual_list) / len(actual_list), 2))
-            expected_hours.append(round(sum(expected_list) / len(expected_list), 1))
-        else:
-            actual_hours.append(None)
-            expected_hours.append(None)
+            if r.priority in priority_actuals:
+                priority_actuals[r.priority].append(diff)
+
+        for code, series in resolution_by_priority.items():
+            values = priority_actuals[code]
+            series['expected'].append(series['target'])
+            series['actual'].append(
+                round(sum(values) / len(values), 2) if values else None
+            )
+            series['counts'].append(len(values))
 
     sla_within_pct = round(sla_met / sla_total * 100, 1) if sla_total else None
 
@@ -535,8 +592,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         'building_labels': building_labels,
         'building_status_data': building_status_data,
         'resolution_weeks': resolution_weeks,
-        'expected_hours': expected_hours,
-        'actual_hours': actual_hours,
+        'resolution_by_priority': resolution_by_priority,
         'sla_total': sla_total,
         'sla_met': sla_met,
         'sla_within_pct': sla_within_pct,
@@ -784,7 +840,7 @@ def _join_and(items):
     return f"{', '.join(items[:-1])}, and {items[-1]}"
 
 
-def _build_report_summary(data, period_start, period_end):
+def _build_report_summary(data, period_start, period_end, priority_tables=None):
     """Plain-text summary paragraph (system-suggested; admin can edit before PDF)."""
     fmt = lambda d: f"{d:%B} {d.day}, {d:%Y}"
     parts = [
@@ -849,47 +905,38 @@ def _build_report_summary(data, period_start, period_end):
         rest = building_totals[1:3]
         if rest:
             text += ", followed by " + _join_and(f"{n} with {t}" for n, t in rest)
-        text += ". The breakdown of reports per building by status is presented in Figure 3."
+        text += ". The breakdown of reports per building by status is presented in Table 1."
         parts.append(text)
 
-    pairs = [
-        (exp, act)
-        for exp, act in zip(data['expected_hours'], data['actual_hours'])
-        if act is not None
-    ]
+    if priority_tables is None:
+        priority_tables = _build_pdf_priority_tables(period_start, period_end)
+
     text = (
         "With respect to resolution time, the Division's target turnaround depends on the "
         "priority of the report: 3 hours for Critical/Urgent, 24 hours for High Priority, "
         "and 72 hours for Standard."
     )
-    if pairs:
-        actual_values = [act for _, act in pairs]
-        expected_values = [exp for exp, _ in pairs]
-        avg_actual = sum(actual_values) / len(actual_values)
-        avg_expected = sum(expected_values) / len(expected_values)
+    completed_tables = [t for t in priority_tables if t['completed']]
+    if completed_tables:
+        bits = [
+            f"{t['label']} reports averaged {_fmt_hours(t['avg_actual'])} against the "
+            f"{t['target_hours']}-hour target, with {t['met']} of {t['completed']} "
+            f"meeting the target time"
+            for t in completed_tables
+        ]
+        text += " During the reporting period, " + _join_and(bits) + "."
         text += (
-            f" During the reporting period, the weekly average resolution time ranged from "
-            f"{_fmt_hours(min(actual_values))} to {_fmt_hours(max(actual_values))}, with an "
-            f"overall average of {_fmt_hours(avg_actual)}, which is "
-            f"{'within' if avg_actual <= avg_expected else 'above'} the overall expected "
-            f"average of {_fmt_hours(avg_expected)}."
+            " The comparison of expected and actual resolution time per priority level "
+            "and per period is shown in Tables 2 to 4."
         )
-        if data['sla_total']:
-            sla_total = data['sla_total']
-            text += (
-                f" Of the {sla_total} completed report{'' if sla_total == 1 else 's'}, "
-                f"{data['sla_met']} ({data['sla_within_pct']:.1f}%) met the target time "
-                f"for their priority level."
-            )
-        text += " The weekly comparison of expected and actual resolution time is shown in Figure 4."
     else:
         text += (
             " No reports were completed during the reporting period; hence, there is no actual "
-            "resolution time available for comparison, as shown in Figure 4."
+            "resolution time available for comparison, as shown in Tables 2 to 4."
         )
     parts.append(text)
 
-    return " ".join(parts)
+    return "\n\n".join(parts)
 
 
 def _parse_report_month(report_month):
@@ -898,6 +945,91 @@ def _parse_report_month(report_month):
     last_day = calendar.monthrange(parsed.year, parsed.month)[1]
     last_dt = datetime(parsed.year, parsed.month, last_day, 23, 59, 59)
     return timezone.make_aware(first_day), timezone.make_aware(last_dt)
+
+
+def _fmt_period_label(start, end):
+    if start == end:
+        return f"{start.strftime('%B')} {start.day}"
+    if start.month == end.month:
+        return f"{start.strftime('%B')} {start.day} - {end.day}"
+    return f"{start.strftime('%B')} {start.day} - {end.strftime('%B')} {end.day}"
+
+
+def _fmt_period_label_short(start, end):
+    """Maikling label para sa web charts: 'Sep 10-16' o 'Sep 28 - Oct 4'."""
+    if start.date() == end.date() if hasattr(start, 'date') else start == end:
+        return f"{start.strftime('%b')} {start.day}"
+    if start.month == end.month:
+        return f"{start.strftime('%b')} {start.day}-{end.day}"
+    return f"{start.strftime('%b')} {start.day} - {end.strftime('%b')} {end.day}"
+
+
+def _pdf_week_periods(period_start, period_end):
+    """Calendar weeks (Sunday-Saturday) na naka-clip sa period_start..period_end."""
+    periods = []
+    cursor = period_start
+    while cursor <= period_end:
+        days_to_sat = (5 - cursor.weekday()) % 7
+        end_day = min(cursor + timedelta(days=days_to_sat), period_end)
+        periods.append({
+            'label': _fmt_period_label(cursor, end_day),
+            'start': timezone.make_aware(datetime(cursor.year, cursor.month, cursor.day, 0, 0, 0)),
+            'end': timezone.make_aware(datetime(end_day.year, end_day.month, end_day.day, 23, 59, 59)),
+        })
+        cursor = end_day + timedelta(days=1)
+    return periods
+
+
+PDF_PRIORITY_STYLES = [
+    # (code, header color, row tint)
+    ('critical', '#dc2626', '#fee2e2'),
+    ('high', '#ea580c', '#ffedd5'),
+    ('standard', '#2563eb', '#dbeafe'),
+]
+
+
+def _build_pdf_priority_tables(period_start, period_end):
+    """Isang table kada priority: rows = periods, may Expected (target) at Actual (average)."""
+    periods = _pdf_week_periods(period_start, period_end)
+    priority_labels = dict(Report.PRIORITY_CHOICES)
+    tables = []
+    for code, color, tint in PDF_PRIORITY_STYLES:
+        target = PRIORITY_SLA_HOURS[code]
+        rows = []
+        all_actual = []
+        for p in periods:
+            actual_list = []
+            finished = Report.objects.filter(
+                priority=code,
+                status__in=['resolved', 'closed'],
+                accomplished_at__range=(p['start'], p['end']),
+                submitted_at__isnull=False,
+            )
+            for r in finished:
+                diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
+                if diff < 0:
+                    continue
+                actual_list.append(diff)
+            all_actual.extend(actual_list)
+            avg = sum(actual_list) / len(actual_list) if actual_list else None
+            rows.append({
+                'period': p['label'],
+                'expected_label': _fmt_hours(target),
+                'actual_label': _fmt_hours(avg),
+            })
+        tables.append({
+            'code': code,
+            'label': priority_labels.get(code, code),
+            'color': color,
+            'tint': tint,
+            'target_hours': target,
+            'target_label': _fmt_hours(target),
+            'rows': rows,
+            'completed': len(all_actual),
+            'met': sum(1 for h in all_actual if h <= target),
+            'avg_actual': sum(all_actual) / len(all_actual) if all_actual else None,
+        })
+    return tables
 
 
 def export_dashboard_report_pdf(request):
@@ -934,12 +1066,14 @@ def export_dashboard_report_pdf(request):
         period_end = today
         period_start = today - timedelta(days=30)
 
+    priority_tables = _build_pdf_priority_tables(period_start, period_end)
+
     # Admin's edited text wins (even if blank -> no SUMMARY section).
     # If the field wasn't sent at all, fall back to the system-generated summary.
     if 'summary_text' in request.POST:
         summary_text = request.POST.get('summary_text', '').strip()[:DASHBOARD_SUMMARY_MAX_LEN]
     else:
-        summary_text = _build_report_summary(data, period_start, period_end)
+        summary_text = _build_report_summary(data, period_start, period_end, priority_tables)
 
     total = sum(data['status_data'])
     status_colors = ['#f59e0b', '#6366f1', '#10b981', '#64748b']
@@ -973,54 +1107,36 @@ def export_dashboard_report_pdf(request):
         )
     ]
 
+    status_tints = ['#fef3c7', '#e0e7ff', '#d1fae5', '#e2e8f0']
+    status_columns = [
+        {
+            'label': label,
+            'color': status_colors[index % len(status_colors)],
+        }
+        for index, label in enumerate(data['status_labels'])
+    ]
+
     building_rows = []
     for index, name in enumerate(data['building_labels']):
         counts = [
             data['building_status_data'][code][index]
             for code, _ in Report.STATUS_CHOICES
         ]
-        building_rows.append({'name': name, 'counts': counts, 'total': sum(counts)})
-
-    resolution_rows = [
-        {
-            'week': week,
-            'expected_label': _fmt_hours(exp),
-            'actual_label': _fmt_hours(act),
-            'has_data': act is not None,
-        }
-        for week, exp, act in zip(
-            data['resolution_weeks'],
-            data['expected_hours'],
-            data['actual_hours'],
-        )
-    ]
+        cells = [
+            {'value': count, 'tint': status_tints[i % len(status_tints)]}
+            for i, count in enumerate(counts)
+        ]
+        building_rows.append({
+            'name': name,
+            'counts': counts,
+            'cells': cells,
+            'total': sum(counts),
+        })
 
     active_categories = [row for row in category_rows if row['count'] > 0]
     top_categories = active_categories[:3]
     other_categories = active_categories[3:]
     top_buildings = [row for row in building_rows if row['total'] > 0][:3]
-
-    pairs = [
-        (exp, act)
-        for exp, act in zip(data['expected_hours'], data['actual_hours'])
-        if act is not None
-    ]
-    actual_values = [act for _, act in pairs]
-    expected_values = [exp for exp, _ in pairs]
-    has_resolution = bool(actual_values)
-    avg_actual = sum(actual_values) / len(actual_values) if has_resolution else None
-    avg_expected = sum(expected_values) / len(expected_values) if has_resolution else None
-    resolution_summary = {
-        'has_data': has_resolution,
-        'min': _fmt_hours(min(actual_values)) if has_resolution else None,
-        'max': _fmt_hours(max(actual_values)) if has_resolution else None,
-        'avg': _fmt_hours(avg_actual),
-        'expected_avg': _fmt_hours(avg_expected),
-        'within_target': avg_actual <= avg_expected if has_resolution else None,
-        'sla_pct': data['sla_within_pct'],
-        'sla_met': data['sla_met'],
-        'sla_total': data['sla_total'],
-    }
 
     html = render_to_string('dashboard_report_pdf.html', {
         'period_start': period_start,
@@ -1032,7 +1148,6 @@ def export_dashboard_report_pdf(request):
         'top_categories': top_categories,
         'other_categories': other_categories,
         'top_buildings': top_buildings,
-        'resolution_summary': resolution_summary,
         'summary_text': summary_text,
         'summary_paragraphs': [
             p.strip()
@@ -1040,14 +1155,13 @@ def export_dashboard_report_pdf(request):
             if p.strip()
         ],
         'status_labels': data['status_labels'],
+        'status_columns': status_columns,
         'status_rows': status_rows,
         'category_rows': category_rows,
         'building_rows': building_rows,
-        'resolution_rows': resolution_rows,
+        'priority_tables': priority_tables,
         'chart_status': _clean_chart_image(request.POST.get('chart_status')),
         'chart_categories': _clean_chart_image(request.POST.get('chart_categories')),
-        'chart_buildings': _clean_chart_image(request.POST.get('chart_buildings')),
-        'chart_resolution': _clean_chart_image(request.POST.get('chart_resolution')),
         'footer_text': f"Report Period: {period_start.strftime('%b %d, %Y')} to {period_end.strftime('%b %d, %Y')}  |  Generated: {now.strftime('%b %d, %Y %I:%M %p')}",
     })
 
@@ -1156,6 +1270,40 @@ def report_save(request, report_id):
             for item in assignments
         ) if assignments else None
 
+        # ── MATERIALS REQUIREMENT (Phase 3: Phase 1 save logic) ─────────────────
+        mat_qtys = request.POST.getlist('mat_qty')
+        mat_units = request.POST.getlist('mat_unit')
+        mat_descs = request.POST.getlist('mat_desc')
+
+        materials_rows = []
+        for qty, unit, desc in zip(mat_qtys, mat_units, mat_descs):
+            qty = qty.strip()
+            unit = unit.strip()
+            desc = desc.strip()
+
+            # Skip fully blank rows, and cap to 4 items.
+            if not qty and not unit and not desc:
+                continue
+
+            if len(materials_rows) >= 4:
+                break
+
+            # Row with qty/unit but no description is NOT saved.
+            if (qty or unit) and not desc:
+                messages.warning(
+                    request,
+                    f"Report {report.job_order_id}: a materials row was skipped because it has no Item Description."
+                )
+                continue
+
+            materials_rows.append({
+                'qty': qty,
+                'unit': unit,
+                'description': desc,
+            })
+
+        report.materials_required = materials_rows
+
         if awaiting_personnel and not report.pending_awaiting_personnel_at:
             report.pending_awaiting_personnel_at = now
         if awaiting_materials and not report.pending_awaiting_materials_at:
@@ -1237,6 +1385,10 @@ def report_status(request, report_id):
 
             if accomplished_at < report.submitted_at:
                 messages.error(request, "Date and Time Completed cannot be earlier than the Date Submitted.")
+                return redirect('adm_report_detail', report_id=report_id)
+
+            if report.in_progress_at and accomplished_at < report.in_progress_at.replace(second=0, microsecond=0):
+                messages.error(request, "Date and Time Completed cannot be earlier than the Date In Progress.")
                 return redirect('adm_report_detail', report_id=report_id)
 
             if accomplished_at > timezone.now():

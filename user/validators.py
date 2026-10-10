@@ -12,6 +12,34 @@ def validate_no_gibberish(value):
     return errors
 
 
+# Filipino/English foul-word filter. Word-boundary + char-substitution aware
+# (so "put4ng1na", "TANGINA", "ta-nga" etc. still get caught).
+_PROFANITY_PATTERNS = [
+    r'f+u*c+k+',
+    r'p+u*t+[a@4]*n+g+[i1!]*n+[a@4]*',       # putangina
+    r'p+u*t+[a@4]*n+g+',                     # putang (ina)
+    r't+[a@4]*n+g+[i1!]*n+[a@4]*',           # tangina
+    r'g+[a@4]*g+[a@4o0]*',                   # gago / gaga
+    r't+[a@4]*r+[a@4]*n+t+[a@4]*d+[a@4o0]*', # tarantado
+    r't+[a@4]*n+g+[a@4]*',                   # tanga
+]
+_PROFANITY_RE = re.compile(
+    r'\b(?:' + '|'.join(_PROFANITY_PATTERNS) + r')\b',
+    re.IGNORECASE
+)
+
+
+def validate_no_profanity(value):
+    """Returns a list of error messages. Empty list = no foul words detected.
+    Catches common Filipino/English curse words, including basic letter
+    substitutions (e.g. 4->a, 1/!->i, 0->o) and repeated letters."""
+    errors = []
+    stripped = re.sub(r'[\s\-_.]+', '', value)
+    if _PROFANITY_RE.search(value) or _PROFANITY_RE.search(stripped):
+        errors.append("Invalid input. Nonsense or foul words are not accepted.")
+    return errors
+
+
 def validate_password_strength(password):
     """Returns a list of error messages. Empty list = valid password."""
     errors = []

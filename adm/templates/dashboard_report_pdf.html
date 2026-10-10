@@ -70,6 +70,12 @@
                 object-fit: contain;
             }
 
+            .logo-fac-check {
+                width: 48px;
+                height: 48px;
+                object-fit: contain;
+            }
+
             .title-main {
                 font-size: 16pt;
                 font-family: "Times New Roman", Times, serif;
@@ -85,11 +91,14 @@
                 margin-top: 24px;
             }
 
+     
+
             .part-title {
                 font-size: 12pt;
                 font-weight: bold;
                 margin-top: 24px;
                 margin-bottom: 2px;
+                -pdf-keep-with-next: true;
             }
 
             .section-title {
@@ -97,6 +106,7 @@
                 font-weight: bold;
                 margin-top: 10px;
                 margin-bottom: 4px;
+                -pdf-keep-with-next: true;
             }
 
             .note {
@@ -166,8 +176,11 @@
                         <img src="{% static 'user/images/BP logo.png' %}"
                              class="logo"
                              alt="Bagong Pilipinas">
+                        <img src="{% static 'adm/images/Fac-Check-Logo.png' %}"
+                             class="logo-fac-check"
+                             alt="Fac-Check">
                     </div>
-                    <div class="title-sub">MED MONTHLY DASHBOARD REPORT</div>
+                    <div class="title-sub">MONTHLY DASHBOARD REPORT<br><br>{{ period_end|date:"F Y"|upper }}</div>
                 </td>
             </tr>
         </table>
@@ -177,7 +190,6 @@
                 <p class="para">{{ para|linebreaksbr }}</p>
             {% endfor %}
         {% endif %}
-        {% comment %} <pdf:nextpage /> {% endcomment %}
         <div class="part-title">CHARTS</div>
         <table class="no-border">
             <tr>
@@ -219,53 +231,40 @@
                 </td>
             </tr>
         </table>
-        <pdf:nextpage />
-        <div class="center">
-            {% if chart_buildings %}
-                <img src="{{ chart_buildings }}" width="480">
-            {% else %}
-                <div class="note">Chart not available.</div>
-            {% endif %}
-        </div>
-        <div class="figure-caption">Figure 3. Reports by Building</div>
+        <div class="section-title" style="margin-top:18px;">Table 1. Reports by Building</div>
         <table>
             <tr>
                 <th style="text-align:left;">Building</th>
-                {% for label in status_labels %}<th>{{ label }}</th>{% endfor %}
-                <th>Total</th>
+                {% for col in status_columns %}<th style="background-color:{{ col.color }}; color:#ffffff;">{{ col.label }}</th>{% endfor %}
+                <th style="background-color:#374151; color:#ffffff;">Total</th>
             </tr>
             {% for row in building_rows %}
                 <tr>
                     <td>{{ row.name }}</td>
-                    {% for c in row.counts %}<td class="center">{{ c }}</td>{% endfor %}
-                    <td class="center bold">{{ row.total }}</td>
+                    {% for cell in row.cells %}<td class="center" style="background-color:{{ cell.tint }};">{{ cell.value }}</td>{% endfor %}
+                    <td class="center bold" style="background-color:#e5e7eb;">{{ row.total }}</td>
                 </tr>
             {% endfor %}
         </table>
-        <div class="center" style="margin-top:14px;">
-            {% if chart_resolution %}
-                <img src="{{ chart_resolution }}" width="440">
-            {% else %}
-                <div class="note">Chart not available.</div>
-            {% endif %}
-        </div>
-        <div class="figure-caption">Figure 4. Resolution Time: Expected vs. Actual</div>
-        <table>
-            <tr>
-                <th>Week</th>
-                <th>Expected</th>
-                <th>Actual</th>
-            </tr>
-            {% for row in resolution_rows %}
+        {% for t in priority_tables %}
+            <div class="section-title" style="margin-top:18px;">Table {{ forloop.counter|add:"1" }}. Resolution Time: {{ t.label }} (Target: {{ t.target_label }})</div>
+            <table>
                 <tr>
-                    <td class="center">{{ row.week }}</td>
-                    <td class="center">{{ row.expected_label }}</td>
-                    <td class="center">{{ row.actual_label }}</td>
+                    <th>Period</th>
+                    <th>Expected</th>
+                    <th>Actual</th>
                 </tr>
-            {% endfor %}
-        </table>
+                {% for row in t.rows %}
+                    <tr>
+                        <td class="center">{{ row.period }}</td>
+                        <td class="center">{{ row.expected_label }}</td>
+                        <td class="center">{{ row.actual_label }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% endfor %}
         <p class="para" style="font-size:9pt; color:#6b7280; line-height:12pt; margin-top:10px;">
-            Note: Expected is the average target time of the reports completed that week, based on each report's priority. N/A means no report was completed that week.
+            Note: Expected is the target turnaround time of the priority level. Actual is the average time to complete the reports resolved in that period. N/A means no report was completed in that period.
         </p>
         <div class="pdf-footer">{{ footer_text }}</div>
     </body>

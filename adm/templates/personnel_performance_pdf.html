@@ -53,6 +53,11 @@
                 height: 50px;
                 object-fit: contain;
             }
+            .logo-fac-check {
+                width: 40px;
+                height: 40px;
+                object-fit: contain;
+            }
 
             .title-main {
                 font-size: 15pt;
@@ -144,6 +149,9 @@
                         <img src="{% static 'user/images/BP logo.png' %}"
                              class="logo"
                              alt="Bagong Pilipinas">
+                        <img src="{% static 'adm/images/Fac-Check-Logo.png' %}"
+                             class="logo-fac-check"
+                             alt="Fac-Check">
                     </div>
                     <div class="title-main">UNIVERSIDAD DE MANILA</div>
                 </td>
@@ -190,8 +198,7 @@
             <table>
                 <tr>
                     <td class="th-cell">Personnel/s</td>
-                    <td class="th-cell center">Total Surveys</td>
-                    <td class="th-cell center">Complete Task</td>
+                    <td class="th-cell center">Completed Task</td>
                     <td class="th-cell center">Overall Satisfaction Score</td>
                     <td class="th-cell center">Quality</td>
                     <td class="th-cell center">Quantity</td>
@@ -201,17 +208,16 @@
                 {% for row in personnel_rows %}
                     <tr>
                         <td class="name-cell">{{ row.name }}</td>
-                        <td class="center">{{ row.total_surveys }}</td>
                         <td class="center">{{ row.complete_task }}</td>
                         <td class="center">{{ row.total_score }}</td>
-                        <td class="center">{{ row.quality }}</td>
-                        <td class="center">{{ row.quantity }}</td>
-                        <td class="center">{{ row.timeliness }}</td>
-                        <td class="center"><span class="badge-avg">{{ row.avg_rating }}</span></td>
+                        <td class="center">{% if row.quality is not None %}{{ row.quality|floatformat:1 }}{% else %}-{% endif %}</td>
+                        <td class="center">{% if row.quantity is not None %}{{ row.quantity|floatformat:1 }}{% else %}-{% endif %}</td>
+                        <td class="center">{% if row.timeliness is not None %}{{ row.timeliness|floatformat:1 }}{% else %}-{% endif %}</td>
+                        <td class="center">{% if row.avg_rating is not None %}<span class="badge-avg">{{ row.avg_rating|floatformat:1 }}</span>{% else %}-{% endif %}</td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="8" class="center">No personnel survey data yet.</td>
+                        <td colspan="7" class="center">No personnel survey data yet.</td>
                     </tr>
                 {% endfor %}
             </table>

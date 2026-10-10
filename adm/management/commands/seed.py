@@ -125,7 +125,7 @@ class Command(BaseCommand):
         Room.objects.create(floor=nb_f2, name='Female - Comfort Room', code='NBFEMALECR', order=8)
 
         # Third Floor
-        Room.objects.create(floor=nb_f3, name='NB301 - ', code='NB301', order=1)
+        Room.objects.create(floor=nb_f3, name='NB301', code='NB301', order=1)
         Room.objects.create(floor=nb_f3, name='NB302', code='NB302', order=2)
         Room.objects.create(floor=nb_f3, name='NB303', code='NB303', order=3)
         Room.objects.create(floor=nb_f3, name='NB304', code='NB304', order=4)
