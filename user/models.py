@@ -1,4 +1,5 @@
 from django.db import models, transaction
+from django.db.models import F
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
@@ -173,21 +174,21 @@ class Report(models.Model):
             return super().save(*args, **kwargs)
 
         with transaction.atomic():
-            super().save(*args, **kwargs)
-
-            report_date = timezone.localtime(self.submitted_at)
             sequence, _ = ReportSequence.objects.select_for_update().get_or_create(
-                year=report_date.year,
+                year=timezone.localtime(self.submitted_at).year,
                 defaults={'last_number': 0},
             )
-            sequence.last_number += 1
-            sequence.save(update_fields=['last_number'])
+            ReportSequence.objects.filter(pk=sequence.pk).update(
+                last_number=F('last_number') + 1
+            )
+            sequence.refresh_from_db()
 
+            report_date = timezone.localtime(self.submitted_at)
             self.job_order_id = (
                 f"{REPORT_PREFIX}-{report_date.year}-"
                 f"{report_date.month:02d}-{sequence.last_number:06d}"
             )
-            super().save(update_fields=['job_order_id'])
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.job_order_id or f'#{self.id:04d}'} - {self.get_category_display()} ({self.location})"
@@ -236,8 +237,9 @@ class UserProfile(models.Model):
 
 class SurveyResponse(models.Model):
     report = models.OneToOneField(Report, on_delete=models.CASCADE, related_name='survey')
-    rating = models.IntegerField()
-    feedback = models.TextField(blank=True)
+    quality = models.IntegerField(null=True, blank=True)
+    quantity = models.IntegerField(null=True, blank=True)
+    timeliness = models.IntegerField(null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
