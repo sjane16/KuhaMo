@@ -20,7 +20,7 @@ from django.contrib.auth.models import User
 from .models import Report, SurveyResponse, UserProfile, Notification, invalidate_trusted_devices
 from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
-from .notifications import notify_status_change
+from .notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
 from .context_processors import get_unread_notifications_count
 from ml.predictor import predict_image
 import logging
@@ -28,7 +28,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 REPORTS_PAGE_SIZE = 5
-NOTIFICATIONS_PAGE_SIZE = 25
 SURVEY_HISTORY_PAGE_SIZE = 25
 
 
@@ -672,12 +671,7 @@ def predictCategory(request):
     })
 
 def _filter_user_notifications(request, notif_filter):
-    notifications = Notification.objects.filter(user=request.user).select_related('report')
-
-    if notif_filter == 'unread':
-        notifications = notifications.filter(is_read=False)
-
-    return notifications
+    return notifications_for_user(request.user, notif_filter)
 
 
 @login_required
@@ -716,16 +710,7 @@ def get_notifications_ajax(request):
     notifications = _filter_user_notifications(request, notif_filter)[:10]
 
     data = [
-        {
-            "id": n.id,
-            "message": n.message,
-            "is_read": n.is_read,
-            "is_recent": n.is_recent,
-            "time_ago": n.time_ago,
-            "report_id": n.report.id,
-            "status": n.status_snapshot or n.report.status,
-            "completion_photo_url": n.report.completion_photo.url if (n.status_snapshot == 'resolved' and n.report.completion_photo) else None,
-        }
+        serialize_notification(n, include_completion_photo=True)
         for n in notifications
     ]
 

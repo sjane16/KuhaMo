@@ -21,14 +21,13 @@ from security.audit import log_event
 from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
 from user.views import link_callback
-from user.notifications import notify_status_change
+from user.notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
 from user.context_processors import get_unread_notifications_count
 from user.constants import PRIORITY_SLA_HOURS
 from .models import Building 
 
 
 REPORTS_PAGE_SIZE = 5
-NOTIFICATIONS_PAGE_SIZE = 25
 ANALYTICS_CACHE_SECONDS = 60
 
 PERSONNEL_OPTIONS = [
@@ -1605,12 +1604,7 @@ def adm_survey_responses_ajax(request):
 
 
 def _filter_admin_notifications(request, notif_filter):
-    notifications = Notification.objects.filter(user=request.user).select_related('report')
-
-    if notif_filter == 'unread':
-        notifications = notifications.filter(is_read=False)
-
-    return notifications
+    return notifications_for_user(request.user, notif_filter)
 
 
 def adminNotifications(request):
@@ -1646,15 +1640,7 @@ def get_notifications_ajax_admin(request):
     notifications = _filter_admin_notifications(request, notif_filter)[:10]
 
     data = [
-        {
-            "id": n.id,
-            "message": n.message,
-            "is_read": n.is_read,
-            "is_recent": n.is_recent,
-            "time_ago": n.time_ago,
-            "report_id": n.report.id,
-            "status": n.status_snapshot or n.report.status,
-        }
+        serialize_notification(n)
         for n in notifications
     ]
 

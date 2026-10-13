@@ -11,6 +11,7 @@ from adm.models import Building, Floor, Room
 from .constants import PRIORITY_SLA_HOURS
 from .forms import ReportForm
 from .models import Notification, Report, UserProfile
+from .notifications import notifications_for_user, serialize_notification
 
 
 class ConsolidationTests(TestCase):
@@ -37,3 +38,29 @@ class ConsolidationTests(TestCase):
         self.assertEqual(UserProfile.objects.filter(user=admin).count(), 1)
         self.assertEqual(admin.profile.role, 'admin')
         self.assertEqual(UserProfile.objects.get(user__username='23-22-022').department, 'CCS')
+
+    def test_notifications_preserve_ownership_filter_and_role_specific_output(self):
+        user = User.objects.create_user(username='notif-user')
+        other = User.objects.create_user(username='notif-other')
+        report = Report.objects.create(user=user, job_order_id='CONSOLIDATION', category='electrical', location='Room', description='Test')
+        notification = Notification.objects.create(user=user, report=report, message='Unread')
+        Notification.objects.create(user=user, report=report, message='Read', is_read=True)
+        Notification.objects.create(user=other, report=report, message='Other')
+        rows = list(notifications_for_user(user, 'unread'))
+        self.assertEqual([row.pk for row in rows], [notification.pk])
+        self.assertNotIn('completion_photo_url', serialize_notification(rows[0]))
+        self.assertIn('completion_photo_url', serialize_notification(rows[0], True))
+        page = Paginator(rows, 25).get_page(1)
+        user_html = render_to_string('user/partials/_notifications_rows.html', {'notifications': page})
+        admin_html = render_to_string('partials/_notifications_rows.html', {'notifications': page})
+        from django.urls import reverse
+        self.assertIn(reverse('view_notification', args=[notification.pk]), user_html)
+        self.assertIn(reverse('view_notification_admin', args=[notification.pk]), admin_html)
+
+        report.completion_photo = 'reports/completion/test-proof'
+        rows[0].report = report
+        rows[0].status_snapshot = 'resolved'
+        user_html = render_to_string('user/partials/_notifications_rows.html', {'notifications': page})
+        admin_html = render_to_string('partials/_notifications_rows.html', {'notifications': page})
+        self.assertIn('See resolution', user_html)
+        self.assertNotIn('See resolution', admin_html)
