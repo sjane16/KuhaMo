@@ -4,6 +4,7 @@ from django.utils.dateparse import parse_datetime
 from requests import request
 from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices
 from django.db.models import Count, Q, Sum
+from django.core.cache import cache
 from datetime import timedelta, datetime
 import calendar
 import json
@@ -27,6 +28,7 @@ from .models import Building
 
 REPORTS_PAGE_SIZE = 5
 NOTIFICATIONS_PAGE_SIZE = 25
+ANALYTICS_CACHE_SECONDS = 60
 
 PERSONNEL_OPTIONS = [
     {"slug": "remigio", "name": "Mr. Remigio"},
@@ -451,6 +453,26 @@ def _build_resolution_buckets(period, now, start_date=None, end_date=None):
     return buckets
 
 
+def _reports_for_resolution_buckets(buckets):
+    reports_by_bucket = [[] for _ in buckets]
+    if not buckets:
+        return reports_by_bucket
+
+    finished_reports = Report.objects.filter(
+        status__in=('resolved', 'closed'),
+        accomplished_at__range=(buckets[0][1], buckets[-1][2]),
+        submitted_at__isnull=False,
+    ).values_list('priority', 'submitted_at', 'accomplished_at')
+
+    for priority, submitted_at, accomplished_at in finished_reports.iterator(chunk_size=500):
+        for index, (_, bucket_start, bucket_end) in enumerate(buckets):
+            if bucket_start <= accomplished_at <= bucket_end:
+                reports_by_bucket[index].append((priority, submitted_at, accomplished_at))
+                break
+
+    return reports_by_bucket
+
+
 def _build_dashboard_data(period, start_date=None, end_date=None):
     now = timezone.now()
 
@@ -474,9 +496,24 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
 
-    survey_scores = SurveyResponse.objects.values_list('quality', 'quantity', 'timeliness')
-    survey_values = [value for scores in survey_scores for value in scores if value is not None]
-    avg_satisfaction = round(sum(survey_values) / len(survey_values), 1) if survey_values else 0
+    survey_aggregates = {
+        f'{field}_sum': Sum(field)
+        for field in ('quality', 'quantity', 'timeliness')
+    }
+    survey_aggregates.update({
+        f'{field}_count': Count(field)
+        for field in ('quality', 'quantity', 'timeliness')
+    })
+    for rating in range(1, 6):
+        survey_aggregates[f'rating_{rating}'] = (
+            Count('id', filter=Q(quality=rating))
+            + Count('id', filter=Q(quantity=rating))
+            + Count('id', filter=Q(timeliness=rating))
+        )
+    survey_scores = SurveyResponse.objects.aggregate(**survey_aggregates)
+    score_count = sum(survey_scores[f'{field}_count'] for field in ('quality', 'quantity', 'timeliness'))
+    score_sum = sum(survey_scores[f'{field}_sum'] or 0 for field in ('quality', 'quantity', 'timeliness'))
+    avg_satisfaction = round(score_sum / score_count, 1) if score_count else 0
 
     status_counts_qs = (
         filter_periods(Report.objects)
@@ -497,10 +534,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         "1-Unsatisfactory"
     ]   
     # Per-score tally across Quality, Quantity, Timeliness (same pooling as avg_satisfaction)
-    satisfaction_counts = [
-        sum(1 for value in survey_values if value == i)
-        for i in range(5, 0, -1)
-    ]
+    satisfaction_counts = [survey_scores[f'rating_{rating}'] for rating in range(5, 0, -1)]
 
     categories_data = (
         filter_periods(Report.objects)
@@ -545,10 +579,10 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             code: 0 for code, _ in Report.STATUS_CHOICES
         }
 
-    for report in filter_periods(Report.objects):
-        building = report.location.split(',')[0].strip() if report.location else None
+    for status, location in filter_periods(Report.objects).values_list('status', 'location').iterator(chunk_size=500):
+        building = location.split(',')[0].strip() if location else None
         if building:
-            building_status_counts[building][report.status] += 1
+            building_status_counts[building][status] += 1
 
     sorted_buildings = sorted(
         building_status_counts.items(),
@@ -583,24 +617,20 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         end_date=end_date,
     )
 
-    for bucket_label, bucket_start, bucket_end in resolution_buckets:
-        finished = Report.objects.filter(
-            status__in=['resolved', 'closed'],
-            accomplished_at__range=(bucket_start, bucket_end),
-            submitted_at__isnull=False,
-        )
+    reports_by_bucket = _reports_for_resolution_buckets(resolution_buckets)
+    for (bucket_label, _, _), finished in zip(resolution_buckets, reports_by_bucket):
         resolution_weeks.append(bucket_label)
         priority_actuals = {code: [] for code in resolution_by_priority}
-        for r in finished:
-            diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
+        for priority, submitted_at, accomplished_at in finished:
+            diff = (accomplished_at - submitted_at).total_seconds() / 3600
             if diff < 0:
                 continue  # invalid: natapos bago ma-submit
-            target = PRIORITY_SLA_HOURS.get(r.priority, 72)
+            target = PRIORITY_SLA_HOURS.get(priority, 72)
             sla_total += 1
             if diff <= target:
                 sla_met += 1
-            if r.priority in priority_actuals:
-                priority_actuals[r.priority].append(diff)
+            if priority in priority_actuals:
+                priority_actuals[priority].append(diff)
 
         for code, series in resolution_by_priority.items():
             values = priority_actuals[code]
@@ -630,6 +660,19 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
     }
 
 
+def _cached_dashboard_data(period, start_date=None, end_date=None):
+    key = 'dashboard-data:' + ':'.join((
+        str(period),
+        start_date.isoformat() if start_date else '',
+        end_date.isoformat() if end_date else '',
+    ))
+    return cache.get_or_set(
+        key,
+        lambda: _build_dashboard_data(period, start_date, end_date),
+        ANALYTICS_CACHE_SECONDS,
+    )
+
+
 def adm_dashboard_ajax(request):
     period = request.GET.get('period', '30')
     report_month = (request.GET.get('report_month') or '').strip()
@@ -639,9 +682,9 @@ def adm_dashboard_ajax(request):
             start_dt, end_dt = _parse_report_month(report_month)
         except ValueError:
             return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
-        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
     else:
-        data = _build_dashboard_data(period)
+        data = _cached_dashboard_data(period)
 
     html = render_to_string(
         'partials/_dashboard_content.html',
@@ -944,7 +987,7 @@ def _build_report_summary(data, period_start, period_end, priority_tables=None):
         parts.append(text)
 
     if priority_tables is None:
-        priority_tables = _build_pdf_priority_tables(period_start, period_end)
+        priority_tables = _cached_pdf_priority_tables(period_start, period_end)
 
     text = (
         "With respect to resolution time, the Division's target turnaround depends on the "
@@ -1027,28 +1070,38 @@ def _build_pdf_priority_tables(period_start, period_end):
     """Isang table kada priority: rows = periods, may Expected (target) at Actual (average)."""
     periods = _pdf_week_periods(period_start, period_end)
     priority_labels = dict(Report.PRIORITY_CHOICES)
+    actuals_by_priority = {
+        code: [[] for _ in periods]
+        for code, _, _ in PDF_PRIORITY_STYLES
+    }
+    if periods:
+        finished_reports = Report.objects.filter(
+            status__in=('resolved', 'closed'),
+            accomplished_at__range=(periods[0]['start'], periods[-1]['end']),
+            submitted_at__isnull=False,
+        ).values_list('priority', 'submitted_at', 'accomplished_at')
+
+        for priority, submitted_at, accomplished_at in finished_reports.iterator(chunk_size=500):
+            if priority not in actuals_by_priority:
+                continue
+            diff = (accomplished_at - submitted_at).total_seconds() / 3600
+            if diff < 0:
+                continue
+            for index, period in enumerate(periods):
+                if period['start'] <= accomplished_at <= period['end']:
+                    actuals_by_priority[priority][index].append(diff)
+                    break
+
     tables = []
     for code, color, tint in PDF_PRIORITY_STYLES:
         target = PRIORITY_SLA_HOURS[code]
         rows = []
-        all_actual = []
-        for p in periods:
-            actual_list = []
-            finished = Report.objects.filter(
-                priority=code,
-                status__in=['resolved', 'closed'],
-                accomplished_at__range=(p['start'], p['end']),
-                submitted_at__isnull=False,
-            )
-            for r in finished:
-                diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
-                if diff < 0:
-                    continue
-                actual_list.append(diff)
-            all_actual.extend(actual_list)
+        actual_lists = actuals_by_priority[code]
+        all_actual = [hours for values in actual_lists for hours in values]
+        for period, actual_list in zip(periods, actual_lists):
             avg = sum(actual_list) / len(actual_list) if actual_list else None
             rows.append({
-                'period': p['label'],
+                'period': period['label'],
                 'expected_label': _fmt_hours(target),
                 'actual_label': _fmt_hours(avg),
             })
@@ -1065,6 +1118,15 @@ def _build_pdf_priority_tables(period_start, period_end):
             'avg_actual': sum(all_actual) / len(all_actual) if all_actual else None,
         })
     return tables
+
+
+def _cached_pdf_priority_tables(period_start, period_end):
+    key = f'pdf-priority-tables:{period_start.isoformat()}:{period_end.isoformat()}'
+    return cache.get_or_set(
+        key,
+        lambda: _build_pdf_priority_tables(period_start, period_end),
+        ANALYTICS_CACHE_SECONDS,
+    )
 
 
 def export_dashboard_report_pdf(request):
@@ -1093,15 +1155,15 @@ def export_dashboard_report_pdf(request):
         )
 
     if report_month:
-        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
         period_start = start_dt.date()
         period_end = end_dt.date()
     else:
-        data = _build_dashboard_data('30')
+        data = _cached_dashboard_data('30')
         period_end = today
         period_start = today - timedelta(days=30)
 
-    priority_tables = _build_pdf_priority_tables(period_start, period_end)
+    priority_tables = _cached_pdf_priority_tables(period_start, period_end)
 
     # Admin's edited text wins (even if blank -> no SUMMARY section).
     # If the field wasn't sent at all, fall back to the system-generated summary.
@@ -1244,11 +1306,11 @@ def dashboard_report_summary(request):
         )
 
     if report_month:
-        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
         period_start = start_dt.date()
         period_end = end_dt.date()
     else:
-        data = _build_dashboard_data('30')
+        data = _cached_dashboard_data('30')
         period_end = today
         period_start = today - timedelta(days=30)
 
