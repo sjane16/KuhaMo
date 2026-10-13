@@ -51,6 +51,9 @@ class Report(models.Model):
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     custom_category = models.CharField(max_length=100, blank=True, null=True)
     location = models.CharField(max_length=100)
+    room = models.ForeignKey('adm.Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
+    building_name = models.CharField(max_length=100, blank=True, default='')
+    room_name = models.CharField(max_length=100, blank=True, default='')
     description = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     submitted_at = models.DateTimeField(auto_now_add=True)
@@ -89,7 +92,14 @@ class Report(models.Model):
 
     @property
     def room_location(self):
-        return self.location.split(",")[-1].strip()
+        return self.room_name
+
+    def set_room_location(self, room):
+        """Capture the selected room's display values without changing them later."""
+        self.room = room
+        self.building_name = room.floor.building.name
+        self.room_name = room.name
+        self.location = f"{self.building_name}, {room.floor.label}, {self.room_name}"
 
     @property
     def reporter_name(self):
@@ -154,6 +164,13 @@ class Report(models.Model):
             return self.accomplished_at
 
     def save(self, *args, **kwargs):
+        if self._state.adding:
+            if self.room_id:
+                self.set_room_location(self.room)
+            else:
+                # Legacy/imported reports can still be created without a room link.
+                self.building_name = self.building_name or self.location.partition(',')[0].strip()
+                self.room_name = self.room_name or self.location.rpartition(',')[-1].strip()
         # Compatibility copy only; JSON remains the editable source of truth.
         self.assigned_personnel = (self.assigned_personnel_summary or '')[:255] or None
         if kwargs.get('update_fields') and 'assigned_personnel_data' in kwargs['update_fields']:

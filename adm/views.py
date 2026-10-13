@@ -560,8 +560,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             code: 0 for code, _ in Report.STATUS_CHOICES
         }
 
-    for status, location in filter_periods(Report.objects).values_list('status', 'location').iterator(chunk_size=500):
-        building = location.split(',')[0].strip() if location else None
+    for status, building in filter_periods(Report.objects).values_list('status', 'building_name').iterator(chunk_size=500):
         if building:
             building_status_counts[building][status] += 1
 

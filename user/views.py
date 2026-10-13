@@ -191,7 +191,7 @@ def reportForm(request):
             report.user = request.user
 
             selected_room = form.cleaned_data['location']
-            report.location = f"{selected_room.floor.building.name}, {selected_room.floor.label}, {selected_room.name}"
+            report.set_room_location(selected_room)
 
             report.category = form.cleaned_data['category']
             report.custom_category = form.cleaned_data['custom_category']
