@@ -52,3 +52,35 @@ class ProfilePasswordTests(TestCase):
             invalidate.assert_called_once_with(self.user)
             audit.assert_called_once_with(request, 'password_changed', user=self.user, where='Edit Profile')
             update_session.assert_called_once_with(request, self.user)
+
+
+class PersonnelMigrationTests(TestCase):
+    def test_backfill_preserves_json_and_legacy_strings_and_is_idempotent(self):
+        legacy = Report.objects.create(job_order_id='LEGACY', category='electrical', location='Room', description='Test')
+        existing = Report.objects.create(job_order_id='JSON', category='electrical', location='Room', description='Test', assigned_personnel_data=[{'name': 'External Person'}])
+        text = 'Mr. Remigio (QTT 5), External Person'
+        Report.objects.filter(pk=legacy.pk).update(assigned_personnel=text)
+        Report.objects.filter(pk=existing.pk).update(assigned_personnel='Conflicting legacy name')
+        legacy.history.all().update(assigned_personnel=text, assigned_personnel_data=[])
+        migration = import_module('user.migrations.0032_migrate_legacy_personnel')
+        editor = SimpleNamespace(connection=SimpleNamespace(alias='default'))
+        migration.copy_legacy_personnel(apps, editor)
+        migration.copy_legacy_personnel(apps, editor)
+        legacy.refresh_from_db()
+        existing.refresh_from_db()
+        self.assertEqual(legacy.assigned_personnel, text)
+        self.assertEqual(legacy.assigned_personnel_data, [{'name': 'Mr. Remigio'}, {'name': 'External Person'}])
+        self.assertEqual(existing.assigned_personnel_data, [{'name': 'External Person'}])
+        self.assertEqual(legacy.history.first().assigned_personnel_data, legacy.assigned_personnel_data)
+        self.assertEqual(legacy.assigned_personnel_summary, 'Mr. Remigio, External Person')
+        self.assertTrue(build_personnel_rows(legacy)[0][0]['checked'])
+        self.assertTrue(_filter_admin_reports('', 'External Person').filter(pk=legacy.pk).exists())
+
+    def test_json_edit_updates_compatibility_copy_and_removal_clears_assignments(self):
+        report = Report.objects.create(job_order_id='EDIT', category='electrical', location='Room', description='Test', assigned_personnel_data=[{'name': 'Mr. Remigio'}])
+        self.assertEqual(report.assigned_personnel, 'Mr. Remigio')
+        report.assigned_personnel_data = []
+        report.save(update_fields=['assigned_personnel_data'])
+        report.refresh_from_db()
+        self.assertIsNone(report.assigned_personnel)
+        self.assertIsNone(report.assigned_personnel_summary)

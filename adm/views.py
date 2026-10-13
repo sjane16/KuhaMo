@@ -45,13 +45,6 @@ def build_personnel_rows(report):
         if item.get("name")
     }
 
-    if not saved and report.assigned_personnel:
-        saved_names = {
-            name.strip()
-            for name in report.assigned_personnel.split(",")
-            if name.strip()
-        }
-
     rows = []
     known_names = {item["name"] for item in PERSONNEL_OPTIONS}
 
@@ -141,7 +134,7 @@ def _survey_responses_queryset():
 
     return (
         SurveyResponse.objects
-        .filter(assignments | Q(report__assigned_personnel__in=personnel_names))
+        .filter(assignments)
         .select_related('report')
         .order_by('-submitted_at')
     )
@@ -150,9 +143,6 @@ def _survey_responses_queryset():
 def _build_survey_response(survey):
     report = survey.report
     assignments = report.assigned_personnel_data or []
-    if not assignments and report.assigned_personnel:
-        assignments = [{"name": report.assigned_personnel}]
-
     personnel_names = _known_personnel_names(assignments)
     threshold = PRIORITY_SLA_HOURS.get(report.priority, PRIORITY_SLA_HOURS['standard'])
 
@@ -252,9 +242,6 @@ def build_survey_analysis_context(response_page=1, include_responses=True):
 
     for report in Report.objects.select_related('survey').iterator(chunk_size=500):
         assignments = report.assigned_personnel_data or []
-        if not assignments and report.assigned_personnel:
-            assignments = [{"name": report.assigned_personnel}]
-
         names = _known_personnel_names(assignments)
         if not names:
             continue
@@ -721,7 +708,7 @@ def _filter_admin_reports(status_filter, search_query):
             | Q(location__icontains=query)
             | Q(category__icontains=query)
             | Q(custom_category__icontains=query)
-            | Q(assigned_personnel__icontains=query)
+            | Q(assigned_personnel_data__icontains=query)
         )
 
         matching_statuses = [
@@ -1358,10 +1345,6 @@ def report_save(request, report_id):
                     assignments.append({"name": name})
 
         report.assigned_personnel_data = assignments
-        report.assigned_personnel = ", ".join(
-            item["name"]
-            for item in assignments
-        ) if assignments else None
 
         # ── MATERIALS REQUIREMENT (Phase 3: Phase 1 save logic) ─────────────────
         mat_qtys = request.POST.getlist('mat_qty')

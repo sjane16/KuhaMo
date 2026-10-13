@@ -107,14 +107,6 @@ class Report(models.Model):
                 if item.get('name')
             )
 
-        if self.assigned_personnel:
-            import re
-            return re.sub(
-                r'\s*\(QTT\s+\d+\)',
-                '',
-                self.assigned_personnel
-            )
-
         return None
 
     @property
@@ -162,6 +154,10 @@ class Report(models.Model):
             return self.accomplished_at
 
     def save(self, *args, **kwargs):
+        # Compatibility copy only; JSON remains the editable source of truth.
+        self.assigned_personnel = (self.assigned_personnel_summary or '')[:255] or None
+        if kwargs.get('update_fields') and 'assigned_personnel_data' in kwargs['update_fields']:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'assigned_personnel'}
         if self.job_order_id:
             return super().save(*args, **kwargs)
 
