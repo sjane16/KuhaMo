@@ -730,6 +730,7 @@
            class="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-2xl shadow-2xl" />
     </div>
   </div>
+  {{ priority_sla_hours|json_script:"priority-sla-hours" }}
   <script>
       // ── Photo lightbox ──
       function openPhotoModal(url) {
@@ -990,11 +991,7 @@
       updateMaterialControls();
 
       // ── Live Predicted Resolution Time (no save needed) ──
-      const PRIORITY_HOURS = {
-          critical: 3,
-          high: 24,
-          standard: 72
-      };
+      const PRIORITY_HOURS = JSON.parse(document.getElementById("priority-sla-hours").textContent);
       const prioritySelect = document.getElementById("prioritySelect");
       const predictedResolutionValue = document.getElementById("predictedResolutionValue");
       if (prioritySelect && predictedResolutionValue) {

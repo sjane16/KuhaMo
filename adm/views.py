@@ -23,6 +23,7 @@ from xhtml2pdf import pisa
 from user.views import link_callback
 from user.notifications import notify_status_change
 from user.context_processors import get_unread_notifications_count
+from user.constants import PRIORITY_SLA_HOURS
 from .models import Building 
 
 
@@ -85,11 +86,6 @@ def format_hours(hours):
 
 RESPONSES_PAGE_SIZE = 25
 
-PRIORITY_SLA_HOURS = {
-    'standard': 72,
-    'high': 24,
-    'critical': 3,
-}
 
 
 def _fmt_hours(h):
@@ -160,7 +156,7 @@ def _build_survey_response(survey):
         assignments = [{"name": report.assigned_personnel}]
 
     personnel_names = _known_personnel_names(assignments)
-    threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
+    threshold = PRIORITY_SLA_HOURS.get(report.priority, PRIORITY_SLA_HOURS['standard'])
 
     expected_resolution_met = None
     resolution_delay_days = None
@@ -293,7 +289,7 @@ def build_survey_analysis_context(response_page=1, include_responses=True):
                         stats[f"{field}_total"] += value
                         stats[f"{field}_count"] += 1
 
-            threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
+            threshold = PRIORITY_SLA_HOURS.get(report.priority, PRIORITY_SLA_HOURS['standard'])
 
             sla_score = None
             if report.in_progress_at and report.accomplished_at:
@@ -625,7 +621,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             diff = (accomplished_at - submitted_at).total_seconds() / 3600
             if diff < 0:
                 continue  # invalid: natapos bago ma-submit
-            target = PRIORITY_SLA_HOURS.get(priority, 72)
+            target = PRIORITY_SLA_HOURS.get(priority, PRIORITY_SLA_HOURS['standard'])
             sla_total += 1
             if diff <= target:
                 sla_met += 1
@@ -824,6 +820,7 @@ def report_detail(request, report_id):
         'personnel_rows': personnel_rows,
         'other_personnel': other_personnel,
         'is_locked': is_locked,
+        'priority_sla_hours': PRIORITY_SLA_HOURS,
     })
 
 
@@ -991,8 +988,9 @@ def _build_report_summary(data, period_start, period_end, priority_tables=None):
 
     text = (
         "With respect to resolution time, the Division's target turnaround depends on the "
-        "priority of the report: 3 hours for Critical/Urgent, 24 hours for High Priority, "
-        "and 72 hours for Standard."
+        f"priority of the report: {PRIORITY_SLA_HOURS['critical']} hours for Critical/Urgent, "
+        f"{PRIORITY_SLA_HOURS['high']} hours for High Priority, "
+        f"and {PRIORITY_SLA_HOURS['standard']} hours for Standard."
     )
     completed_tables = [t for t in priority_tables if t['completed']]
     if completed_tables:

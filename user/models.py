@@ -6,6 +6,7 @@ from datetime import timedelta
 from cloudinary.models import CloudinaryField
 from .validators import phone_validator
 from simple_history.models import HistoricalRecords
+from .constants import PRIORITY_SLA_HOURS
 
 
 REPORT_PREFIX = "MED-JO"
@@ -131,16 +132,7 @@ class Report(models.Model):
             Typically resolved within 2–3 days(system uses 72 hours)
         """
 
-        if self.priority == 'critical':
-            return 3
-
-        if self.priority == 'high':
-            return 24
-
-        if self.priority == 'standard':
-            return 72
-
-        return None
+        return PRIORITY_SLA_HOURS.get(self.priority)
 
     @property
     def expected_resolution_at(self):

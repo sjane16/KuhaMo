@@ -28,28 +28,6 @@ class ReportForm(forms.ModelForm):
         self.fields['category'].widget.attrs.update({'class': tailwind_classes, 'id': 'id_category'})
         self.fields['custom_category'].widget.attrs.update({'class': 'w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent', 'id': 'id_custom_category'})
 
-        if 'building' in self.data:
-            try:
-                building_id = int(self.data.get('building'))
-                self.fields['floor'].queryset = Floor.objects.filter(building_id=building_id).order_by('floor_number')
-            except (ValueError, TypeError):
-                pass
-
-        if 'floor' in self.data:
-            try:
-                floor_id = int(self.data.get('floor'))
-                self.fields['location'].queryset = Room.objects.filter(floor_id=floor_id).order_by('name')
-            except (ValueError, TypeError):
-                pass
-
-        #For adding styling lang, there's another installing if we used wigdet pa eh. (will update nalang).
-        tailwind_classes = 'w-full appearance-none border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer pr-10' 
-        self.fields['building'].widget.attrs.update({'class': tailwind_classes, 'id': 'id_building'})
-        self.fields['floor'].widget.attrs.update({'class': tailwind_classes, 'id': 'id_floor'})
-        self.fields['location'].widget.attrs.update({'class': tailwind_classes, 'id': 'id_location'})
-        self.fields['category'].widget.attrs.update({'class': tailwind_classes, 'id': 'id_category'})
-        self.fields['custom_category'].widget.attrs.update({'class': 'w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent', 'id': 'id_custom_category'})
-
         # Custom dropdown (cdd) para sa apat na select
         for name in ('building', 'floor', 'location', 'category'):
             self.fields[name].widget.attrs.update({'data-cdd': '', 'data-cdd-size': 'lg'})

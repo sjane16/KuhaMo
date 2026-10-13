@@ -1,3 +1,39 @@
-from django.test import TestCase
+from io import StringIO
 
-# Create your tests here.
+from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.test import TestCase
+from django.template.loader import render_to_string
+from django.core.paginator import Paginator
+
+from accounts.forms import SignUpForm
+from adm.models import Building, Floor, Room
+from .constants import PRIORITY_SLA_HOURS
+from .forms import ReportForm
+from .models import Notification, Report, UserProfile
+
+
+class ConsolidationTests(TestCase):
+    def test_form_preserves_room_order_and_dropdown_attributes(self):
+        building = Building.objects.create(name='Building', code='B')
+        floor = Floor.objects.create(building=building, floor_number=1, label='First')
+        last = Room.objects.create(floor=floor, name='A', code='A', order=2)
+        first = Room.objects.create(floor=floor, name='Z', code='Z', order=1)
+        form = ReportForm(data={'building': building.pk, 'floor': floor.pk})
+        self.assertEqual(list(form.fields['location'].queryset), [first, last])
+        self.assertIn('data-cdd', form.fields['location'].widget.attrs)
+
+    def test_department_and_priority_values_use_shared_definitions(self):
+        self.assertEqual(SignUpForm.DEPARTMENT_CHOICES[1:], UserProfile.DEPARTMENT_CHOICES)
+        for priority, hours in PRIORITY_SLA_HOURS.items():
+            self.assertEqual(Report(priority=priority).expected_resolution_hours, hours)
+        self.assertIsNone(Report().expected_resolution_hours)
+
+    def test_seed_command_does_not_duplicate_staff_profile_on_repeated_runs(self):
+        output = StringIO()
+        call_command('all_test_data', stdout=output)
+        call_command('all_test_data', stdout=output)
+        admin = User.objects.get(username='19-02-001')
+        self.assertEqual(UserProfile.objects.filter(user=admin).count(), 1)
+        self.assertEqual(admin.profile.role, 'admin')
+        self.assertEqual(UserProfile.objects.get(user__username='23-22-022').department, 'CCS')
