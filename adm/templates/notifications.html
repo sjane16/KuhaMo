@@ -145,6 +145,8 @@
             const markAllReadBtnPage = document.getElementById("markAllReadBtnPage");
             if (markAllReadBtnPage) {
                 markAllReadBtnPage.addEventListener("click", function() {
+                    if (markAllReadBtnPage.disabled) return;
+                    setSubmissionBusy(markAllReadBtnPage, true);
                     fetch("{% url 'mark_all_notifications_read_admin' %}", {
                             method: "POST",
                             headers: {
@@ -162,7 +164,8 @@
                         })
                         .catch(function(error) {
                             console.error("Failed to mark all as read:", error);
-                        });
+                        })
+                        .finally(function() { setSubmissionBusy(markAllReadBtnPage, false); });
                 });
             }
 

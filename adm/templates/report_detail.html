@@ -447,7 +447,7 @@
                                {% if is_locked %}disabled{% endif %}
                                id="pending-awaiting-personnel"
                                class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                        With Assigned Personnel
+                        <span>With Assigned Personnel <span class="text-red-500" title="Required to move to In Progress">*</span></span>
                       </label>
                       <label class="flex items-center gap-3 text-sm text-gray-700">
                         <input type="checkbox"
@@ -456,7 +456,7 @@
                                {% if report.pending_awaiting_materials %}checked{% endif %}
                                {% if is_locked %}disabled{% endif %}
                                class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                        Materials Available
+                        <span>Materials Available <span class="text-red-500" title="Required to move to In Progress">*</span></span>
                       </label>
                       <label class="flex items-center gap-3 text-sm text-gray-700">
                         <input type="checkbox"
@@ -838,6 +838,16 @@
       // ── Materials Requirement (add/remove rows, max 4) ──
       const MAX_MATERIALS = 4;
 
+      function updateMaterialControls() {
+          const rows = document.querySelectorAll("#material-rows .material-row");
+          rows.forEach(function(row) {
+              const removeBtn = row.querySelector(".remove-material");
+              if (removeBtn) removeBtn.classList.toggle("hidden", rows.length <= 1);
+          });
+          const addBtn = document.getElementById("add-material");
+          if (addBtn) addBtn.classList.toggle("hidden", rows.length >= MAX_MATERIALS);
+      }
+
       function addMaterialRow() {
           const container = document.getElementById("material-rows");
           if (!container || container.querySelectorAll(".material-row").length >= MAX_MATERIALS) return;
@@ -988,10 +998,12 @@
       const prioritySelect = document.getElementById("prioritySelect");
       const predictedResolutionValue = document.getElementById("predictedResolutionValue");
       if (prioritySelect && predictedResolutionValue) {
-          prioritySelect.addEventListener("change", function() {
-              const hours = PRIORITY_HOURS[this.value];
+          function updatePredictedResolution() {
+              const hours = PRIORITY_HOURS[prioritySelect.value];
               predictedResolutionValue.textContent = hours ? `${hours} hours` : "Assign a priority to calculate";
-          });
+          }
+          prioritySelect.addEventListener("change", updatePredictedResolution);
+          updatePredictedResolution();
       }
 
       // ── Prevent future Date and Time Completed ──
