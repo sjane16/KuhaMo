@@ -1,17 +1,14 @@
 import json
 from pathlib import Path
-
-import numpy as np
-import tensorflow as tf
-from PIL import Image
-
+from threading import Lock
 
 ML_DIR = Path(__file__).resolve().parent
 MODEL_PATH = ML_DIR / "faccheck_cnn_model.keras"
 LABELS_PATH = ML_DIR / "class_labels.json"
 CONFIG_PATH = ML_DIR / "inference_config.json"
 
-MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+MODEL = None
+_MODEL_LOCK = Lock()
 
 with open(LABELS_PATH, "r", encoding="utf-8") as file:
     CLASS_NAMES = json.load(file)
@@ -34,7 +31,21 @@ CATEGORY_MAP = {
 }
 
 
+def _load_model():
+    global MODEL
+    if MODEL is None:
+        with _MODEL_LOCK:
+            import tensorflow as tf
+
+            if MODEL is None:
+                MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+    return MODEL
+
+
 def predict_image(image_file):
+    import numpy as np
+    from PIL import Image
+
     image_file.seek(0)
 
     image = Image.open(image_file).convert("RGB")
@@ -44,7 +55,7 @@ def predict_image(image_file):
     image_array = image_array / 255.0
     image_array = np.expand_dims(image_array, axis=0)
 
-    predictions = MODEL.predict(image_array, verbose=0)[0]
+    predictions = _load_model().predict(image_array, verbose=0)[0]
 
     sorted_indices = np.argsort(predictions)[::-1]
 

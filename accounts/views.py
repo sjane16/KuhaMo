@@ -415,38 +415,39 @@ def signup(request):
             department = form.cleaned_data['department']
             phone = form.cleaned_data['phone']
 
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_active=False
+                )
+
+                otp = _generate_otp()
+                UserProfile.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        'role': role,
+                        'department': department,
+                        'phone': phone,
+                        'otp': otp,
+                        'otp_created_at': timezone.now(),
+                        'otp_attempts': 0
+                    }
+                )
+
             try:
-                with transaction.atomic():
-                    user = User.objects.create_user(
-                        username=email,
-                        email=email,
-                        password=password,
-                        first_name=first_name,
-                        last_name=last_name,
-                        is_active=False
-                    )
-
-                    otp = _generate_otp()
-                    UserProfile.objects.update_or_create(
-                        user=user,
-                        defaults={
-                            'role': role,
-                            'department': department,
-                            'phone': phone,
-                            'otp': otp,
-                            'otp_created_at': timezone.now(),
-                            'otp_attempts': 0
-                        }
-                    )
-
-                    send_mail(
-                        subject='Your OTP for Account Verification',
-                        message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[email],
-                        fail_silently=False,
-                    )
-            except (SMTPException, OSError) as e:
+                send_mail(
+                    subject='Your OTP for Account Verification',
+                    message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+            except (SMTPException, OSError):
+                user.delete()
                 _clear_messages(request)
                 messages.error(request, "We couldn't send your verification email right now. Please try again in a moment.")
                 return _render_signup(request, form)

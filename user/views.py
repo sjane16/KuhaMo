@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
 import os
+from functools import lru_cache
 from urllib.parse import unquote
 from django.http import JsonResponse, HttpResponse
 from xhtml2pdf import pisa
@@ -20,12 +21,18 @@ from .models import Report, SurveyResponse, UserProfile, Notification, invalidat
 from adm.models import Floor, Room, Building 
 from .validators import validate_password_strength
 from .notifications import notify_status_change
+from .context_processors import get_unread_notifications_count
 from ml.predictor import predict_image
 import logging
 
 logger = logging.getLogger(__name__)
 
 REPORTS_PAGE_SIZE = 5
+
+
+@lru_cache(maxsize=1)
+def _get_gemini_client(api_key):
+    return genai.Client(api_key=api_key)
 
 
 def normalize_cnn_prediction(value):
@@ -186,11 +193,12 @@ def dashboardStatsAjax(request):
     context = {
         **status_counts,
         **percentages,
+        "user": request.user,
         "recent_reports": recent_reports,
     }
 
-    mobile_html = render_to_string('user/partials/_dashboard_stats_mobile.html', context, request=request)
-    desktop_html = render_to_string('user/partials/_dashboard_stats_desktop.html', context, request=request)
+    mobile_html = render_to_string('user/partials/_dashboard_stats_mobile.html', context)
+    desktop_html = render_to_string('user/partials/_dashboard_stats_desktop.html', context)
 
     return JsonResponse({
         "mobile_html": mobile_html,
@@ -311,11 +319,11 @@ def userReportsAjax(request):
 
     mobile_html = render_to_string('user/partials/_reports_mobile_rows.html', {
         "reports": page_obj,
-    }, request=request)
+    })
 
     desktop_html = render_to_string('user/partials/_reports_desktop_rows.html', {
         "reports": page_obj,
-    }, request=request)
+    })
 
     return JsonResponse({
         "mobile_html": mobile_html,
@@ -398,7 +406,11 @@ def link_callback(uri, rel):
 
 @login_required
 def exportJobOrderPDF(request, report_id):
-    report = get_object_or_404(Report, id=report_id, user=request.user)
+    report = get_object_or_404(
+        Report.objects.select_related('user__profile', 'survey'),
+        id=report_id,
+        user=request.user,
+    )
 
     category_checks = {
         'vehicle_checkup': report.category == 'vehicle_checkup',
@@ -603,7 +615,6 @@ def chatbot_response(request):
             return JsonResponse({'reply': limited}, status=429)
         try:
             api_key = getattr(settings, "GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
-            client = genai.Client(api_key=api_key)
             system_instruction = (
                 "You are FACI, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). \n\n"
                 "STRICT RULES: \n"
@@ -614,7 +625,7 @@ def chatbot_response(request):
                 "3. Keep responses concise, helpful, and match the language used by the user (Tagalog, English, or a mix of both). \n\n"
                 f"OFFICIAL FAQ KNOWLEDGE BASE FOR FAC-CHECK SYSTEM (UDM): \n{UDM_FAQ_DATA}"
             )
-            response = client.models.generate_content(
+            response = _get_gemini_client(api_key).models.generate_content(
                 model="gemini-2.5-flash",
                 contents=user_message,
                 config={
@@ -707,7 +718,7 @@ def get_notifications_ajax(request):
         for n in notifications
     ]
 
-    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    unread_count = get_unread_notifications_count(request)
 
     return JsonResponse({
         "notifications": data,

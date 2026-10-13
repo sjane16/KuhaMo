@@ -21,6 +21,7 @@ from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
 from user.views import link_callback
 from user.notifications import notify_status_change
+from user.context_processors import get_unread_notifications_count
 from .models import Building 
 
 
@@ -715,11 +716,11 @@ def adm_reports_ajax(request):
 
     mobile_html = render_to_string('partials/_reports_mobile_rows.html', {
         'reports': page_obj,
-    }, request=request)
+    })
 
     desktop_html = render_to_string('partials/_reports_desktop_rows.html', {
         'reports': page_obj,
-    }, request=request)
+    })
 
     return JsonResponse({
         'mobile_html': mobile_html,
@@ -733,7 +734,10 @@ def adm_reports_ajax(request):
 
 
 def report_detail(request, report_id):
-    report = get_object_or_404(Report, id=report_id)
+    report = get_object_or_404(
+        Report.objects.select_related('user', 'survey'),
+        id=report_id,
+    )
     personnel_rows, other_personnel = build_personnel_rows(report)
     is_locked = report.status in ('resolved', 'closed')
 
@@ -753,7 +757,10 @@ def report_detail(request, report_id):
 
 
 def export_job_order_pdf_admin(request, report_id):
-    report = get_object_or_404(Report, id=report_id)
+    report = get_object_or_404(
+        Report.objects.select_related('user__profile', 'survey'),
+        id=report_id,
+    )
 
     category_checks = {
         'vehicle_checkup': report.category == 'vehicle_checkup',
@@ -1521,7 +1528,7 @@ def adm_survey_responses_ajax(request):
 
 
 def _filter_admin_notifications(request, notif_filter):
-    notifications = Notification.objects.filter(user=request.user)
+    notifications = Notification.objects.filter(user=request.user).select_related('report')
 
     if notif_filter == 'unread':
         notifications = notifications.filter(is_read=False)
@@ -1568,7 +1575,7 @@ def get_notifications_ajax_admin(request):
         for n in notifications
     ]
 
-    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    unread_count = get_unread_notifications_count(request)
 
     return JsonResponse({
         "notifications": data,
