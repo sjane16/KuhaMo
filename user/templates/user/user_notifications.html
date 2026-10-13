@@ -47,6 +47,7 @@
             const container = document.getElementById("notificationsContainer");
             const skeleton = document.getElementById("notificationsSkeleton");
             const tabs = [tabAll, tabUnread];
+            let currentPage = 1;
 
             function setActiveTab(filterValue) {
                 tabs.forEach(function(tab) {
@@ -90,15 +91,17 @@
                 }, 250);
             }
 
-            function fetchNotifications(filterValue) {
+            function fetchNotifications(filterValue, page = 1) {
                 const url = new URL("{% url 'get_notifications_page_ajax' %}", window.location.origin);
                 url.searchParams.set("filter", filterValue);
+                url.searchParams.set("page", page);
 
                 fetch(url)
                     .then(function(response) {
                         return response.json();
                     })
                     .then(function(data) {
+                        currentPage = data.current_page;
                         container.innerHTML = data.html;
                         revealContent();
                     })
@@ -111,10 +114,17 @@
 
             function handleTabClick(filterValue) {
                 currentFilter = filterValue;
+                currentPage = 1;
                 setActiveTab(filterValue);
                 showSkeleton();
-                fetchNotifications(filterValue);
+                fetchNotifications(filterValue, currentPage);
             }
+
+            container.addEventListener("click", function(event) {
+                const button = event.target.closest("[data-notification-page]");
+                if (!button || button.disabled) return;
+                fetchNotifications(currentFilter, button.dataset.notificationPage);
+            });
 
             if (tabAll) {
                 tabAll.addEventListener("click", function() {
@@ -147,7 +157,8 @@
                         })
                         .then(function(data) {
                             if (data.success) {
-                                fetchNotifications(currentFilter);
+                                currentPage = 1;
+                                fetchNotifications(currentFilter, currentPage);
                             }
                         })
                         .catch(function(error) {
@@ -157,7 +168,7 @@
             }
 
             setActiveTab("{{ notif_filter|default:'all' }}");
-            fetchNotifications("{{ notif_filter|default:'all' }}");
+            fetchNotifications("{{ notif_filter|default:'all' }}", currentPage);
         });
     </script>
 {% endblock %}

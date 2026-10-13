@@ -75,6 +75,13 @@
             </a>
         {% endfor %}
     </div>
+    {% if notifications.has_previous or notifications.has_next %}
+        <nav class="flex items-center justify-between pt-4" aria-label="Notification pages">
+            <button type="button" data-notification-page="{{ notifications.number|add:'-1' }}" {% if not notifications.has_previous %}disabled{% endif %} class="rounded-lg border px-4 py-2 text-sm disabled:opacity-40">Previous</button>
+            <span class="text-sm text-gray-500">Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}</span>
+            <button type="button" data-notification-page="{{ notifications.number|add:'1' }}" {% if not notifications.has_next %}disabled{% endif %} class="rounded-lg border px-4 py-2 text-sm disabled:opacity-40">Next</button>
+        </nav>
+    {% endif %}
 {% else %}
     <div class="flex flex-col items-center justify-center py-20 text-center">
         <svg class="w-12 h-12 text-gray-300 mb-3"

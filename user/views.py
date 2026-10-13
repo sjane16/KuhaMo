@@ -28,6 +28,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 REPORTS_PAGE_SIZE = 5
+NOTIFICATIONS_PAGE_SIZE = 25
+SURVEY_HISTORY_PAGE_SIZE = 25
 
 
 @lru_cache(maxsize=1)
@@ -458,10 +460,13 @@ def userSurveyAjax(request):
     submitted_surveys = SurveyResponse.objects.filter(
         report__user=request.user
     ).select_related('report').order_by('-submitted_at')
+    page_obj = Paginator(submitted_surveys, SURVEY_HISTORY_PAGE_SIZE).get_page(
+        request.GET.get('page', 1)
+    )
 
     html = render_to_string('user/partials/_survey_content.html', {
-        "submitted_surveys": submitted_surveys,
-    }, request=request)
+        "submitted_surveys": page_obj,
+    })
 
     return JsonResponse({
         "html": html,
@@ -688,14 +693,20 @@ def userNotifications(request):
 @login_required
 def get_notifications_page_ajax(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_user_notifications(request, notif_filter)
+    page_obj = Paginator(
+        _filter_user_notifications(request, notif_filter),
+        NOTIFICATIONS_PAGE_SIZE,
+    ).get_page(request.GET.get('page', 1))
 
     html = render_to_string('user/partials/_notifications_rows.html', {
-        "notifications": notifications,
-    }, request=request)
+        "notifications": page_obj,
+    })
 
     return JsonResponse({
         "html": html,
+        "current_page": page_obj.number,
+        "total_pages": page_obj.paginator.num_pages,
+        "total_count": page_obj.paginator.count,
     })
 
 

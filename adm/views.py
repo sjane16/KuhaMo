@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from requests import request
 from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices
-from django.db.models import Count, Avg, Q
+from django.db.models import Count, Q, Sum
 from datetime import timedelta, datetime
 import calendar
 import json
@@ -26,6 +26,7 @@ from .models import Building
 
 
 REPORTS_PAGE_SIZE = 5
+NOTIFICATIONS_PAGE_SIZE = 25
 
 PERSONNEL_OPTIONS = [
     {"slug": "remigio", "name": "Mr. Remigio"},
@@ -80,7 +81,7 @@ def format_hours(hours):
     return f"{days:.1f} days"
 
 
-RESPONSES_PAGE_SIZE = 5
+RESPONSES_PAGE_SIZE = 25
 
 PRIORITY_SLA_HOURS = {
     'standard': 72,
@@ -136,72 +137,91 @@ def _known_personnel_names(assignments):
     return [item.get("name") for item in assignments if item.get("name") in known]
 
 
-def build_survey_responses_list():
-    """Builds just the Individual Responses list — does NOT touch Personnel Performance
-    stats (no looping over all Reports, no N+1 report.survey queries). Used both by the
-    full-page context builder AND directly by the responses-pagination endpoint, so
-    paginating this table alone never re-triggers the expensive personnel-stats computation."""
-    surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
+def _survey_responses_queryset():
+    personnel_names = [option["name"] for option in PERSONNEL_OPTIONS]
+    assignments = Q()
+    for name in personnel_names:
+        assignments |= Q(report__assigned_personnel_data__contains=[{"name": name}])
 
-    responses = []
-    for survey in surveys:
-        report = survey.report
-        assignments = report.assigned_personnel_data or []
-        if not assignments and report.assigned_personnel:
-            assignments = [{"name": report.assigned_personnel}]
-
-        personnel_names = _known_personnel_names(assignments)
-        if not personnel_names:
-            continue
-
-        threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
-
-        expected_resolution_met = None
-        resolution_delay_days = None
-        if report.in_progress_at and report.accomplished_at:
-            sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
-            delay_hours = max(0, sla_hours - threshold)
-            expected_resolution_met = _delay_score(delay_hours) >= 4
-            resolution_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
-
-        closure_turnaround_met = None
-        closure_delay_days = None
-        if report.accomplished_at and report.closed_at:
-            close_hours = (report.closed_at - report.accomplished_at).total_seconds() / 3600
-            delay_hours = max(0, close_hours)
-            closure_turnaround_met = _delay_score(delay_hours) >= 4
-            closure_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
-
-        responses.append({
-            "personnel": ", ".join(personnel_names),
-            "category": report.get_category_display(),
-            "quality": survey.quality,
-            "quantity": survey.quantity,
-            "timeliness": survey.timeliness,
-            "date_submitted": report.submitted_at,
-            "expected_at": report.expected_resolution_at,
-            "actual_at": report.accomplished_at,
-            "expected_resolution_met": expected_resolution_met,
-            "resolution_delay_days": resolution_delay_days,
-            "closure_turnaround_met": closure_turnaround_met,
-            "closure_delay_days": closure_delay_days,
-        })
-
-    return responses
+    return (
+        SurveyResponse.objects
+        .filter(assignments | Q(report__assigned_personnel__in=personnel_names))
+        .select_related('report')
+        .order_by('-submitted_at')
+    )
 
 
-def build_survey_analysis_context():
-    surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
-    total_surveys = surveys.count()
-    score_values = []
-    for survey in surveys:
-        score_values.extend(
-            value for value in (survey.quality, survey.quantity, survey.timeliness)
-            if value is not None
+def _build_survey_response(survey):
+    report = survey.report
+    assignments = report.assigned_personnel_data or []
+    if not assignments and report.assigned_personnel:
+        assignments = [{"name": report.assigned_personnel}]
+
+    personnel_names = _known_personnel_names(assignments)
+    threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
+
+    expected_resolution_met = None
+    resolution_delay_days = None
+    if report.in_progress_at and report.accomplished_at:
+        sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
+        delay_hours = max(0, sla_hours - threshold)
+        expected_resolution_met = _delay_score(delay_hours) >= 4
+        resolution_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
+
+    closure_turnaround_met = None
+    closure_delay_days = None
+    if report.accomplished_at and survey.submitted_at:
+        close_hours = (survey.submitted_at - report.accomplished_at).total_seconds() / 3600
+        delay_hours = max(0, close_hours)
+        closure_turnaround_met = _delay_score(delay_hours) >= 4
+        closure_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
+
+    return {
+        "personnel": ", ".join(personnel_names),
+        "category": report.get_category_display(),
+        "quality": survey.quality,
+        "quantity": survey.quantity,
+        "timeliness": survey.timeliness,
+        "date_submitted": report.submitted_at,
+        "expected_at": report.expected_resolution_at,
+        "actual_at": report.accomplished_at,
+        "expected_resolution_met": expected_resolution_met,
+        "resolution_delay_days": resolution_delay_days,
+        "closure_turnaround_met": closure_turnaround_met,
+        "closure_delay_days": closure_delay_days,
+    }
+
+
+def build_survey_responses_list(page_number=1):
+    """Return one SQL-paginated page of personnel-assigned survey responses."""
+    paginator = Paginator(_survey_responses_queryset(), RESPONSES_PAGE_SIZE)
+    page = paginator.get_page(page_number)
+    return [_build_survey_response(survey) for survey in page.object_list], page
+
+
+def build_survey_analysis_context(response_page=1, include_responses=True):
+    aggregates = {
+        "total_surveys": Count('id'),
+        "quality_sum": Sum('quality'),
+        "quantity_sum": Sum('quantity'),
+        "timeliness_sum": Sum('timeliness'),
+        "quality_count": Count('quality'),
+        "quantity_count": Count('quantity'),
+        "timeliness_count": Count('timeliness'),
+    }
+    for rating in range(1, 6):
+        aggregates[f"rating_{rating}"] = (
+            Count('id', filter=Q(quality=rating))
+            + Count('id', filter=Q(quantity=rating))
+            + Count('id', filter=Q(timeliness=rating))
         )
-    avg_rating = round(sum(score_values) / len(score_values), 1) if score_values else 0
+    survey_stats = SurveyResponse.objects.aggregate(**aggregates)
+    score_count = sum(survey_stats[f"{field}_count"] for field in ('quality', 'quantity', 'timeliness'))
+    score_sum = sum(survey_stats[f"{field}_sum"] or 0 for field in ('quality', 'quantity', 'timeliness'))
+    total_surveys = survey_stats['total_surveys']
+    avg_rating = round(score_sum / score_count, 1) if score_count else 0
     rating_counts = {
-        rating: sum(score == rating for score in score_values)
+        rating: survey_stats[f"rating_{rating}"]
         for rating in range(1, 6)
     }
     max_rating_count = max(rating_counts.values()) if rating_counts else 0
@@ -234,7 +254,7 @@ def build_survey_analysis_context():
         for option in PERSONNEL_OPTIONS
     }
 
-    for report in Report.objects.all():
+    for report in Report.objects.select_related('survey').iterator(chunk_size=500):
         assignments = report.assigned_personnel_data or []
         if not assignments and report.assigned_personnel:
             assignments = [{"name": report.assigned_personnel}]
@@ -332,7 +352,10 @@ def build_survey_analysis_context():
     # (uses the dict key "avg_rating", unaffected by the personnel_avg_rating rename above)
 
     # ---- Individual Responses — official personnel only (outsourced-only reports are hidden) ----
-    responses = build_survey_responses_list()
+    responses = []
+    responses_page = None
+    if include_responses:
+        responses, responses_page = build_survey_responses_list(response_page)
 
     return {
         "active_page": "survey_analysis",
@@ -343,6 +366,11 @@ def build_survey_analysis_context():
         "max_rating_count": max_rating_count,
         "personnel_rows": personnel_rows,
         "responses": responses,
+        "responses_page_number": responses_page.number if responses_page else 1,
+        "responses_total_pages": responses_page.paginator.num_pages if responses_page else 1,
+        "responses_has_previous": responses_page.has_previous() if responses_page else False,
+        "responses_has_next": responses_page.has_next() if responses_page else False,
+        "responses_total_count": responses_page.paginator.count if responses_page else 0,
     }
 
 def dashboard(request):
@@ -797,7 +825,7 @@ def export_job_order_pdf_admin(request, report_id):
 
 
 def export_personnel_performance_pdf(request):
-    context = build_survey_analysis_context()
+    context = build_survey_analysis_context(include_responses=False)
     context.pop("responses", None)
 
     html = render_to_string('personnel_performance_pdf.html', context)
@@ -1488,18 +1516,11 @@ def survey_analysis(request):
 
 
 def adm_survey_analysis_ajax(request):
-    context = build_survey_analysis_context()
+    context = build_survey_analysis_context(
+        response_page=request.GET.get('page', 1)
+    )
 
-    all_responses = context.pop("responses")
-    paginator = Paginator(all_responses, RESPONSES_PAGE_SIZE)
-    page_obj = paginator.get_page(1)
-    context["responses"] = page_obj
-    context["responses_total_pages"] = paginator.num_pages
-    context["responses_has_previous"] = page_obj.has_previous()
-    context["responses_has_next"] = page_obj.has_next()
-    context["responses_total_count"] = paginator.count
-
-    html = render_to_string('partials/_survey_analysis_content.html', context, request=request)
+    html = render_to_string('partials/_survey_analysis_content.html', context)
 
     return JsonResponse({
         'html': html,
@@ -1507,23 +1528,19 @@ def adm_survey_analysis_ajax(request):
 
 
 def adm_survey_responses_ajax(request):
-    all_responses = build_survey_responses_list()
-    page_number = request.GET.get('page', 1)
-
-    paginator = Paginator(all_responses, RESPONSES_PAGE_SIZE)
-    page_obj = paginator.get_page(page_number)
+    responses, page_obj = build_survey_responses_list(request.GET.get('page', 1))
 
     html = render_to_string('partials/_survey_responses_rows.html', {
-        'responses': page_obj,
-    }, request=request)
+        'responses': responses,
+    })
 
     return JsonResponse({
         'html': html,
         'current_page': page_obj.number,
-        'total_pages': paginator.num_pages,
+        'total_pages': page_obj.paginator.num_pages,
         'has_previous': page_obj.has_previous(),
         'has_next': page_obj.has_next(),
-        'total_count': paginator.count,
+        'total_count': page_obj.paginator.count,
     })
 
 
@@ -1547,14 +1564,20 @@ def adminNotifications(request):
 
 def get_notifications_page_ajax_admin(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_admin_notifications(request, notif_filter)
+    page_obj = Paginator(
+        _filter_admin_notifications(request, notif_filter),
+        NOTIFICATIONS_PAGE_SIZE,
+    ).get_page(request.GET.get('page', 1))
 
     html = render_to_string('partials/_notifications_rows.html', {
-        "notifications": notifications,
-    }, request=request)
+        "notifications": page_obj,
+    })
 
     return JsonResponse({
         "html": html,
+        "current_page": page_obj.number,
+        "total_pages": page_obj.paginator.num_pages,
+        "total_count": page_obj.paginator.count,
     })
 
 

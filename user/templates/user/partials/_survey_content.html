@@ -77,6 +77,13 @@
             </div>
         {% endfor %}
     </div>
+    {% if submitted_surveys.has_previous or submitted_surveys.has_next %}
+        <nav class="flex items-center justify-between pt-5" aria-label="Survey pages">
+            <button type="button" data-survey-page="{{ submitted_surveys.number|add:'-1' }}" {% if not submitted_surveys.has_previous %}disabled{% endif %} class="rounded-lg border px-4 py-2 text-sm disabled:opacity-40">Previous</button>
+            <span class="text-sm text-gray-500">Page {{ submitted_surveys.number }} of {{ submitted_surveys.paginator.num_pages }}</span>
+            <button type="button" data-survey-page="{{ submitted_surveys.number|add:'1' }}" {% if not submitted_surveys.has_next %}disabled{% endif %} class="rounded-lg border px-4 py-2 text-sm disabled:opacity-40">Next</button>
+        </nav>
+    {% endif %}
 {% else %}
     <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
         <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
