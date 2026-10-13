@@ -15,8 +15,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
-from user.forms import UserForm  
-from user.validators import validate_password_strength
+from user.forms import UserForm, ProfilePasswordChangeForm, form_error_text
 from security.audit import log_event
 from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
@@ -1517,43 +1516,19 @@ def ProfileMenu(request):
                 return redirect('ProfileMenu')
             else:
                 # Plain-text error message (avoids raw HTML from form.errors)
-                error_list = [
-                    error
-                    for field, errors in user_form.errors.items()
-                    for error in errors
-                ]
-                messages.error(request, " ".join(error_list))
+                messages.error(request, form_error_text(user_form))
 
         elif 'change_password' in request.POST:
-            old_password = request.POST.get('old_password', '').strip()
-            new_password1 = request.POST.get('new_password1', '').strip()
-            new_password2 = request.POST.get('new_password2', '').strip()
-
-            if not old_password and not new_password1 and not new_password2:
-                messages.error(request, "Please fill in the required fields.")
-            elif not old_password:
-                messages.error(request, "Please enter your current password.")
-            elif not new_password1 or not new_password2:
-                messages.error(request, "Please fill in both new password fields.")
-            elif not request.user.check_password(old_password):
-                messages.error(request, "Old password is incorrect.")
-            elif new_password1 != new_password2:
-                messages.error(request, "New passwords do not match.")
-            elif new_password1 == old_password:
-                messages.error(request, "New Password must be different from your current password.")
-            else:
-                password_errors = validate_password_strength(new_password1)
-                if password_errors:
-                    for err in password_errors:
-                        messages.error(request, err)
-                else:
-                    request.user.set_password(new_password1)
-                    request.user.save()
-                    invalidate_trusted_devices(request.user)
-                    log_event(request, 'password_changed', user=request.user, where='Edit Profile')
-                    update_session_auth_hash(request, request.user)
-                    messages.success(request, "Password changed successfully.")
-                    return redirect('ProfileMenu')
+            password_form = ProfilePasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                invalidate_trusted_devices(request.user)
+                log_event(request, 'password_changed', user=request.user, where='Edit Profile')
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "Password changed successfully.")
+                return redirect('ProfileMenu')
+            for error in password_form.non_field_errors():
+                messages.error(request, error)
 
     return render(request, 'menu-admin.html', {
         "active_page": "ProfileMenu",

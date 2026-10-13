@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
+from .forms import ProfilePasswordChangeForm, form_error_text
 import os
 from functools import lru_cache
 from urllib.parse import unquote
@@ -19,7 +20,6 @@ from security.audit import log_event
 from django.contrib.auth.models import User
 from .models import Report, SurveyResponse, UserProfile, Notification, invalidate_trusted_devices
 from adm.models import Floor, Room, Building 
-from .validators import validate_password_strength
 from .notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
 from .context_processors import get_unread_notifications_count
 from ml.predictor import predict_image
@@ -75,13 +75,7 @@ def menu(request):
                 return redirect('menu')
             else:
                 # Plain-text error message (avoids raw HTML from form.errors)
-                error_list = [
-                    error
-                    for form in (user_form, profile_form)
-                    for field, errors in form.errors.items()
-                    for error in errors
-                ]
-                messages.error(request, " ".join(error_list))
+                messages.error(request, form_error_text(user_form, profile_form))
 
         elif 'save_photo' in request.POST:
             photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=profile)
@@ -101,35 +95,16 @@ def menu(request):
             return redirect('menu')
 
         elif 'change_password' in request.POST:
-            old_password = request.POST.get('old_password', '').strip()
-            new_password1 = request.POST.get('new_password1', '').strip()
-            new_password2 = request.POST.get('new_password2', '').strip()
-
-            if not old_password and not new_password1 and not new_password2:
-                messages.error(request, "Please fill in the required fields.")
-            elif not old_password:
-                messages.error(request, "Please enter your current password.")
-            elif not new_password1 or not new_password2:
-                messages.error(request, "Please fill in both new password fields.")
-            elif not request.user.check_password(old_password):
-                messages.error(request, "Old password is incorrect.")
-            elif new_password1 != new_password2:
-                messages.error(request, "New passwords do not match.")
-            elif new_password1 == old_password:
-                messages.error(request, "New Password must be different from your current password.")
-            else:
-                password_errors = validate_password_strength(new_password1)
-                if password_errors:
-                    for err in password_errors:
-                        messages.error(request, err)
-                else:
-                    request.user.set_password(new_password1)
-                    request.user.save()
-                    invalidate_trusted_devices(request.user)
-                    log_event(request, 'password_changed', user=request.user, where='Edit Profile')
-                    update_session_auth_hash(request, request.user)
-                    messages.success(request, "New password saved successfully!", extra_tags='password_changed')
-                    return redirect('menu')
+            password_form = ProfilePasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                invalidate_trusted_devices(request.user)
+                log_event(request, 'password_changed', user=request.user, where='Edit Profile')
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "New password saved successfully!", extra_tags='password_changed')
+                return redirect('menu')
+            for error in password_form.non_field_errors():
+                messages.error(request, error)
 
     return render(request, 'user/menu.html', {
         "active_page": "menu",

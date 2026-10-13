@@ -7,6 +7,53 @@ from adm.models import Building, Floor, Room
 from .validators import validate_no_gibberish
 from .validators import validate_no_profanity
 from .validators import validate_name  # name sanitizer
+from .validators import validate_password_strength
+
+
+class ProfilePasswordChangeForm(forms.Form):
+    old_password = forms.CharField(required=False, widget=forms.PasswordInput)
+    new_password1 = forms.CharField(required=False, widget=forms.PasswordInput)
+    new_password2 = forms.CharField(required=False, widget=forms.PasswordInput)
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        data = super().clean()
+        old = data.get('old_password', '')
+        new = data.get('new_password1', '')
+        confirmation = data.get('new_password2', '')
+        if not old and not new and not confirmation:
+            raise forms.ValidationError('Please fill in the required fields.')
+        if not old:
+            raise forms.ValidationError('Please enter your current password.')
+        if not new or not confirmation:
+            raise forms.ValidationError('Please fill in both new password fields.')
+        if not self.user.check_password(old):
+            raise forms.ValidationError('Old password is incorrect.')
+        if new != confirmation:
+            raise forms.ValidationError('New passwords do not match.')
+        if new == old:
+            raise forms.ValidationError('New Password must be different from your current password.')
+        errors = validate_password_strength(new)
+        if errors:
+            raise forms.ValidationError(errors)
+        return data
+
+    def save(self):
+        self.user.set_password(self.cleaned_data['new_password1'])
+        self.user.save()
+        return self.user
+
+
+def form_error_text(*forms_to_check):
+    return ' '.join(
+        str(error)
+        for form in forms_to_check
+        for errors in form.errors.values()
+        for error in errors
+    )
 
 class ReportForm(forms.ModelForm):
     building = forms.ModelChoiceField(queryset=Building.objects.all(), empty_label="Select a Building or Facility", required=True)
