@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect 
 from .forms import LoginForm, SignUpForm, OTPVerificationForm, PrivacyAgreementForm, ForgotPasswordForm, ResetPasswordForm
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.models import User 
 from django.contrib import messages
 from django.views.decorators.cache import never_cache
@@ -168,6 +168,25 @@ def custom_lockout(request, credentials=None, *args, **kwargs):
 def splash_screen(request):
     return render(request, 'accounts/index.html')
 
+def _approval_block_message(user):
+    """Message for a verified account that may not log in yet, or None."""
+    profile = getattr(user, 'profile', None)
+    if profile and profile.approval_status == UserProfile.APPROVAL_PENDING:
+        return ("Your staff account is waiting for an administrator's approval. "
+                "You'll receive an email once it's approved.")
+    return None
+
+def _inactive_account_message(email, password):
+    """Django won't authenticate inactive accounts, so explain why - but only when the
+    password is correct, so this can't be used to discover which emails exist."""
+    user = User.objects.filter(username=email, is_active=False).select_related('profile').first()
+    if not user or not user.check_password(password):
+        return None
+    profile = getattr(user, 'profile', None)
+    if profile and profile.deactivated_at:
+        return "This account has been deactivated. Please contact the administrator."
+    return "Please verify your email before logging in"
+
 @never_cache
 def login_view(request):
     # remembers the selected page before directing to login
@@ -215,6 +234,12 @@ def login_view(request):
                        messages.error(request, "Please verify your email before logging in")
                        return render(request, 'accounts/login.html', {'form': LoginForm()})
 
+                   blocked = _approval_block_message(user)
+                   if blocked:
+                       _clear_messages(request)
+                       messages.error(request, blocked)
+                       return render(request, 'accounts/login.html', {'form': LoginForm()})
+
                    reset_request(request)
 
                    if _is_trusted_device(request, user):
@@ -255,7 +280,7 @@ def login_view(request):
 
                else:
                    _clear_messages(request)
-                   messages.error(request, "Invalid email or password")
+                   messages.error(request, _inactive_account_message(email, password) or "Invalid email or password")
 
            except PermissionDenied:
                _clear_messages(request)
@@ -431,6 +456,8 @@ def signup(request):
                         user=user,
                         defaults={
                             'role': role,
+                            # Staff use non-UDM emails, so an admin must approve them first
+                            'approval_status': UserProfile.APPROVAL_PENDING if role == 'staff' else UserProfile.APPROVAL_APPROVED,
                             'department': department,
                             'phone': phone,
                             'otp': otp,
@@ -507,7 +534,11 @@ def verify_otp(request):
                 user.save()
                 del request.session['pending_verification_user_id']
                 _clear_messages(request)
-                messages.success(request, "Your account has been verified successfully! You can now log in.")
+                if getattr(user, 'profile', None) and user.profile.approval_status == UserProfile.APPROVAL_PENDING:
+                    messages.success(request, "Your email has been verified! Your staff account is now waiting for an "
+                                              "administrator's approval. You'll receive an email once it's approved.")
+                else:
+                    messages.success(request, "Your account has been verified successfully! You can now log in.")
                 # The device that verified the signup is trusted, so the first login skips MFA
                 return _trust_device(redirect('login'), request, user)
        else:
@@ -814,3 +845,41 @@ def privacy_policy(request):
     form = PrivacyAgreementForm(initial=initial)
     return render(request, 'accounts/privacypolicy.html', {'form': form})
 
+
+
+@never_cache
+def force_password_change(request):
+    """First login of an account created by an admin: replace the emailed temporary password."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    user = request.user
+    profile = getattr(user, 'profile', None)
+    if not profile or not profile.must_change_password:
+        return _post_login_redirect(request, user)
+
+    if request.method == 'POST':
+        if request.POST.get('website'):
+            _log_honeypot(request)
+            messages.error(request, "Unable to process your request. Please contact system administrator")
+            return render(request, 'accounts/force_password_change.html', {'form': ResetPasswordForm()})
+
+        form = ResetPasswordForm(request.POST)
+        # Same rule as Edit Profile: the new password can't be the temporary one
+        if form.is_valid() and user.check_password(form.cleaned_data['new_password']):
+            form.add_error('new_password', "New Password must be different from your current password.")
+        if form.is_valid():
+            user.set_password(form.cleaned_data['new_password'])
+            user.save()
+            profile.must_change_password = False
+            profile.save(update_fields=['must_change_password'])
+            invalidate_trusted_devices(user)
+            update_session_auth_hash(request, user)  # stay logged in
+            log_event(request, 'password_changed', user=user, where='first login (temporary password)')
+            _clear_messages(request)
+            messages.success(request, "Your password has been set. Welcome to Fac-Check!")
+            return _post_login_redirect(request, user)
+        _clear_messages(request)
+    else:
+        form = ResetPasswordForm()
+
+    return render(request, 'accounts/force_password_change.html', {'form': form})

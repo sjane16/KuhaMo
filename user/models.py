@@ -229,6 +229,23 @@ class UserProfile(models.Model):
     # so a password change logs out every trusted device (see accounts/views.py)
     credentials_version = models.PositiveIntegerField(default=0, db_default=0)
 
+    # Staff sign up with non-UDM emails, so an admin approves them before they can log in.
+    # Existing accounts and students/faculty are 'approved'.
+    APPROVAL_PENDING = 'pending'
+    APPROVAL_APPROVED = 'approved'
+    APPROVAL_CHOICES = [
+        (APPROVAL_PENDING, 'Pending approval'),
+        (APPROVAL_APPROVED, 'Approved'),
+    ]
+    approval_status = models.CharField(max_length=10, choices=APPROVAL_CHOICES,
+                                       default=APPROVAL_APPROVED, db_default=APPROVAL_APPROVED)
+    # Set when an admin deactivates the account; tells "deactivated" apart from
+    # "never verified their email" (both have user.is_active = False)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+    # Accounts created by an admin (Excel import) get an emailed temporary password and
+    # must pick their own at first login (accounts.middleware.ForcePasswordChangeMiddleware)
+    must_change_password = models.BooleanField(default=False, db_default=False)
+
     def __str__(self):
         return f"{self.user.username} - Profile"
 

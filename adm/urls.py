@@ -2,6 +2,8 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from user.decorators import admin_required
 from . import views
+from . import user_management
+from . import user_import
 
 urlpatterns = [
     path('dashboard/', admin_required(views.dashboard), name='dashboard'),
@@ -27,6 +29,14 @@ urlpatterns = [
     path('ajax/dashboard/', admin_required(views.adm_dashboard_ajax), name='adm_dashboard_ajax'),
     path('dashboard/report/pdf/', admin_required(views.export_dashboard_report_pdf), name='export_dashboard_report_pdf'),
     path('dashboard/report/summary/', admin_required(views.dashboard_report_summary), name='dashboard_report_summary'),
+
+    # User Management
+    path('users/', admin_required(user_management.user_management), name='user_management'),
+    path('ajax/users/', admin_required(user_management.user_management_ajax), name='user_management_ajax'),
+    path('users/<int:user_id>/action/', admin_required(user_management.user_management_action), name='user_management_action'),
+    path('users/import/template/', admin_required(user_import.import_template), name='user_import_template'),
+    path('users/import/preview/', admin_required(user_import.import_preview), name='user_import_preview'),
+    path('users/import/confirm/', admin_required(user_import.import_confirm), name='user_import_confirm'),
 
     
 

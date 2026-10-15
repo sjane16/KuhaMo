@@ -19,6 +19,7 @@ python-decouple = "*"
 django-cloudinary-storage = "*"
 xhtml2pdf = "*"
 webauthn = "*"
+openpyxl = "*"
 
 [dev-packages]
 djlint = "*"

@@ -1,0 +1,35 @@
+{% if pending_users %}
+  {% for u in pending_users %}
+    <div class="bg-white border border-orange-100 rounded-2xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 shadow-sm">
+      <div class="flex items-center gap-3 flex-1 min-w-0">
+        <div class="w-11 h-11 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden">
+          {% if u.profile.profile_photo %}<img src="{{ u.profile.profile_photo.url }}" alt="" class="w-full h-full object-cover" />{% else %}{{ u.um_initials }}{% endif %}
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <p class="text-sm font-semibold text-gray-900 truncate">{{ u.get_full_name|default:u.email }}</p>
+            <span class="px-2 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-[11px] font-semibold text-orange-500">Staff</span>
+          </div>
+          <p class="text-xs text-gray-500 mt-0.5 truncate">{{ u.email }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {{ u.profile.get_department_display|default:"No department" }} · {{ u.profile.phone|default:"No phone" }} · {% with ago=u.date_joined|timesince %}{% if ago|first == "0" %}Signed up just now{% else %}Signed up {{ ago }} ago{% endif %}{% endwith %}
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-2 sm:shrink-0">
+        <button type="button" data-um-action="reject" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}"
+                class="flex-1 sm:flex-none text-sm font-semibold text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-xl hover:bg-gray-50">Reject</button>
+        <button type="button" data-um-action="approve" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}"
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+          Approve
+        </button>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="bg-white/80 border border-orange-100 rounded-2xl px-5 py-8 text-center">
+    <p class="text-sm font-semibold text-gray-700">All caught up</p>
+    <p class="text-xs text-gray-400 mt-1">New staff sign-ups will show up here for approval.</p>
+  </div>
+{% endif %}
