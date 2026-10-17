@@ -1,14 +1,16 @@
 {% load static tailwind_tags %}
-{% tailwind_css %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fac-Check Privacy Policy</title>
+    <script src="{% static 'user/js/theme.js' %}"></script>
+    {% tailwind_css %}
+    <link rel="stylesheet" href="{% static 'accounts/css/auth_dark.css' %}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Modak&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;display=swap"
           rel="stylesheet" />
     <link rel="icon"
           type="image/png"
@@ -16,10 +18,7 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         :root {
-            --fc-blue: #2563eb;
-            --fc-blue-dark: #1d4ed8;
-            --fc-cyan: #06b6d4;
-            --fc-grid-line: rgba(37, 99, 235, 0.08);
+            color-scheme: light;
         }
 
         html,
@@ -28,108 +27,171 @@
             width: 100%;
         }
 
-        body {
+        body.fc-policy-page {
+            margin: 0;
+            min-height: 100vh;
+            min-height: 100svh;
+            padding: 24px 16px;
+            background: linear-gradient(160deg, #fbfdff 15%, #eef4fc 100%);
+            color: #18324b;
+            font-family: "Poppins", sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             position: relative;
-            background-color: #eef4ff;
-            background-image:
-                radial-gradient(ellipse 80% 55% at 50% -10%, rgba(37, 99, 235, 0.14), transparent 60%),
-                linear-gradient(180deg, #eef4ff 0%, #e3edff 45%, #eef4ff 100%);
-            overflow-x: hidden;
         }
 
-        
-        .fc-grid {
-            position: absolute;
+        .fc-policy-background {
+            position: fixed;
             inset: 0;
-            z-index: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
-            background-image:
-                linear-gradient(var(--fc-grid-line) 1px, transparent 1px),
-                linear-gradient(90deg, var(--fc-grid-line) 1px, transparent 1px);
-            background-size: 44px 44px;
-            -webkit-mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
-            mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
         }
 
-        .fc-blob {
-            position: absolute;
-            z-index: 0;
-            pointer-events: none;
-            border-radius: 9999px;
-            filter: blur(70px);
-            opacity: 0.55;
+        .fc-policy-page main {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 640px;
+            margin-block: auto;
         }
 
-        .fc-blob-a {
-            top: -120px;
-            left: -80px;
-            width: 420px;
-            height: 420px;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.35), transparent 70%);
+        .fc-policy-card {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            padding: 32px 32px 26px;
+            border: 1px solid #e5edf7;
+            border-radius: 24px;
+            background: #fff;
+            box-shadow: 0 16px 48px rgba(15, 76, 129, .08);
         }
 
-        .fc-blob-b {
-            top: 40px;
-            right: -140px;
-            width: 460px;
-            height: 460px;
-            background: radial-gradient(circle, rgba(6, 182, 212, 0.28), transparent 70%);
+        .fc-policy-card a {
+            color: #175b9b;
         }
 
-        /* Architectural registration marks framing the hero, like corner crop
-         marks on a technical drawing / blueprint sheet. */
-        .fc-crop {
-            position: absolute;
-            width: 28px;
-            height: 28px;
-            z-index: 1;
-            opacity: 0.45;
+        .fc-policy-card a:hover {
+            text-decoration: underline;
         }
 
-        .fc-crop-tl {
-            top: 18px;
-            left: 18px;
-            border-top: 2px solid var(--fc-blue);
-            border-left: 2px solid var(--fc-blue);
+        .fc-policy-back-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 44px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            font-weight: 500;
         }
 
-        .fc-crop-tr {
-            top: 18px;
-            right: 18px;
-            border-top: 2px solid var(--fc-blue);
-            border-right: 2px solid var(--fc-blue);
+        .fc-policy-heading {
+            text-align: center;
+            margin-bottom: 22px;
         }
 
-        .fc-crop-bl {
-            bottom: 18px;
-            left: 18px;
-            border-bottom: 2px solid var(--fc-blue);
-            border-left: 2px solid var(--fc-blue);
+        .fc-policy-heading .fc-policy-back-link {
+            display: flex;
+            justify-content: flex-start;
+            width: fit-content;
         }
 
-        .fc-crop-br {
-            bottom: 18px;
-            right: 18px;
-            border-bottom: 2px solid var(--fc-blue);
-            border-right: 2px solid var(--fc-blue);
+        .fc-policy-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 18px;
+            border-radius: 16px;
+            background: #edf4ff;
         }
 
-        input:-webkit-autofill,
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover,
-        input:-webkit-autofill:focus {
-            -webkit-box-shadow: 0 0 0px 1000px #f8fafc inset;
-            box-shadow: 0 0 0px 1000px #f8fafc inset;
-            -webkit-text-fill-color: #1f2937;
-            transition: background-color 5000s ease-in-out 0s;
+        .fc-policy-logo img {
+            width: 26px;
+            height: 30px;
+            object-fit: contain;
+        }
+
+        .fc-policy-heading h1 {
+            font-size: 22px;
+            line-height: 1.25;
+            font-weight: 700;
+            letter-spacing: -.6px;
+            color: #0f4c81;
+        }
+
+        .fc-policy-heading p {
+            margin-top: 12px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #526277;
+        }
+
+        .fc-signup-primary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            min-height: 46px;
+            padding: 10px 16px;
+            border-radius: 11px;
+            background: #0f4c81;
+            color: #fff;
+            border: 1px solid #0f4c81;
+            box-shadow: 0 4px 12px rgba(15, 76, 129, .16);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .fc-signup-primary:hover {
+            background: #0d3f6b;
+        }
+
+        .fc-policy-page a:focus-visible,
+        .fc-policy-page button:focus-visible,
+        .fc-policy-page input:focus-visible {
+            outline: 3px solid #427eb3;
+            outline-offset: 3px;
+        }
+
+        .fc-policy-footer {
+            position: relative;
+            text-align: center;
+            margin-top: 10px;
+            color: #526277;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .fc-policy-footer a {
+            display: inline-flex;
+            align-items: center;
+            min-height: 44px;
+            color: #175b9b;
+        }
+
+        @media (max-width: 480px) {
+            body.fc-policy-page {
+                padding: 20px 12px;
+            }
+
+            .fc-policy-card {
+                padding: 28px 24px 24px;
+                border-radius: 20px;
+            }
         }
 
         
         .fc-policy-box {
-            max-height: 320px;
+            max-height: min(340px, 52svh);
             overflow-y: auto;
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
+            background-color: #f8faff;
+            border: 1px solid #e5edf7;
             border-radius: 0.75rem;
             padding: 1.25rem 1.5rem;
         }
@@ -137,7 +199,7 @@
         .fc-policy-box h3 {
             font-weight: 700;
             font-size: 1rem;
-            color: #1f2937;
+            color: #173b5c;
             margin-top: 1.25rem;
             margin-bottom: 0.5rem;
         }
@@ -149,7 +211,7 @@
         .fc-policy-box h2 {
             font-weight: 800;
             font-size: 1.05rem;
-            color: #1d4ed8;
+            color: #0f4c81;
             margin-top: 1.75rem;
             margin-bottom: 0.5rem;
         }
@@ -162,7 +224,7 @@
         .fc-policy-box li {
             font-size: 0.875rem;
             line-height: 1.6;
-            color: #475569;
+            color: #526277;
             margin-bottom: 0.5rem;
             text-align: justify !important;
             text-justify: inter-word;
@@ -184,35 +246,34 @@
         }
     </style>
   </head>
-  <body class="min-h-screen flex flex-col items-center justify-start pt-14 p-4 text-black font-[Poppins]">
-    <div class="fc-grid"></div>
-    <div class="fc-blob fc-blob-a"></div>
-    <div class="fc-blob fc-blob-b"></div>
-    <div class="fc-crop fc-crop-tl"></div>
-    <div class="fc-crop fc-crop-tr"></div>
-    <div class="fc-crop fc-crop-bl"></div>
-    <div class="fc-crop fc-crop-br"></div>
-    <div class="login_title z-10">
-      <img />
-      <div class="flex flex-wrap text-center justify-center">
-        <h1 class="text-4xl font-bold tracking-wide text-blue-500">Fac-Check</h1>
-      </div>
-      <p class="pt-2 text-center font-semibold pb-5">Turning Everyday Concerns into Smart Insight</p>
-    </div>
+  <body class="fc-policy-page">
+    <svg class="fc-policy-background"
+         viewBox="0 0 1440 900"
+         preserveAspectRatio="xMidYMid slice"
+         fill="none"
+         aria-hidden="true">
+      <path d="M-100 800 C320 430 820 680 1550 350" stroke="#dbe8f8" stroke-width="2" />
+      <path d="M-100 850 C320 480 820 730 1550 400" stroke="#e2ecf9" stroke-width="2" />
+      <path d="M-100 880 C320 510 820 760 1550 430" stroke="#e2ecf9" stroke-width="2" />
+    </svg>
+    <main aria-labelledby="policy-title">
     <form method="POST"
           action="{% url 'privacy_policy' %}"
-          class="bg-white p-8 rounded-2xl shadow-md w-full max-w-2xl mb-4 z-10">
+          class="fc-policy-card">
       {% csrf_token %}
-      <div class="flex flex-col items-start text-left mb-5">
-        <a href="{% url 'signup' %}"
-         class="text-sm text-left pb-2 text-gray-500 block hover:text-blue-600 transition-all">← Back to Sign up</a>
-        <h1 class="text-lg font-semibold">Privacy Policy and Terms of Service</h1>
+      <div class="fc-policy-heading">
+        <a href="{% url 'signup' %}" class="fc-policy-back-link">← Back to Sign up</a>
+        <div class="fc-policy-logo">
+          <img src="{% static 'accounts/images/Fac-Check-Logo.png' %}" alt="Fac-Check" />
+        </div>
+        <h1 id="policy-title">Privacy Policy and Terms of Service</h1>
+        <p>Please review before creating your Fac-Check account.</p>
       </div>
       {% if messages %}
         <div class="mt-6 mb-6">
           {% for message in messages %}
             {% if message.tags == 'error' %}
-              <div class="flex items-center border p-3 rounded-xl text-sm bg-red-200 border-red-600 text-red-700 shadow-md animate-pulse">
+              <div class="flex items-center border p-3 rounded-xl text-sm bg-red-200 border-red-600 text-red-700 shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg"
                      fill="none"
                      viewBox="0 0 24 24"
@@ -447,7 +508,7 @@
 
       <div class="flex items-center gap-3 mb-5">
         {{ form.agree_to_terms }}
-        <label for="id_agree_to_terms" class="text-sm leading-5 text-slate-700 cursor-pointer">I have read and understood the Terms & Conditions.</label>
+        <label for="id_agree_to_terms" class="text-sm leading-5 text-slate-700 cursor-pointer">I have read and understood the Privacy Policy and Terms of Service.</label>
       </div>
       {% if form.agree_to_terms.errors %}
         <p class="text-red-500 text-sm mt-1">
@@ -458,9 +519,11 @@
         {{ form.website.label_tag }}
         {{ form.website }}
       </div>
-      <button class="w-full bg-blue-600 p-3 rounded-xl text-white" type="submit">Accept & Continue</button>
+      <button class="fc-signup-primary" type="submit">Accept & Continue</button>
     </form>
-    <footer>
+    </main>
+    <footer class="fc-policy-footer">
+      <a href="{% url 'index' %}">← Back to home</a>
       <p class="text-xs">&copy; 2026 Fac-Check. All rights reserved.</p>
     </footer>
 

@@ -179,15 +179,15 @@
                 <div>
                   <p class="text-xs text-gray-400 mb-1.5">Current Priority</p>
                   {% if report.priority == 'critical' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-600 text-white">Critical / Urgent</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">Critical / Urgent</span>
                   {% elif report.priority == 'high' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white">High Priority</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">High Priority</span>
                   {% elif report.priority == 'standard' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-yellow-400 text-white">Standard</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">Standard</span>
                   {% elif report.priority == 'awaiting_materials' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-purple-500 text-white">Awaiting Materials</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Awaiting Materials</span>
                   {% elif report.priority == 'awaiting_approval' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-500 text-white">Awaiting Approval</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Awaiting Approval</span>
                   {% endif %}
                 </div>
               </div>
@@ -703,6 +703,15 @@
     .unit-dd-item .chk { visibility: hidden; width: 16px; height: 16px; color: #2563eb; flex-shrink: 0; }
     .unit-dd-item.selected .chk { visibility: visible; }
     .unit-dd-item:hover .chk { color: #fff; }
+    /* Material units use a separate widget from the shared custom dropdown. */
+    html.dark .unit-dd-btn { background: var(--fc-surface); border-color: var(--color-gray-300); color: var(--color-gray-700); }
+    html.dark .unit-dd-btn:focus, html.dark .unit-dd-btn.open { box-shadow: 0 0 0 2px #7db4ff; }
+    html.dark .unit-dd-btn svg, html.dark .unit-dd-label.placeholder { color: var(--color-gray-400); }
+    html.dark .unit-dd-list { background: var(--fc-raised); border-color: var(--color-gray-200); }
+    html.dark .unit-dd-item { color: var(--color-gray-700); }
+    html.dark .unit-dd-item:hover, html.dark .unit-dd-item:focus-visible { background: var(--color-blue-100); color: #bcd6ff; }
+    html.dark .unit-dd-item .chk { color: #7db4ff; }
+    html.dark .unit-dd-item:hover .chk, html.dark .unit-dd-item:focus-visible .chk { color: #bcd6ff; }
   </style>
   <!-- ═══════════════════════════════════
      PHOTO LIGHTBOX MODAL

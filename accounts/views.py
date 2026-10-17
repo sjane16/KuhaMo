@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect 
-from .forms import LoginForm, SignUpForm, OTPVerificationForm, PrivacyAgreementForm, ForgotPasswordForm, ResetPasswordForm
+from .forms import LoginForm, SignUpForm, OTPVerificationForm, PrivacyAgreementForm, ForgotPasswordForm, ResetPasswordForm, is_unverified_signup
 from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.models import User 
 from django.contrib import messages
@@ -395,6 +395,17 @@ def resend_login_otp(request):
 def _privacy_viewed(request):
     return bool(request.session.get('privacy_viewed') or request.session.get('privacy_accepted'))
 
+# Accepting the policy pre-ticks the signup checkbox, but only for a short window
+PRIVACY_ACCEPT_WINDOW_SECONDS = 30 * 60
+
+def _privacy_recently_accepted(request):
+    accepted_at = request.session.get('privacy_accepted_at')
+    return bool(
+        request.session.get('privacy_accepted')
+        and accepted_at
+        and timezone.now().timestamp() - accepted_at <= PRIVACY_ACCEPT_WINDOW_SECONDS
+    )
+
 def _render_signup(request, form):
     viewed = _privacy_viewed(request)
     # Until the Privacy Policy page has been opened, the checkbox can't be ticked
@@ -442,14 +453,24 @@ def signup(request):
 
             try:
                 with transaction.atomic():
-                    user = User.objects.create_user(
-                        username=email,
-                        email=email,
-                        password=password,
-                        first_name=first_name,
-                        last_name=last_name,
-                        is_active=False
-                    )
+                    user = User.objects.filter(email=email).first()
+                    if user and is_unverified_signup(user):
+                        # An earlier signup was never verified (for example the tab was closed
+                        # on the code page). Reuse it with the new details instead of locking
+                        # the email out. It has never logged in, so it has no reports or data.
+                        user.first_name = first_name
+                        user.last_name = last_name
+                        user.set_password(password)
+                        user.save()
+                    else:
+                        user = User.objects.create_user(
+                            username=email,
+                            email=email,
+                            password=password,
+                            first_name=first_name,
+                            last_name=last_name,
+                            is_active=False
+                        )
 
                     otp = _generate_otp()
                     UserProfile.objects.update_or_create(
@@ -479,15 +500,18 @@ def signup(request):
                 return _render_signup(request, form)
 
             request.session['pending_verification_user_id'] = user.id
+            # Consent flags apply to this signup only; clear them so the next signup on this browser starts fresh
+            request.session.pop('privacy_accepted', None)
+            request.session.pop('privacy_accepted_at', None)
+            request.session.pop('privacy_viewed', None)
             _clear_messages(request)
             messages.success(request, "Account created successfully! Please check your email for the verification code to verify your account.")
             return redirect('verify_otp')
        else:
-           print(form.errors)
            _clear_messages(request)
     else:
         initial = {}
-        if request.session.get('privacy_accepted'):
+        if _privacy_recently_accepted(request):
             initial['agree_to_terms'] = True
         form = SignUpForm(initial=initial)
 
@@ -577,13 +601,17 @@ def resend_otp(request):
         }
     )
 
-    send_mail(
-                    subject='Your OTP for Account Verification',
-                    message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    fail_silently=False,
-                )
+    try:
+        send_mail(
+            subject='Your OTP for Account Verification',
+            message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except (SMTPException, OSError):
+        messages.error(request, "We couldn't resend your code right now. Please try again in a moment.")
+        return redirect('verify_otp')
 
     messages.success(request, "A new verification code has been sent to your email.")
     return redirect('verify_otp')
@@ -836,13 +864,13 @@ def privacy_policy(request):
         form = PrivacyAgreementForm(request.POST)
         if form.is_valid():
             request.session['privacy_accepted'] = True
+            request.session['privacy_accepted_at'] = timezone.now().timestamp()
             return redirect('signup')
         else:
             messages.error(request, "You must agree to the Privacy Policy and Terms of Service to continue")
             return render(request, 'accounts/privacypolicy.html', {'form': form})
 
-    initial = {'agree_to_terms': request.session.get('privacy_accepted', False)}
-    form = PrivacyAgreementForm(initial=initial)
+    form = PrivacyAgreementForm()
     return render(request, 'accounts/privacypolicy.html', {'form': form})
 
 

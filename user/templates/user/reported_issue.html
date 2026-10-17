@@ -220,11 +220,11 @@
                 <div>
                   <p class="text-xs text-gray-400 mb-1.5">Priority</p>
                   {% if report.priority == 'critical' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-600 text-white">Critical / Urgent</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">Critical / Urgent</span>
                   {% elif report.priority == 'high' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white">High Priority</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">High Priority</span>
                   {% elif report.priority == 'standard' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-yellow-400 text-white">Standard</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">Standard</span>
                   {% endif %}
                 </div>
               </div>

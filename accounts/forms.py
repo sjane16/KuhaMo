@@ -3,6 +3,11 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
 from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength
 
+
+def is_unverified_signup(user):
+    """True for an account that was created at signup but never verified or used."""
+    return not user.is_active and user.last_login is None
+
 class placeholderSelect(forms.Select):
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
@@ -16,7 +21,7 @@ class LoginForm(forms.Form):
         widget=forms.EmailInput(attrs={
             'placeholder': 'Enter your email address',
             'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400',
-            'autocomplete': 'off'
+            'autocomplete': 'username'
         })
     )
 
@@ -24,6 +29,7 @@ class LoginForm(forms.Form):
             widget=forms.PasswordInput(attrs={
                 'id': 'login_password',
                 'placeholder': 'Enter your password',
+                'autocomplete': 'current-password',
                 'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
             })
         )
@@ -204,9 +210,9 @@ class SignUpForm(forms.Form):
                 "Users must use their official UDM email address (@udm.edu.ph) except for university personnel"
         )
 
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("An account with this email already exists"
-            )
+        existing = User.objects.filter(email=email).first()
+        if existing and not is_unverified_signup(existing):
+            raise forms.ValidationError("An account with this email already exists")
 
         return email 
 
