@@ -605,7 +605,7 @@ def chatbot_response(request):
             api_key = getattr(settings, "GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
             client = genai.Client(api_key=api_key)
             system_instruction = (
-                "You are FACI, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). \n\n"
+                "You are Checky, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). \n\n"
                 "STRICT RULES: \n"
                 "1. Answer the query strictly using the facts stated inside the OFFICIAL FAQ KNOWLEDGE BASE FOR FAC-CHECK SYSTEM (UDM) provided below. \n"
                 "2. Do NOT use outside knowledge. If the answer cannot be found in the text document below, "

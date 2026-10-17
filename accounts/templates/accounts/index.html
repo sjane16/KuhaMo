@@ -1,6 +1,6 @@
 {% load static tailwind_tags %}
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,7 +10,9 @@
         <script>
             document.documentElement.classList.add("js");
         </script>
+        <script src="{% static 'user/js/theme.js' %}"></script>
         {% tailwind_css %}
+        <link rel="stylesheet" href="{% static 'accounts/css/landing_dark.css' %}" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&amp;family=Poppins:wght@400;500;600;700&amp;display=swap"
@@ -899,6 +901,7 @@
         </style>
     </head>
     <body class="min-h-dvh bg-white text-slate-900 antialiased">
+        {% include "accounts/components/checky_loader.html" %}
         <a href="#main-content"
            class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-20 focus:rounded-lg focus:bg-white focus:px-5 focus:py-3 focus:text-blue-700">
             Skip to main content
