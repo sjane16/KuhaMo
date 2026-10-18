@@ -68,6 +68,7 @@
     Ratings
   </a>
 
+{% if is_head_admin %}
   <!-- Users -->
   <a
     href="{% url 'user_management' %}"
@@ -80,6 +81,7 @@
     <span data-pending-badge
           class="absolute top-0.5 left-1/2 ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold"{% if not pending_staff_count %} hidden{% endif %}>{{ pending_staff_count|default:0 }}</span>
   </a>
+{% endif %}
 
   <!-- Menu -->
   <a

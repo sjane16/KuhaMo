@@ -1,6 +1,6 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
-from user.decorators import admin_required
+from user.decorators import admin_required, head_admin_required
 from . import views
 from . import user_management
 from . import user_import
@@ -32,12 +32,12 @@ urlpatterns = [
     path('dashboard/report/summary/', admin_required(views.dashboard_report_summary), name='dashboard_report_summary'),
 
     # User Management
-    path('users/', admin_required(user_management.user_management), name='user_management'),
-    path('ajax/users/', admin_required(user_management.user_management_ajax), name='user_management_ajax'),
-    path('users/<int:user_id>/action/', admin_required(user_management.user_management_action), name='user_management_action'),
-    path('users/import/template/', admin_required(user_import.import_template), name='user_import_template'),
-    path('users/import/preview/', admin_required(user_import.import_preview), name='user_import_preview'),
-    path('users/import/confirm/', admin_required(user_import.import_confirm), name='user_import_confirm'),
+    path('users/', head_admin_required(user_management.user_management), name='user_management'),
+    path('ajax/users/', head_admin_required(user_management.user_management_ajax), name='user_management_ajax'),
+    path('users/<int:user_id>/action/', head_admin_required(user_management.user_management_action), name='user_management_action'),
+    path('users/import/template/', head_admin_required(user_import.import_template), name='user_import_template'),
+    path('users/import/preview/', head_admin_required(user_import.import_preview), name='user_import_preview'),
+    path('users/import/confirm/', head_admin_required(user_import.import_confirm), name='user_import_confirm'),
 
     
 
