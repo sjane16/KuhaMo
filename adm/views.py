@@ -31,12 +31,8 @@ from .forms import ManualSurveySubmissionForm
 REPORTS_PAGE_SIZE = 5
 ANALYTICS_CACHE_SECONDS = 60
 
-PERSONNEL_OPTIONS = [
-    {"slug": "remigio", "name": "Mr. Remigio"},
-    {"slug": "garboso", "name": "Mr. Garboso"},
-    {"slug": "lacson", "name": "Mr. Lacson"},
-    {"slug": "quibral", "name": "Ms. Quibral"},
-]
+# Personnel roster: MED Personnel accounts (see adm/personnel.py)
+from .personnel import personnel_options
 
 
 def build_personnel_rows(report):
@@ -48,9 +44,9 @@ def build_personnel_rows(report):
     }
 
     rows = []
-    known_names = {item["name"] for item in PERSONNEL_OPTIONS}
+    known_names = {item["name"] for item in personnel_options()}
 
-    for option in PERSONNEL_OPTIONS:
+    for option in personnel_options():
         rows.append({
             **option,
             "checked": option["name"] in saved_names,
@@ -122,14 +118,17 @@ def _percent_to_score(pct):
 
 
 def _known_personnel_names(assignments):
-    """Filter assignment dicts down to names that match the official PERSONNEL_OPTIONS roster
+    """Filter assignment dicts down to names that match the official MED personnel roster
     (excludes outsourced/typed-in "other personnel")."""
-    known = {option["name"] for option in PERSONNEL_OPTIONS}
+    known = {option["name"] for option in personnel_options()}
     return [item.get("name") for item in assignments if item.get("name") in known]
 
 
 def _survey_responses_queryset():
-    personnel_names = [option["name"] for option in PERSONNEL_OPTIONS]
+    personnel_names = [option["name"] for option in personnel_options()]
+    if not personnel_names:
+        # An empty Q() would match every survey; with no MED personnel there's nothing to show
+        return SurveyResponse.objects.none()
     assignments = Q()
     for name in personnel_names:
         assignments |= Q(report__assigned_personnel_data__contains=[{"name": name}])
@@ -239,7 +238,7 @@ def build_survey_analysis_context(response_page=1, include_responses=True):
             "qqt_quantity_sum": 0,
             "qqt_timeliness_sum": 0,
         }
-        for option in PERSONNEL_OPTIONS
+        for option in personnel_options()
     }
 
     for report in Report.objects.select_related('survey').iterator(chunk_size=500):
@@ -1348,7 +1347,7 @@ def report_save(request, report_id):
 
         report.priority = priority if priority else None
         assignments = []
-        personnel_by_slug = {item["slug"]: item["name"] for item in PERSONNEL_OPTIONS}
+        personnel_by_slug = {item["slug"]: item["name"] for item in personnel_options()}
 
         for slug in selected_personnel:
             name = personnel_by_slug.get(slug)

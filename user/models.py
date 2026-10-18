@@ -213,6 +213,9 @@ class UserProfile(models.Model):
         ('student', 'Student'),
         ('faculty', 'Faculty'),
         ('staff', 'Staff'),
+        # Maintenance and Engineering Division personnel: assignable to reports and rated in the
+        # personnel ratings; no admin access. Set by the Head Admin in User Management.
+        ('med_personnel', 'MED Personnel'),
         ('admin', 'Admin'),
     ]
 

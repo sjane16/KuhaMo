@@ -94,6 +94,7 @@
                 <option value="student">Student</option>
                 <option value="faculty">Faculty</option>
                 <option value="staff">Staff</option>
+                <option value="med_personnel">MED Personnel</option>
                 <option value="admin">Admin</option>
               </select>
             </div>
@@ -173,7 +174,7 @@
                 class="hidden mt-4 w-full p-3 bg-gray-50 text-gray-700 placeholder-gray-400 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Reason (optional, included in the email to the user)"></textarea>
       <div id="umModalRoleWrap" class="hidden mt-4">
-        <label for="umModalRole" class="block text-xs font-semibold text-gray-600 mb-1.5">This account was created as an admin. What role should it have now?</label>
+        <label for="umModalRole" id="umModalRoleLabel" class="block text-xs font-semibold text-gray-600 mb-1.5">This account was created as an admin. What role should it have now?</label>
         <select id="umModalRole" data-cdd aria-label="New account role"
                 class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-100">
           <option value="">Choose a role</option>
@@ -417,6 +418,8 @@
                       button: "Reactivate", color: "bg-blue-600 hover:bg-blue-700", icon: "bg-blue-50 text-blue-500", reason: false },
         "delete": { title: "Delete {name}?", text: "This account never verified its email. Deleting it frees the email so they can sign up again.",
                     button: "Delete", color: "bg-red-600 hover:bg-red-700", icon: "bg-red-50 text-red-500", reason: false },
+        change_role: { title: "Change {name}'s role", text: "MED Personnel can be assigned to reports and are included in the personnel ratings, but they don't get admin access. Choosing Admin needs your password.",
+                       button: "Change role", color: "bg-blue-600 hover:bg-blue-700", icon: "bg-blue-50 text-blue-500", reason: false },
         make_admin: { title: "Make {name} an admin?", text: "They'll be able to approve and deactivate accounts, manage reports, and give or remove admin access. They'll get an email and must verify with a code at their next login.",
                       button: "Make admin", color: "bg-blue-600 hover:bg-blue-700", icon: "bg-blue-50 text-blue-500", reason: false, password: true },
         remove_admin: { title: "Remove admin access from {name}?", text: "They'll go back to a regular account and lose access to the admin pages. They'll get an email about it.",
@@ -437,13 +440,36 @@
       const roleWrap = document.getElementById("umModalRoleWrap");
       const roleSelect = document.getElementById("umModalRole");
 
+      const roleLabel = document.getElementById("umModalRoleLabel");
+      const ROLE_NAMES = { student: "Student", faculty: "Faculty", staff: "Staff", med_personnel: "MED Personnel", admin: "Admin (needs your password)" };
+      function setRoleOptions(roles) {
+        roleSelect.innerHTML = '<option value="">Choose a role</option>' + roles.map(function (r) {
+          return '<option value="' + r + '">' + ROLE_NAMES[r] + "</option>";
+        }).join("");
+        if (window.CDD && CDD.refresh) CDD.refresh(roleSelect);
+      }
+      function changeRoleNeedsPassword() {
+        return pending && pending.action === "change_role" && roleSelect.value === "admin";
+      }
+      roleSelect.addEventListener("change", function () {
+        if (pending && pending.action === "change_role") {
+          passwordWrap.classList.toggle("hidden", !changeRoleNeedsPassword());
+          if (changeRoleNeedsPassword()) setTimeout(function () { passwordInput.focus(); }, 50);
+        }
+      });
+
       function openModal(action, userId, name, currentRole) {
         const cfg = ACTIONS[action];
         // Accounts created as admins have no normal role to fall back to
-        const needsRole = action === "remove_admin" && (!currentRole || currentRole === "admin");
+        const isChangeRole = action === "change_role";
+        const needsRole = isChangeRole || (action === "remove_admin" && (!currentRole || currentRole === "admin"));
         pending = { action: action, userId: userId, needsRole: needsRole };
         passwordInput.value = "";
         passwordWrap.classList.toggle("hidden", !cfg.password);
+        setRoleOptions(isChangeRole
+          ? ["student", "faculty", "staff", "med_personnel", "admin"].filter(function (r) { return r !== currentRole; })
+          : ["student", "faculty", "staff", "med_personnel"]);
+        roleLabel.textContent = isChangeRole ? "New role" : "This account was created as an admin. What role should it have now?";
         roleSelect.value = "";
         roleWrap.classList.toggle("hidden", !needsRole);
         modalTitle.textContent = cfg.title.replace("{name}", name);
@@ -480,7 +506,7 @@
           modalError.classList.remove("hidden");
           return;
         }
-        if (ACTIONS[pending.action].password && !passwordInput.value) {
+        if ((ACTIONS[pending.action].password || changeRoleNeedsPassword()) && !passwordInput.value) {
           modalError.textContent = "Enter your password to confirm.";
           modalError.classList.remove("hidden");
           passwordInput.focus();
@@ -492,7 +518,7 @@
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
-          body: JSON.stringify({ action: pending.action, reason: modalReason.value, password: passwordInput.value, role: roleSelect.value }),
+          body: JSON.stringify({ action: changeRoleNeedsPassword() ? "make_admin" : pending.action, reason: modalReason.value, password: passwordInput.value, role: roleSelect.value }),
         })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok && d.ok, data: d }; }); })
           .then(function (res) {
