@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
 from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength
+from user.models import UserProfile
 
 
 def is_unverified_signup(user):
@@ -47,18 +48,7 @@ class LoginForm(forms.Form):
 
 class SignUpForm(forms.Form):
 
-    DEPARTMENT_CHOICES = [
-        ('', 'Select your department'),
-        ('CCS', 'College of Computing Studies'),
-        ('CHS', 'College of Health Sciences'),
-        ('CCJ', 'College of Criminal Justice'),
-        ('CED', 'College of Education'),
-        ('NSTP', 'National Service Training Program'),
-        ('GenED', 'General Education'),
-        ('CBPM', 'College of Business and Public Management'),
-        ('COL', 'College of Law'),
-        ('CAS', 'College of Arts and Sciences'),
-    ]
+    DEPARTMENT_CHOICES = [('', 'Select your department'), *UserProfile.DEPARTMENT_CHOICES]
 
     role = forms.ChoiceField(
     choices=[
@@ -70,6 +60,9 @@ class SignUpForm(forms.Form):
     widget=placeholderSelect(attrs={
         'class': 'w-full bg-transparent outline-none text-sm text-slate-700 invalid:text-slate-400',
         'required':'required',
+        'data-cdd': '',
+        'data-cdd-variant': 'transparent',
+        'aria-label': 'Role',
     })
 )
 
@@ -91,7 +84,13 @@ class SignUpForm(forms.Form):
 
     department = forms.ChoiceField(
         choices=DEPARTMENT_CHOICES,
-        widget=placeholderSelect(attrs={'class': 'w-full bg-transparent outline-none text-sm text-slate-700 invalid:text-slate-400', 'required':'required'}),
+        widget=placeholderSelect(attrs={
+            'class': 'w-full bg-transparent outline-none text-sm text-slate-700 invalid:text-slate-400',
+            'required': 'required',
+            'data-cdd': '',
+            'data-cdd-variant': 'transparent',
+            'aria-label': 'Department',
+        }),
     )
 
     email = forms.EmailField(

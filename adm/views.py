@@ -3,7 +3,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from requests import request
 from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices
-from django.db.models import Count, Avg, Q
+from django.db.models import Count, Q, Sum
+from django.core.cache import cache
 from datetime import timedelta, datetime
 import calendar
 import json
@@ -14,17 +15,20 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
-from user.forms import UserForm  
-from user.validators import validate_password_strength
+from user.forms import UserForm, ProfilePasswordChangeForm, form_error_text
 from security.audit import log_event
 from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
 from user.views import link_callback
-from user.notifications import notify_status_change
+from user.notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
+from user.context_processors import get_unread_notifications_count
+from user.constants import PRIORITY_SLA_HOURS
 from .models import Building 
+from .forms import ManualSurveySubmissionForm
 
 
 REPORTS_PAGE_SIZE = 5
+ANALYTICS_CACHE_SECONDS = 60
 
 PERSONNEL_OPTIONS = [
     {"slug": "remigio", "name": "Mr. Remigio"},
@@ -41,13 +45,6 @@ def build_personnel_rows(report):
         for item in saved
         if item.get("name")
     }
-
-    if not saved and report.assigned_personnel:
-        saved_names = {
-            name.strip()
-            for name in report.assigned_personnel.split(",")
-            if name.strip()
-        }
 
     rows = []
     known_names = {item["name"] for item in PERSONNEL_OPTIONS}
@@ -79,13 +76,8 @@ def format_hours(hours):
     return f"{days:.1f} days"
 
 
-RESPONSES_PAGE_SIZE = 5
+RESPONSES_PAGE_SIZE = 25
 
-PRIORITY_SLA_HOURS = {
-    'standard': 72,
-    'high': 24,
-    'critical': 3,
-}
 
 
 def _fmt_hours(h):
@@ -135,72 +127,88 @@ def _known_personnel_names(assignments):
     return [item.get("name") for item in assignments if item.get("name") in known]
 
 
-def build_survey_responses_list():
-    """Builds just the Individual Responses list — does NOT touch Personnel Performance
-    stats (no looping over all Reports, no N+1 report.survey queries). Used both by the
-    full-page context builder AND directly by the responses-pagination endpoint, so
-    paginating this table alone never re-triggers the expensive personnel-stats computation."""
-    surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
+def _survey_responses_queryset():
+    personnel_names = [option["name"] for option in PERSONNEL_OPTIONS]
+    assignments = Q()
+    for name in personnel_names:
+        assignments |= Q(report__assigned_personnel_data__contains=[{"name": name}])
 
-    responses = []
-    for survey in surveys:
-        report = survey.report
-        assignments = report.assigned_personnel_data or []
-        if not assignments and report.assigned_personnel:
-            assignments = [{"name": report.assigned_personnel}]
-
-        personnel_names = _known_personnel_names(assignments)
-        if not personnel_names:
-            continue
-
-        threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
-
-        expected_resolution_met = None
-        resolution_delay_days = None
-        if report.in_progress_at and report.accomplished_at:
-            sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
-            delay_hours = max(0, sla_hours - threshold)
-            expected_resolution_met = _delay_score(delay_hours) >= 4
-            resolution_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
-
-        closure_turnaround_met = None
-        closure_delay_days = None
-        if report.accomplished_at and report.closed_at:
-            close_hours = (report.closed_at - report.accomplished_at).total_seconds() / 3600
-            delay_hours = max(0, close_hours)
-            closure_turnaround_met = _delay_score(delay_hours) >= 4
-            closure_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
-
-        responses.append({
-            "personnel": ", ".join(personnel_names),
-            "category": report.get_category_display(),
-            "quality": survey.quality,
-            "quantity": survey.quantity,
-            "timeliness": survey.timeliness,
-            "date_submitted": report.submitted_at,
-            "expected_at": report.expected_resolution_at,
-            "actual_at": report.accomplished_at,
-            "expected_resolution_met": expected_resolution_met,
-            "resolution_delay_days": resolution_delay_days,
-            "closure_turnaround_met": closure_turnaround_met,
-            "closure_delay_days": closure_delay_days,
-        })
-
-    return responses
+    return (
+        SurveyResponse.objects
+        .filter(assignments)
+        .select_related('report')
+        .order_by('-submitted_at')
+    )
 
 
-def build_survey_analysis_context():
-    surveys = SurveyResponse.objects.select_related('report').order_by('-submitted_at')
-    total_surveys = surveys.count()
-    score_values = []
-    for survey in surveys:
-        score_values.extend(
-            value for value in (survey.quality, survey.quantity, survey.timeliness)
-            if value is not None
+def _build_survey_response(survey):
+    report = survey.report
+    assignments = report.assigned_personnel_data or []
+    personnel_names = _known_personnel_names(assignments)
+    threshold = PRIORITY_SLA_HOURS.get(report.priority, PRIORITY_SLA_HOURS['standard'])
+
+    expected_resolution_met = None
+    resolution_delay_days = None
+    if report.in_progress_at and report.accomplished_at:
+        sla_hours = (report.accomplished_at - report.in_progress_at).total_seconds() / 3600
+        delay_hours = max(0, sla_hours - threshold)
+        expected_resolution_met = _delay_score(delay_hours) >= 4
+        resolution_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
+
+    closure_turnaround_met = None
+    closure_delay_days = None
+    if report.accomplished_at and survey.submitted_at:
+        close_hours = (survey.submitted_at - report.accomplished_at).total_seconds() / 3600
+        delay_hours = max(0, close_hours)
+        closure_turnaround_met = _delay_score(delay_hours) >= 4
+        closure_delay_days = round(delay_hours / 24) if delay_hours > 0 else 0
+
+    return {
+        "personnel": ", ".join(personnel_names),
+        "category": report.get_category_display(),
+        "quality": survey.quality,
+        "quantity": survey.quantity,
+        "timeliness": survey.timeliness,
+        "date_submitted": report.submitted_at,
+        "expected_at": report.expected_resolution_at,
+        "actual_at": report.accomplished_at,
+        "expected_resolution_met": expected_resolution_met,
+        "resolution_delay_days": resolution_delay_days,
+        "closure_turnaround_met": closure_turnaround_met,
+        "closure_delay_days": closure_delay_days,
+    }
+
+
+def build_survey_responses_list(page_number=1):
+    """Return one SQL-paginated page of personnel-assigned survey responses."""
+    paginator = Paginator(_survey_responses_queryset(), RESPONSES_PAGE_SIZE)
+    page = paginator.get_page(page_number)
+    return [_build_survey_response(survey) for survey in page.object_list], page
+
+
+def build_survey_analysis_context(response_page=1, include_responses=True):
+    aggregates = {
+        "total_surveys": Count('id'),
+        "quality_sum": Sum('quality'),
+        "quantity_sum": Sum('quantity'),
+        "timeliness_sum": Sum('timeliness'),
+        "quality_count": Count('quality'),
+        "quantity_count": Count('quantity'),
+        "timeliness_count": Count('timeliness'),
+    }
+    for rating in range(1, 6):
+        aggregates[f"rating_{rating}"] = (
+            Count('id', filter=Q(quality=rating))
+            + Count('id', filter=Q(quantity=rating))
+            + Count('id', filter=Q(timeliness=rating))
         )
-    avg_rating = round(sum(score_values) / len(score_values), 1) if score_values else 0
+    survey_stats = SurveyResponse.objects.aggregate(**aggregates)
+    score_count = sum(survey_stats[f"{field}_count"] for field in ('quality', 'quantity', 'timeliness'))
+    score_sum = sum(survey_stats[f"{field}_sum"] or 0 for field in ('quality', 'quantity', 'timeliness'))
+    total_surveys = survey_stats['total_surveys']
+    avg_rating = round(score_sum / score_count, 1) if score_count else 0
     rating_counts = {
-        rating: sum(score == rating for score in score_values)
+        rating: survey_stats[f"rating_{rating}"]
         for rating in range(1, 6)
     }
     max_rating_count = max(rating_counts.values()) if rating_counts else 0
@@ -233,11 +241,8 @@ def build_survey_analysis_context():
         for option in PERSONNEL_OPTIONS
     }
 
-    for report in Report.objects.all():
+    for report in Report.objects.select_related('survey').iterator(chunk_size=500):
         assignments = report.assigned_personnel_data or []
-        if not assignments and report.assigned_personnel:
-            assignments = [{"name": report.assigned_personnel}]
-
         names = _known_personnel_names(assignments)
         if not names:
             continue
@@ -270,7 +275,7 @@ def build_survey_analysis_context():
                         stats[f"{field}_total"] += value
                         stats[f"{field}_count"] += 1
 
-            threshold = PRIORITY_SLA_HOURS.get(report.priority, 72)
+            threshold = PRIORITY_SLA_HOURS.get(report.priority, PRIORITY_SLA_HOURS['standard'])
 
             sla_score = None
             if report.in_progress_at and report.accomplished_at:
@@ -331,7 +336,10 @@ def build_survey_analysis_context():
     # (uses the dict key "avg_rating", unaffected by the personnel_avg_rating rename above)
 
     # ---- Individual Responses — official personnel only (outsourced-only reports are hidden) ----
-    responses = build_survey_responses_list()
+    responses = []
+    responses_page = None
+    if include_responses:
+        responses, responses_page = build_survey_responses_list(response_page)
 
     return {
         "active_page": "survey_analysis",
@@ -342,6 +350,11 @@ def build_survey_analysis_context():
         "max_rating_count": max_rating_count,
         "personnel_rows": personnel_rows,
         "responses": responses,
+        "responses_page_number": responses_page.number if responses_page else 1,
+        "responses_total_pages": responses_page.paginator.num_pages if responses_page else 1,
+        "responses_has_previous": responses_page.has_previous() if responses_page else False,
+        "responses_has_next": responses_page.has_next() if responses_page else False,
+        "responses_total_count": responses_page.paginator.count if responses_page else 0,
     }
 
 def dashboard(request):
@@ -422,6 +435,26 @@ def _build_resolution_buckets(period, now, start_date=None, end_date=None):
     return buckets
 
 
+def _reports_for_resolution_buckets(buckets):
+    reports_by_bucket = [[] for _ in buckets]
+    if not buckets:
+        return reports_by_bucket
+
+    finished_reports = Report.objects.filter(
+        status__in=('resolved', 'closed'),
+        accomplished_at__range=(buckets[0][1], buckets[-1][2]),
+        submitted_at__isnull=False,
+    ).values_list('priority', 'submitted_at', 'accomplished_at')
+
+    for priority, submitted_at, accomplished_at in finished_reports.iterator(chunk_size=500):
+        for index, (_, bucket_start, bucket_end) in enumerate(buckets):
+            if bucket_start <= accomplished_at <= bucket_end:
+                reports_by_bucket[index].append((priority, submitted_at, accomplished_at))
+                break
+
+    return reports_by_bucket
+
+
 def _build_dashboard_data(period, start_date=None, end_date=None):
     now = timezone.now()
 
@@ -445,9 +478,24 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             return qs.filter(submitted_at__gte=start_date)
         return qs.all()
 
-    survey_scores = SurveyResponse.objects.values_list('quality', 'quantity', 'timeliness')
-    survey_values = [value for scores in survey_scores for value in scores if value is not None]
-    avg_satisfaction = round(sum(survey_values) / len(survey_values), 1) if survey_values else 0
+    survey_aggregates = {
+        f'{field}_sum': Sum(field)
+        for field in ('quality', 'quantity', 'timeliness')
+    }
+    survey_aggregates.update({
+        f'{field}_count': Count(field)
+        for field in ('quality', 'quantity', 'timeliness')
+    })
+    for rating in range(1, 6):
+        survey_aggregates[f'rating_{rating}'] = (
+            Count('id', filter=Q(quality=rating))
+            + Count('id', filter=Q(quantity=rating))
+            + Count('id', filter=Q(timeliness=rating))
+        )
+    survey_scores = SurveyResponse.objects.aggregate(**survey_aggregates)
+    score_count = sum(survey_scores[f'{field}_count'] for field in ('quality', 'quantity', 'timeliness'))
+    score_sum = sum(survey_scores[f'{field}_sum'] or 0 for field in ('quality', 'quantity', 'timeliness'))
+    avg_satisfaction = round(score_sum / score_count, 1) if score_count else 0
 
     status_counts_qs = (
         filter_periods(Report.objects)
@@ -468,10 +516,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         "1-Unsatisfactory"
     ]   
     # Per-score tally across Quality, Quantity, Timeliness (same pooling as avg_satisfaction)
-    satisfaction_counts = [
-        sum(1 for value in survey_values if value == i)
-        for i in range(5, 0, -1)
-    ]
+    satisfaction_counts = [survey_scores[f'rating_{rating}'] for rating in range(5, 0, -1)]
 
     categories_data = (
         filter_periods(Report.objects)
@@ -516,10 +561,9 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             code: 0 for code, _ in Report.STATUS_CHOICES
         }
 
-    for report in filter_periods(Report.objects):
-        building = report.location.split(',')[0].strip() if report.location else None
+    for status, building in filter_periods(Report.objects).values_list('status', 'building_name').iterator(chunk_size=500):
         if building:
-            building_status_counts[building][report.status] += 1
+            building_status_counts[building][status] += 1
 
     sorted_buildings = sorted(
         building_status_counts.items(),
@@ -554,24 +598,20 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
         end_date=end_date,
     )
 
-    for bucket_label, bucket_start, bucket_end in resolution_buckets:
-        finished = Report.objects.filter(
-            status__in=['resolved', 'closed'],
-            accomplished_at__range=(bucket_start, bucket_end),
-            submitted_at__isnull=False,
-        )
+    reports_by_bucket = _reports_for_resolution_buckets(resolution_buckets)
+    for (bucket_label, _, _), finished in zip(resolution_buckets, reports_by_bucket):
         resolution_weeks.append(bucket_label)
         priority_actuals = {code: [] for code in resolution_by_priority}
-        for r in finished:
-            diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
+        for priority, submitted_at, accomplished_at in finished:
+            diff = (accomplished_at - submitted_at).total_seconds() / 3600
             if diff < 0:
                 continue  # invalid: natapos bago ma-submit
-            target = PRIORITY_SLA_HOURS.get(r.priority, 72)
+            target = PRIORITY_SLA_HOURS.get(priority, PRIORITY_SLA_HOURS['standard'])
             sla_total += 1
             if diff <= target:
                 sla_met += 1
-            if r.priority in priority_actuals:
-                priority_actuals[r.priority].append(diff)
+            if priority in priority_actuals:
+                priority_actuals[priority].append(diff)
 
         for code, series in resolution_by_priority.items():
             values = priority_actuals[code]
@@ -601,6 +641,19 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
     }
 
 
+def _cached_dashboard_data(period, start_date=None, end_date=None):
+    key = 'dashboard-data:' + ':'.join((
+        str(period),
+        start_date.isoformat() if start_date else '',
+        end_date.isoformat() if end_date else '',
+    ))
+    return cache.get_or_set(
+        key,
+        lambda: _build_dashboard_data(period, start_date, end_date),
+        ANALYTICS_CACHE_SECONDS,
+    )
+
+
 def adm_dashboard_ajax(request):
     period = request.GET.get('period', '30')
     report_month = (request.GET.get('report_month') or '').strip()
@@ -610,9 +663,9 @@ def adm_dashboard_ajax(request):
             start_dt, end_dt = _parse_report_month(report_month)
         except ValueError:
             return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
-        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
     else:
-        data = _build_dashboard_data(period)
+        data = _cached_dashboard_data(period)
 
     html = render_to_string(
         'partials/_dashboard_content.html',
@@ -655,7 +708,7 @@ def _filter_admin_reports(status_filter, search_query):
             | Q(location__icontains=query)
             | Q(category__icontains=query)
             | Q(custom_category__icontains=query)
-            | Q(assigned_personnel__icontains=query)
+            | Q(assigned_personnel_data__icontains=query)
         )
 
         matching_statuses = [
@@ -715,11 +768,11 @@ def adm_reports_ajax(request):
 
     mobile_html = render_to_string('partials/_reports_mobile_rows.html', {
         'reports': page_obj,
-    }, request=request)
+    })
 
     desktop_html = render_to_string('partials/_reports_desktop_rows.html', {
         'reports': page_obj,
-    }, request=request)
+    })
 
     return JsonResponse({
         'mobile_html': mobile_html,
@@ -733,7 +786,10 @@ def adm_reports_ajax(request):
 
 
 def report_detail(request, report_id):
-    report = get_object_or_404(Report, id=report_id)
+    report = get_object_or_404(
+        Report.objects.select_related('user', 'survey'),
+        id=report_id,
+    )
     personnel_rows, other_personnel = build_personnel_rows(report)
     is_locked = report.status in ('resolved', 'closed')
 
@@ -749,11 +805,32 @@ def report_detail(request, report_id):
         'personnel_rows': personnel_rows,
         'other_personnel': other_personnel,
         'is_locked': is_locked,
+        'priority_sla_hours': PRIORITY_SLA_HOURS,
     })
 
 
-def export_job_order_pdf_admin(request, report_id):
+def record_manual_survey(request, report_id):
     report = get_object_or_404(Report, id=report_id)
+    if request.method == 'POST':
+        form = ManualSurveySubmissionForm(request.POST, request.FILES)
+        if report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
+            messages.error(request, 'A manual survey can only be recorded once for a resolved report selected for manual submission.')
+        elif form.is_valid():
+            SurveyResponse.objects.create(report=report, **form.cleaned_data)
+            report.status = 'closed'
+            report.save(update_fields=['status'])
+            request.session[f'closed_seen_{report.id}'] = True
+            messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
+        else:
+            messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
+    return redirect('adm_report_detail', report_id=report_id)
+
+
+def export_job_order_pdf_admin(request, report_id):
+    report = get_object_or_404(
+        Report.objects.select_related('user__profile', 'survey'),
+        id=report_id,
+    )
 
     category_checks = {
         'vehicle_checkup': report.category == 'vehicle_checkup',
@@ -790,7 +867,7 @@ def export_job_order_pdf_admin(request, report_id):
 
 
 def export_personnel_performance_pdf(request):
-    context = build_survey_analysis_context()
+    context = build_survey_analysis_context(include_responses=False)
     context.pop("responses", None)
 
     html = render_to_string('personnel_performance_pdf.html', context)
@@ -909,12 +986,13 @@ def _build_report_summary(data, period_start, period_end, priority_tables=None):
         parts.append(text)
 
     if priority_tables is None:
-        priority_tables = _build_pdf_priority_tables(period_start, period_end)
+        priority_tables = _cached_pdf_priority_tables(period_start, period_end)
 
     text = (
         "With respect to resolution time, the Division's target turnaround depends on the "
-        "priority of the report: 3 hours for Critical/Urgent, 24 hours for High Priority, "
-        "and 72 hours for Standard."
+        f"priority of the report: {PRIORITY_SLA_HOURS['critical']} hours for Critical/Urgent, "
+        f"{PRIORITY_SLA_HOURS['high']} hours for High Priority, "
+        f"and {PRIORITY_SLA_HOURS['standard']} hours for Standard."
     )
     completed_tables = [t for t in priority_tables if t['completed']]
     if completed_tables:
@@ -992,28 +1070,38 @@ def _build_pdf_priority_tables(period_start, period_end):
     """Isang table kada priority: rows = periods, may Expected (target) at Actual (average)."""
     periods = _pdf_week_periods(period_start, period_end)
     priority_labels = dict(Report.PRIORITY_CHOICES)
+    actuals_by_priority = {
+        code: [[] for _ in periods]
+        for code, _, _ in PDF_PRIORITY_STYLES
+    }
+    if periods:
+        finished_reports = Report.objects.filter(
+            status__in=('resolved', 'closed'),
+            accomplished_at__range=(periods[0]['start'], periods[-1]['end']),
+            submitted_at__isnull=False,
+        ).values_list('priority', 'submitted_at', 'accomplished_at')
+
+        for priority, submitted_at, accomplished_at in finished_reports.iterator(chunk_size=500):
+            if priority not in actuals_by_priority:
+                continue
+            diff = (accomplished_at - submitted_at).total_seconds() / 3600
+            if diff < 0:
+                continue
+            for index, period in enumerate(periods):
+                if period['start'] <= accomplished_at <= period['end']:
+                    actuals_by_priority[priority][index].append(diff)
+                    break
+
     tables = []
     for code, color, tint in PDF_PRIORITY_STYLES:
         target = PRIORITY_SLA_HOURS[code]
         rows = []
-        all_actual = []
-        for p in periods:
-            actual_list = []
-            finished = Report.objects.filter(
-                priority=code,
-                status__in=['resolved', 'closed'],
-                accomplished_at__range=(p['start'], p['end']),
-                submitted_at__isnull=False,
-            )
-            for r in finished:
-                diff = (r.accomplished_at - r.submitted_at).total_seconds() / 3600
-                if diff < 0:
-                    continue
-                actual_list.append(diff)
-            all_actual.extend(actual_list)
+        actual_lists = actuals_by_priority[code]
+        all_actual = [hours for values in actual_lists for hours in values]
+        for period, actual_list in zip(periods, actual_lists):
             avg = sum(actual_list) / len(actual_list) if actual_list else None
             rows.append({
-                'period': p['label'],
+                'period': period['label'],
                 'expected_label': _fmt_hours(target),
                 'actual_label': _fmt_hours(avg),
             })
@@ -1030,6 +1118,15 @@ def _build_pdf_priority_tables(period_start, period_end):
             'avg_actual': sum(all_actual) / len(all_actual) if all_actual else None,
         })
     return tables
+
+
+def _cached_pdf_priority_tables(period_start, period_end):
+    key = f'pdf-priority-tables:{period_start.isoformat()}:{period_end.isoformat()}'
+    return cache.get_or_set(
+        key,
+        lambda: _build_pdf_priority_tables(period_start, period_end),
+        ANALYTICS_CACHE_SECONDS,
+    )
 
 
 def export_dashboard_report_pdf(request):
@@ -1058,15 +1155,15 @@ def export_dashboard_report_pdf(request):
         )
 
     if report_month:
-        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
         period_start = start_dt.date()
         period_end = end_dt.date()
     else:
-        data = _build_dashboard_data('30')
+        data = _cached_dashboard_data('30')
         period_end = today
         period_start = today - timedelta(days=30)
 
-    priority_tables = _build_pdf_priority_tables(period_start, period_end)
+    priority_tables = _cached_pdf_priority_tables(period_start, period_end)
 
     # Admin's edited text wins (even if blank -> no SUMMARY section).
     # If the field wasn't sent at all, fall back to the system-generated summary.
@@ -1209,11 +1306,11 @@ def dashboard_report_summary(request):
         )
 
     if report_month:
-        data = _build_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
         period_start = start_dt.date()
         period_end = end_dt.date()
     else:
-        data = _build_dashboard_data('30')
+        data = _cached_dashboard_data('30')
         period_end = today
         period_start = today - timedelta(days=30)
 
@@ -1265,10 +1362,6 @@ def report_save(request, report_id):
                     assignments.append({"name": name})
 
         report.assigned_personnel_data = assignments
-        report.assigned_personnel = ", ".join(
-            item["name"]
-            for item in assignments
-        ) if assignments else None
 
         # ── MATERIALS REQUIREMENT (Phase 3: Phase 1 save logic) ─────────────────
         mat_qtys = request.POST.getlist('mat_qty')
@@ -1276,6 +1369,7 @@ def report_save(request, report_id):
         mat_descs = request.POST.getlist('mat_desc')
 
         materials_rows = []
+        incomplete_materials_row = False
         for qty, unit, desc in zip(mat_qtys, mat_units, mat_descs):
             qty = qty.strip()
             unit = unit.strip()
@@ -1288,12 +1382,8 @@ def report_save(request, report_id):
             if len(materials_rows) >= 4:
                 break
 
-            # Row with qty/unit but no description is NOT saved.
-            if (qty or unit) and not desc:
-                messages.warning(
-                    request,
-                    f"Report {report.job_order_id}: a materials row was skipped because it has no Item Description."
-                )
+            if not (qty and unit and desc):
+                incomplete_materials_row = True
                 continue
 
             materials_rows.append({
@@ -1323,13 +1413,16 @@ def report_save(request, report_id):
             report.pending_awaiting_approval_at = None
 
         became_in_progress = False
+        materials_ready = not incomplete_materials_row and (awaiting_materials or bool(materials_rows))
 
         if (
             report.status == 'pending'
             and report.priority
             and assignments
             and awaiting_personnel
-            and awaiting_materials
+            and report.findings
+            and report.recommendation
+            and materials_ready
         ):
             report.status = 'in_progress'
             became_in_progress = True
@@ -1350,8 +1443,14 @@ def report_save(request, report_id):
                 missing.append("Assign Personnel (at least one)")
             if not awaiting_personnel:
                 missing.append('"With Assigned Personnel"')
-            if not awaiting_materials:
-                missing.append('"Materials Available"')
+            if not report.findings:
+                missing.append('Findings')
+            if not report.recommendation:
+                missing.append('Recommendation')
+            if not awaiting_materials and not materials_rows:
+                missing.append('Materials Requirement (at least one complete row)')
+            if incomplete_materials_row:
+                missing.append('all used Materials Requirement rows must include quantity, unit and item description')
 
             if missing:
                 messages.warning(
@@ -1423,43 +1522,19 @@ def ProfileMenu(request):
                 return redirect('ProfileMenu')
             else:
                 # Plain-text error message (avoids raw HTML from form.errors)
-                error_list = [
-                    error
-                    for field, errors in user_form.errors.items()
-                    for error in errors
-                ]
-                messages.error(request, " ".join(error_list))
+                messages.error(request, form_error_text(user_form))
 
         elif 'change_password' in request.POST:
-            old_password = request.POST.get('old_password', '').strip()
-            new_password1 = request.POST.get('new_password1', '').strip()
-            new_password2 = request.POST.get('new_password2', '').strip()
-
-            if not old_password and not new_password1 and not new_password2:
-                messages.error(request, "Please fill in the required fields.")
-            elif not old_password:
-                messages.error(request, "Please enter your current password.")
-            elif not new_password1 or not new_password2:
-                messages.error(request, "Please fill in both new password fields.")
-            elif not request.user.check_password(old_password):
-                messages.error(request, "Old password is incorrect.")
-            elif new_password1 != new_password2:
-                messages.error(request, "New passwords do not match.")
-            elif new_password1 == old_password:
-                messages.error(request, "New Password must be different from your current password.")
-            else:
-                password_errors = validate_password_strength(new_password1)
-                if password_errors:
-                    for err in password_errors:
-                        messages.error(request, err)
-                else:
-                    request.user.set_password(new_password1)
-                    request.user.save()
-                    invalidate_trusted_devices(request.user)
-                    log_event(request, 'password_changed', user=request.user, where='Edit Profile')
-                    update_session_auth_hash(request, request.user)
-                    messages.success(request, "Password changed successfully.")
-                    return redirect('ProfileMenu')
+            password_form = ProfilePasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                invalidate_trusted_devices(request.user)
+                log_event(request, 'password_changed', user=request.user, where='Edit Profile')
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "Password changed successfully.")
+                return redirect('ProfileMenu')
+            for error in password_form.non_field_errors():
+                messages.error(request, error)
 
     return render(request, 'menu-admin.html', {
         "active_page": "ProfileMenu",
@@ -1481,18 +1556,11 @@ def survey_analysis(request):
 
 
 def adm_survey_analysis_ajax(request):
-    context = build_survey_analysis_context()
+    context = build_survey_analysis_context(
+        response_page=request.GET.get('page', 1)
+    )
 
-    all_responses = context.pop("responses")
-    paginator = Paginator(all_responses, RESPONSES_PAGE_SIZE)
-    page_obj = paginator.get_page(1)
-    context["responses"] = page_obj
-    context["responses_total_pages"] = paginator.num_pages
-    context["responses_has_previous"] = page_obj.has_previous()
-    context["responses_has_next"] = page_obj.has_next()
-    context["responses_total_count"] = paginator.count
-
-    html = render_to_string('partials/_survey_analysis_content.html', context, request=request)
+    html = render_to_string('partials/_survey_analysis_content.html', context)
 
     return JsonResponse({
         'html': html,
@@ -1500,33 +1568,24 @@ def adm_survey_analysis_ajax(request):
 
 
 def adm_survey_responses_ajax(request):
-    all_responses = build_survey_responses_list()
-    page_number = request.GET.get('page', 1)
-
-    paginator = Paginator(all_responses, RESPONSES_PAGE_SIZE)
-    page_obj = paginator.get_page(page_number)
+    responses, page_obj = build_survey_responses_list(request.GET.get('page', 1))
 
     html = render_to_string('partials/_survey_responses_rows.html', {
-        'responses': page_obj,
-    }, request=request)
+        'responses': responses,
+    })
 
     return JsonResponse({
         'html': html,
         'current_page': page_obj.number,
-        'total_pages': paginator.num_pages,
+        'total_pages': page_obj.paginator.num_pages,
         'has_previous': page_obj.has_previous(),
         'has_next': page_obj.has_next(),
-        'total_count': paginator.count,
+        'total_count': page_obj.paginator.count,
     })
 
 
 def _filter_admin_notifications(request, notif_filter):
-    notifications = Notification.objects.filter(user=request.user)
-
-    if notif_filter == 'unread':
-        notifications = notifications.filter(is_read=False)
-
-    return notifications
+    return notifications_for_user(request.user, notif_filter)
 
 
 def adminNotifications(request):
@@ -1540,14 +1599,20 @@ def adminNotifications(request):
 
 def get_notifications_page_ajax_admin(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_admin_notifications(request, notif_filter)
+    page_obj = Paginator(
+        _filter_admin_notifications(request, notif_filter),
+        NOTIFICATIONS_PAGE_SIZE,
+    ).get_page(request.GET.get('page', 1))
 
     html = render_to_string('partials/_notifications_rows.html', {
-        "notifications": notifications,
-    }, request=request)
+        "notifications": page_obj,
+    })
 
     return JsonResponse({
         "html": html,
+        "current_page": page_obj.number,
+        "total_pages": page_obj.paginator.num_pages,
+        "total_count": page_obj.paginator.count,
     })
 
 
@@ -1556,19 +1621,11 @@ def get_notifications_ajax_admin(request):
     notifications = _filter_admin_notifications(request, notif_filter)[:10]
 
     data = [
-        {
-            "id": n.id,
-            "message": n.message,
-            "is_read": n.is_read,
-            "is_recent": n.is_recent,
-            "time_ago": n.time_ago,
-            "report_id": n.report.id,
-            "status": n.status_snapshot or n.report.status,
-        }
+        serialize_notification(n)
         for n in notifications
     ]
 
-    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    unread_count = get_unread_notifications_count(request)
 
     return JsonResponse({
         "notifications": data,

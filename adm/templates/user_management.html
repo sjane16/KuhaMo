@@ -20,52 +20,48 @@
       <!-- Stat cards (click to filter the list) -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
         <button type="button" data-stat-filter="pending"
-                class="text-left relative bg-white rounded-2xl overflow-hidden p-4 lg:p-5 flex flex-col min-h-[150px] lg:min-h-[170px] border border-orange-200 shadow-sm hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition-all duration-200">
-          <div class="w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-orange-50 flex items-center justify-center">
-            <svg class="w-6 h-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                class="min-w-0 flex flex-col justify-start text-left rounded-2xl border border-gray-200 bg-white p-1 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500">
+          <div class="flex min-h-12 items-center gap-2 rounded-xl px-3 py-3 text-xs font-semibold sm:text-sm bg-orange-50 text-orange-700">
+            <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>Pending Approval</span>
           </div>
-          <div class="mt-3 pb-10">
-            <p class="text-xs lg:text-sm text-gray-500 font-medium">Pending Approval</p>
-            <p class="text-3xl lg:text-4xl font-extrabold text-gray-900 mt-1" data-stat="pending">{{ stats.pending }}</p>
-            <p class="text-[11px] lg:text-xs text-gray-400 leading-5">Staff waiting for review</p>
+          <div class="px-3 pb-3 pt-4 sm:px-4 sm:pb-4">
+            <p class="text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl tabular-nums" data-stat="pending">{{ stats.pending }}</p>
+            <p class="mt-3 text-left text-xs text-gray-500">Staff waiting for review</p>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-14 overflow-hidden rounded-b-2xl"><svg viewBox="0 0 200 56" preserveAspectRatio="none" width="100%" height="56"><path d="M0,40 C30,20 60,55 90,35 C120,15 150,50 180,30 L200,30 L200,56 L0,56 Z" fill="#FFF7ED" opacity="0.8" /><path d="M0,48 C40,30 80,56 120,40 C150,28 175,46 200,38 L200,56 L0,56 Z" fill="#FED7AA" opacity="0.6" /></svg></div>
         </button>
         <button type="button" data-stat-filter="active"
-                class="text-left relative bg-white rounded-2xl overflow-hidden p-4 lg:p-5 flex flex-col min-h-[150px] lg:min-h-[170px] border border-green-200 shadow-sm hover:shadow-lg hover:border-green-300 hover:-translate-y-1 transition-all duration-200">
-          <div class="w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-green-50 flex items-center justify-center">
-            <svg class="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                class="min-w-0 flex flex-col justify-start text-left rounded-2xl border border-gray-200 bg-white p-1 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500">
+          <div class="flex min-h-12 items-center gap-2 rounded-xl px-3 py-3 text-xs font-semibold sm:text-sm bg-green-50 text-green-700">
+            <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+            <span>Active Users</span>
           </div>
-          <div class="mt-3 pb-10">
-            <p class="text-xs lg:text-sm text-gray-500 font-medium">Active Users</p>
-            <p class="text-3xl lg:text-4xl font-extrabold text-gray-900 mt-1" data-stat="active">{{ stats.active }}</p>
-            <p class="text-[11px] lg:text-xs text-gray-400 leading-5">Can log in and report</p>
+          <div class="px-3 pb-3 pt-4 sm:px-4 sm:pb-4">
+            <p class="text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl tabular-nums" data-stat="active">{{ stats.active }}</p>
+            <p class="mt-3 text-left text-xs text-gray-500">Can log in and report</p>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-14 overflow-hidden rounded-b-2xl"><svg viewBox="0 0 200 56" preserveAspectRatio="none" width="100%" height="56"><path d="M0,40 C30,20 60,55 90,35 C120,15 150,50 180,30 L200,30 L200,56 L0,56 Z" fill="#F0FDF4" opacity="0.8" /><path d="M0,48 C40,30 80,56 120,40 C150,28 175,46 200,38 L200,56 L0,56 Z" fill="#DCFCE7" opacity="0.7" /></svg></div>
         </button>
         <button type="button" data-stat-filter="unverified"
-                class="text-left relative bg-white rounded-2xl overflow-hidden p-4 lg:p-5 flex flex-col min-h-[150px] lg:min-h-[170px] border border-sky-200 shadow-sm hover:shadow-lg hover:border-sky-300 hover:-translate-y-1 transition-all duration-200">
-          <div class="w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-sky-50 flex items-center justify-center">
-            <svg class="w-6 h-6 text-sky-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+                class="min-w-0 flex flex-col justify-start text-left rounded-2xl border border-gray-200 bg-white p-1 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500">
+          <div class="flex min-h-12 items-center gap-2 rounded-xl px-3 py-3 text-xs font-semibold sm:text-sm bg-sky-50 text-sky-700">
+            <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+            <span>Unverified</span>
           </div>
-          <div class="mt-3 pb-10">
-            <p class="text-xs lg:text-sm text-gray-500 font-medium">Unverified</p>
-            <p class="text-3xl lg:text-4xl font-extrabold text-gray-900 mt-1" data-stat="unverified">{{ stats.unverified }}</p>
-            <p class="text-[11px] lg:text-xs text-gray-400 leading-5">Never finished the email code</p>
+          <div class="px-3 pb-3 pt-4 sm:px-4 sm:pb-4">
+            <p class="text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl tabular-nums" data-stat="unverified">{{ stats.unverified }}</p>
+            <p class="mt-3 text-left text-xs text-gray-500">Never finished the email code</p>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-14 overflow-hidden rounded-b-2xl"><svg viewBox="0 0 200 56" preserveAspectRatio="none" width="100%" height="56"><path d="M0,40 C30,20 60,55 90,35 C120,15 150,50 180,30 L200,30 L200,56 L0,56 Z" fill="#F0F9FF" opacity="0.8" /><path d="M0,48 C40,30 80,56 120,40 C150,28 175,46 200,38 L200,56 L0,56 Z" fill="#BAE6FD" opacity="0.6" /></svg></div>
         </button>
         <button type="button" data-stat-filter="deactivated"
-                class="text-left relative bg-white rounded-2xl overflow-hidden p-4 lg:p-5 flex flex-col min-h-[150px] lg:min-h-[170px] border border-gray-300 shadow-sm hover:shadow-lg hover:border-gray-400 hover:-translate-y-1 transition-all duration-200">
-          <div class="w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-gray-100 flex items-center justify-center">
-            <svg class="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                class="min-w-0 flex flex-col justify-start text-left rounded-2xl border border-gray-200 bg-white p-1 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500">
+          <div class="flex min-h-12 items-center gap-2 rounded-xl px-3 py-3 text-xs font-semibold sm:text-sm bg-gray-100 text-gray-700">
+            <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+            <span>Deactivated</span>
           </div>
-          <div class="mt-3 pb-10">
-            <p class="text-xs lg:text-sm text-gray-500 font-medium">Deactivated</p>
-            <p class="text-3xl lg:text-4xl font-extrabold text-gray-900 mt-1" data-stat="deactivated">{{ stats.deactivated }}</p>
-            <p class="text-[11px] lg:text-xs text-gray-400 leading-5">Access turned off</p>
+          <div class="px-3 pb-3 pt-4 sm:px-4 sm:pb-4">
+            <p class="text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl tabular-nums" data-stat="deactivated">{{ stats.deactivated }}</p>
+            <p class="mt-3 text-left text-xs text-gray-500">Access turned off</p>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-14 overflow-hidden rounded-b-2xl"><svg viewBox="0 0 200 56" preserveAspectRatio="none" width="100%" height="56"><path d="M0,40 C30,20 60,55 90,35 C120,15 150,50 180,30 L200,30 L200,56 L0,56 Z" fill="#F3F4F6" opacity="0.8" /><path d="M0,48 C40,30 80,56 120,40 C150,28 175,46 200,38 L200,56 L0,56 Z" fill="#E5E7EB" opacity="0.6" /></svg></div>
         </button>
       </div>
 
@@ -89,20 +85,26 @@
               <input id="userSearch" type="text" maxlength="100" placeholder="Search name or email"
                      class="text-sm text-gray-600 bg-transparent focus:outline-none w-full placeholder-gray-300" />
             </div>
-            <select id="roleFilter" class="flex-1 lg:flex-none text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-              <option value="">All roles</option>
-              <option value="student">Student</option>
-              <option value="faculty">Faculty</option>
-              <option value="staff">Staff</option>
-              <option value="admin">Admin</option>
-            </select>
-            <select id="statusFilter" class="flex-1 lg:flex-none text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="unverified">Unverified</option>
-              <option value="deactivated">Deactivated</option>
-            </select>
+            <div class="min-w-0 flex-1 lg:flex-none lg:w-36">
+              <select id="roleFilter" data-cdd data-cdd-plain-empty aria-label="Filter by role"
+                      class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <option value="">All roles</option>
+                <option value="student">Student</option>
+                <option value="faculty">Faculty</option>
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="min-w-0 flex-1 lg:flex-none lg:w-40">
+              <select id="statusFilter" data-cdd data-cdd-plain-empty aria-label="Filter by status"
+                      class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="unverified">Unverified</option>
+                <option value="deactivated">Deactivated</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -170,7 +172,8 @@
                 placeholder="Reason (optional, included in the email to the user)"></textarea>
       <div id="umModalRoleWrap" class="hidden mt-4">
         <label for="umModalRole" class="block text-xs font-semibold text-gray-600 mb-1.5">This account was created as an admin. What role should it have now?</label>
-        <select id="umModalRole" class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100">
+        <select id="umModalRole" data-cdd aria-label="New account role"
+                class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100">
           <option value="">Choose a role</option>
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>

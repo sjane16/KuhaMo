@@ -59,9 +59,18 @@
             </span>
           {% endif %}
         </div>
-        <button type="button"
-                onclick="exportJobOrder()"
-                class="w-full lg:w-auto lg:ml-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 lg:py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600 hover:bg-blue-100 active:bg-blue-100 transition-colors">
+        {% if report.status == 'closed' and report.survey_method == 'manual' and report.survey.scan_file %}
+          <a href="{{ report.survey.scan_file.url }}" target="_blank" rel="noopener"
+             class="ml-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 lg:py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600 hover:bg-blue-100 active:bg-blue-100 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 3.75h6v6m-.75-5.25-8.25 8.25M19.5 13.5v5.25A2.25 2.25 0 0 1 17.25 21h-12A2.25 2.25 0 0 1 3 18.75v-12A2.25 2.25 0 0 1 5.25 4.5H10.5" />
+            </svg>
+            View Scanned Job Order
+          </a>
+        {% else %}
+          <button type="button"
+                  onclick="exportJobOrder()"
+                  class="ml-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 lg:py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600 hover:bg-blue-100 active:bg-blue-100 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg"
                class="w-4 h-4"
                fill="none"
@@ -71,7 +80,8 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
           Export
-        </button>
+          </button>
+        {% endif %}
       </div>
       <!-- Body: two panels -->
       <div class="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
@@ -240,6 +250,22 @@
               {{ report.description|default:"No description provided." }}
             </div>
           </div>
+          {% if report.status == 'pending' %}
+            <div class="grid grid-cols-2 gap-4">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Inventory Tag No.</p>
+                <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed break-words min-w-0">
+                  {{ report.inventory_tag_no|default:"N/A" }}
+                </div>
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Property Inventory No.</p>
+                <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed break-words min-w-0">
+                  {{ report.property_inventory_no|default:"N/A" }}
+                </div>
+              </div>
+            </div>
+          {% endif %}
           {% if report.findings %}
             <div>
               <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Findings</p>
@@ -455,7 +481,7 @@
           </svg>
         </div>
         <h2 class="text-lg font-bold text-gray-900 mb-2">Your report has been resolved!</h2>
-        <p class="text-sm text-gray-500 mb-6">Here's a summary of your report's timeline. Please take a short satisfaction survey to complete your report.</p>
+        <p class="text-sm text-gray-500 mb-6">Here's a summary of your report's timeline. Choose how you'd like to complete the Client Satisfaction Survey.</p>
         <div class="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 items-stretch">
           <div class="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-4 text-left flex flex-col">
             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-snug mb-2">Date In Progress</p>
@@ -528,17 +554,46 @@
             {% endif %}
           </div>
         </div>
-        <button type="button"
-                onclick="openSurveyForm()"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
-          Take Survey
-        </button>
+        <div id="survey-method-choices" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button type="button"
+                  onclick="chooseSurveyMethod('system')"
+                  class="w-full flex items-center justify-center text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
+            Take Survey Online
+          </button>
+          <button type="button"
+                  onclick="chooseSurveyMethod('manual')"
+                  class="w-full flex items-center justify-center text-center bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 font-semibold text-sm py-3 rounded-xl transition-colors">
+            Visit MED Office
+          </button>
+        </div>
+        <p id="survey-choice-error" class="hidden w-full text-sm text-red-600 text-center mt-3"></p>
+      </div>
+    </div>
+    <div id="manual-survey-confirmation" class="hidden fixed inset-0 z-[10000] items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="manual-survey-title" class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 sm:p-8 flex flex-col items-center text-center">
+        <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
+          <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        </div>
+        <h2 id="manual-survey-title" class="text-base font-bold text-gray-900 mb-4">Manual Survey Selected</h2>
+        <div class="w-full bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3 text-left mb-6">
+          <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+          </svg>
+          <p class="text-xs text-blue-700 leading-relaxed text-justify">Please visit the Maintenance and Engineering Division office to print and sign the Job Order and complete the Customer Service Survey. An admin will upload the scanned form and record your ratings.</p>
+        </div>
+        <button type="button" onclick="closeManualSurveyConfirmation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">Got it</button>
+        <button type="button" onclick="backToSurveyChoices()" class="mt-3 text-xs font-semibold text-blue-700 hover:text-blue-900">Back — choose another method</button>
       </div>
     </div>
     <div id="survey-form"
          class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">
        <div class="bg-white rounded-3xl shadow-xl w-full max-w-3xl max-h-[94vh] overflow-y-auto p-6 sm:p-8">
-         <h2 class="text-xl font-bold text-gray-900 mb-1 text-center">Satisfaction Survey</h2>
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <button type="button" onclick="backToSurveyChoices()" class="text-sm font-semibold text-blue-600 hover:text-blue-800">← Change method</button>
+          </div>
+          <h2 class="text-xl font-bold text-gray-900 mb-1 text-center">Satisfaction Survey</h2>
          <p class="text-sm text-gray-400 text-center mb-8">Report {{ report.job_order_id }}</p>
          <p class="text-sm text-gray-500 text-center mb-7">Please rate each part of the service from 1 to 5.</p>
          <div class="space-y-6">
@@ -601,20 +656,89 @@
             });
         }
 
-        function openSurveyForm() {
-            const resolvedNotif = document.getElementById("resolved-notif");
-            const surveyForm = document.getElementById("survey-form");
+         function openSurveyForm() {
+             const resolvedNotif = document.getElementById("resolved-notif");
+             const surveyForm = document.getElementById("survey-form");
 
-            if (resolvedNotif) {
-                resolvedNotif.remove();
-            }
+             if (resolvedNotif) {
+                 resolvedNotif.classList.add("hidden");
+                 resolvedNotif.classList.remove("flex");
+             }
 
             if (surveyForm) {
                 surveyForm.classList.remove("hidden");
             }
 
-            lockPageScroll();
-        }
+             lockPageScroll();
+         }
+
+         function backToSurveyChoices() {
+             const resolvedNotif = document.getElementById("resolved-notif");
+             const surveyForm = document.getElementById("survey-form");
+             const manualConfirmation = document.getElementById("manual-survey-confirmation");
+             const choiceError = document.getElementById("survey-choice-error");
+             if (surveyForm) surveyForm.classList.add("hidden");
+             if (manualConfirmation) {
+                 manualConfirmation.classList.add("hidden");
+                 manualConfirmation.classList.remove("flex");
+             }
+             if (resolvedNotif) {
+                 resolvedNotif.classList.remove("hidden");
+                 resolvedNotif.classList.add("flex");
+             }
+             document.getElementById("survey-method-choices").classList.remove("hidden");
+             if (choiceError) choiceError.classList.add("hidden");
+         }
+
+         function closeManualSurveyConfirmation() {
+             const manualConfirmation = document.getElementById("manual-survey-confirmation");
+             const resolvedNotif = document.getElementById("resolved-notif");
+             if (manualConfirmation) {
+                 manualConfirmation.classList.add("hidden");
+                 manualConfirmation.classList.remove("flex");
+             }
+             if (resolvedNotif) {
+                 resolvedNotif.classList.add("hidden");
+                 resolvedNotif.classList.remove("flex");
+             }
+             unlockPageScroll();
+         }
+
+         function chooseSurveyMethod(method) {
+             const error = document.getElementById("survey-choice-error");
+             const buttons = document.querySelectorAll("#survey-method-choices button");
+             buttons.forEach((button) => { button.disabled = true; });
+             if (error) error.classList.add("hidden");
+
+             fetch("{% url 'chooseSurveyMethod' report.id %}", {
+                 method: "POST",
+                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                 body: `method=${encodeURIComponent(method)}&csrfmiddlewaretoken=${encodeURIComponent("{{ csrf_token }}")}`,
+             })
+             .then(async (response) => {
+                  const data = await response.json();
+                  if (!response.ok || !data.success) throw new Error(data.error || "Unable to save your survey choice.");
+                  document.getElementById("survey-method-choices").classList.add("hidden");
+                  if (method === "system") {
+                      openSurveyForm();
+                  } else {
+                      const resolvedNotif = document.getElementById("resolved-notif");
+                      const manualConfirmation = document.getElementById("manual-survey-confirmation");
+                      resolvedNotif.classList.add("hidden");
+                      resolvedNotif.classList.remove("flex");
+                      manualConfirmation.classList.remove("hidden");
+                      manualConfirmation.classList.add("flex");
+                      lockPageScroll();
+                  }
+             })
+             .catch((err) => {
+                 if (error) {
+                     error.textContent = err.message;
+                     error.classList.remove("hidden");
+                 }
+             })
+             .finally(() => buttons.forEach((button) => { button.disabled = false; }));
+         }
 
          function selectRating(field, val) {
              selectedRatings[field] = val;
@@ -728,9 +852,8 @@
             <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
             </svg>
-            <p class="text-xs text-blue-700 leading-relaxed">
-              Please visit the <span class="font-semibold">Maintenance and Engineering Division office</span>
-              during office hours to sign the Job Order form for this report.
+            <p class="text-xs text-blue-700 leading-relaxed text-justify">
+              Your Client Satisfaction Survey was submitted online. No wet signature is required for this system-generated survey.
             </p>
           </div>
 

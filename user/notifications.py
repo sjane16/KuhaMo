@@ -18,6 +18,33 @@ STATUS_LABELS = {
 }
 
 IMG_WIDTH = 200
+NOTIFICATIONS_PAGE_SIZE = 25
+
+
+def notifications_for_user(user, notif_filter='all'):
+    notifications = Notification.objects.filter(user=user).select_related('report')
+    if notif_filter == 'unread':
+        notifications = notifications.filter(is_read=False)
+    return notifications
+
+
+def serialize_notification(notification, include_completion_photo=False):
+    data = {
+        'id': notification.id,
+        'message': notification.message,
+        'is_read': notification.is_read,
+        'is_recent': notification.is_recent,
+        'time_ago': notification.time_ago,
+        'report_id': notification.report_id,
+        'status': notification.status_snapshot or notification.report.status,
+    }
+    if include_completion_photo:
+        data['completion_photo_url'] = (
+            notification.report.completion_photo.url
+            if notification.status_snapshot == 'resolved' and notification.report.completion_photo
+            else None
+        )
+    return data
 
 
 def _photo_url(field):

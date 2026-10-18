@@ -1,7 +1,7 @@
 {% comment %}
   "Set up a passkey" prompt for the user and admin dashboards.
-  Shown only to people with no passkey yet; "Not now" hides it for 30 days on
-  this browser. Starts hidden and is revealed by the script below, so a
+  Shown only to people with no passkey yet; auto-hides after 5 seconds and
+  stays dismissed for 30 days on this browser. Starts hidden, so a
   dismissed prompt never flashes. Needs accounts/js/passkeys.js on the page.
 {% endcomment %}
 {% if user.is_authenticated and not user.passkeys.exists %}
@@ -22,10 +22,6 @@
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <button type="button"
-                data-passkey-dismiss
-                id="passkey-dismiss-btn"
-                class="text-sm font-semibold text-gray-600 bg-white border border-gray-300 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">Not now</button>
-        <button type="button"
                 data-passkey-action="add"
                 data-message-id="passkey-setup-message"
                 data-options-url="{% url 'passkey_register_options' %}"
@@ -41,21 +37,17 @@
       if (!box) return;
       var cookie = box.dataset.dismissCookie;
       var dismissed = document.cookie.split('; ').indexOf(cookie + '=1') !== -1;
-      if (!dismissed) box.classList.remove('hidden');
-      var dismissBtn = document.getElementById('passkey-dismiss-btn');
-      if (dismissBtn) {
-        dismissBtn.addEventListener('click', function () {
-          document.cookie = cookie + '=1; max-age=' + (30 * 24 * 60 * 60) + '; path=/; SameSite=Lax';
-          box.style.transition = 'opacity 0.5s ease-out';
-          box.style.opacity = '0';
-          setTimeout(function () { box.remove(); }, 500);
-        });
-        setTimeout(function () {
-          if (!dismissed) {
-            dismissBtn.click();
-          }
-        }, 5000);
-      }
+      if (dismissed) return;
+      box.classList.remove('hidden');
+      var timer = setTimeout(function () {
+        document.cookie = cookie + '=1; max-age=' + (30 * 24 * 60 * 60) + '; path=/; SameSite=Lax';
+        box.style.transition = 'opacity 0.5s ease-out';
+        box.style.opacity = '0';
+        setTimeout(function () { box.remove(); }, 500);
+      }, 5000);
+      box.querySelector('[data-passkey-action="add"]').addEventListener('click', function () {
+        clearTimeout(timer);
+      });
     })();
   </script>
 {% endif %}

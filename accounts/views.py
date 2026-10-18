@@ -451,50 +451,49 @@ def signup(request):
             department = form.cleaned_data['department']
             phone = form.cleaned_data['phone']
 
+            with transaction.atomic():
+                user = User.objects.filter(email=email).first()
+                reused_signup = bool(user and is_unverified_signup(user))
+                if reused_signup:
+                    user.first_name = first_name
+                    user.last_name = last_name
+                    user.set_password(password)
+                    user.save()
+                else:
+                    user = User.objects.create_user(
+                        username=email,
+                        email=email,
+                        password=password,
+                        first_name=first_name,
+                        last_name=last_name,
+                        is_active=False
+                    )
+
+                otp = _generate_otp()
+                UserProfile.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        'role': role,
+                        'approval_status': UserProfile.APPROVAL_PENDING if role == 'staff' else UserProfile.APPROVAL_APPROVED,
+                        'department': department,
+                        'phone': phone,
+                        'otp': otp,
+                        'otp_created_at': timezone.now(),
+                        'otp_attempts': 0
+                    }
+                )
+
             try:
-                with transaction.atomic():
-                    user = User.objects.filter(email=email).first()
-                    if user and is_unverified_signup(user):
-                        # An earlier signup was never verified (for example the tab was closed
-                        # on the code page). Reuse it with the new details instead of locking
-                        # the email out. It has never logged in, so it has no reports or data.
-                        user.first_name = first_name
-                        user.last_name = last_name
-                        user.set_password(password)
-                        user.save()
-                    else:
-                        user = User.objects.create_user(
-                            username=email,
-                            email=email,
-                            password=password,
-                            first_name=first_name,
-                            last_name=last_name,
-                            is_active=False
-                        )
-
-                    otp = _generate_otp()
-                    UserProfile.objects.update_or_create(
-                        user=user,
-                        defaults={
-                            'role': role,
-                            # Staff use non-UDM emails, so an admin must approve them first
-                            'approval_status': UserProfile.APPROVAL_PENDING if role == 'staff' else UserProfile.APPROVAL_APPROVED,
-                            'department': department,
-                            'phone': phone,
-                            'otp': otp,
-                            'otp_created_at': timezone.now(),
-                            'otp_attempts': 0
-                        }
-                    )
-
-                    send_mail(
-                        subject='Your OTP for Account Verification',
-                        message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[email],
-                        fail_silently=False,
-                    )
-            except (SMTPException, OSError) as e:
+                send_mail(
+                    subject='Your OTP for Account Verification',
+                    message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+            except (SMTPException, OSError):
+                if not reused_signup:
+                    user.delete()
                 _clear_messages(request)
                 messages.error(request, "We couldn't send your verification email right now. Please try again in a moment.")
                 return _render_signup(request, form)
