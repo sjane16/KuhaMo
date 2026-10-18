@@ -21,13 +21,19 @@
                 <div class="mb-4">
                     <p class="text-xs font-semibold uppercase text-gray-400 mb-2">Details</p>
                     <div class="space-y-1 mb-3">
-                        <p class="text-sm text-gray-600"><span class="text-gray-400">Job Order No:</span> {{ survey.report.job_order_id }}</p>
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm text-gray-600"><span class="text-gray-400">Job Order No:</span> {{ survey.report.job_order_id }}</p>
+                            {% if survey.scan_file %}
+                                <a href="{{ survey.scan_file.url }}" target="_blank" rel="noopener" class="inline-block text-sm font-semibold text-blue-600 hover:underline">View scanned Job Order</a>
+                            {% endif %}
+                        </div>
                         <p class="text-sm text-gray-600"><span class="text-gray-400">Category:</span> {{ survey.report.get_category_display }}</p>
+                        <p class="text-sm text-gray-600"><span class="text-gray-400">Survey method:</span> {{ survey.report.get_survey_method_display|default:"Online system" }}</p>
                     </div>
                     <div class="grid grid-cols-3 gap-2 mb-3">
-                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Quality</p><p class="text-sm font-semibold text-gray-700">{{ survey.quality|default:"-" }}/5</p></div>
-                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Quantity</p><p class="text-sm font-semibold text-gray-700">{{ survey.quantity|default:"-" }}/5</p></div>
-                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Timeliness</p><p class="text-sm font-semibold text-gray-700">{{ survey.timeliness|default:"-" }}/5</p></div>
+                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Quality</p><p class="text-sm font-semibold text-gray-700">{{ survey.quality|default:"-" }}</p></div>
+                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Quantity</p><p class="text-sm font-semibold text-gray-700">{{ survey.quantity|default:"-" }}</p></div>
+                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Timeliness</p><p class="text-sm font-semibold text-gray-700">{{ survey.timeliness|default:"-" }}</p></div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div class="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
@@ -59,7 +65,8 @@
                         </div>
                     </div>
                 </div>
-                <!-- Office visit notice -->
+                <!-- Survey completion note -->
+                {% if survey.report.survey_method == 'manual' %}
                 <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3">
                     <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0"
                          fill="none"
@@ -69,14 +76,22 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                     </svg>
                     <p class="text-xs text-blue-700 leading-relaxed">
-                        Please visit the
-                        <span class="font-semibold">Maintenance and Engineering Division office</span>
-                        during office hours to sign the Job Order form for this report.
+                        This survey was recorded by the MED office from your completed, signed Job Order.
                     </p>
                 </div>
+                {% else %}
+                    <p class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">You submitted this survey online. No wet signature is required for the Customer Service Survey.</p>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
+    {% if submitted_surveys.has_previous or submitted_surveys.has_next %}
+        <nav class="flex items-center justify-between pt-5" aria-label="Survey pages">
+            <button type="button" data-survey-page="{{ submitted_surveys.number|add:'-1' }}" {% if not submitted_surveys.has_previous %}disabled{% endif %} class="rounded-lg border px-4 py-2 text-sm disabled:opacity-40">Previous</button>
+            <span class="text-sm text-gray-500">Page {{ submitted_surveys.number }} of {{ submitted_surveys.paginator.num_pages }}</span>
+            <button type="button" data-survey-page="{{ submitted_surveys.number|add:'1' }}" {% if not submitted_surveys.has_next %}disabled{% endif %} class="rounded-lg border px-4 py-2 text-sm disabled:opacity-40">Next</button>
+        </nav>
+    {% endif %}
 {% else %}
     <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 flex flex-col items-center justify-center text-center">
         <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">

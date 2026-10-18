@@ -9,6 +9,7 @@ urlpatterns = [
     path('ajax/menu/', user_required(views.menuAjax), name= 'menuAjax'),
     path('base/', user_required(views.base), name='base'),
     path('survey/submit/<int:report_id>/', user_required(views.submitSurvey), name='submitSurvey'),
+    path('survey/method/<int:report_id>/', user_required(views.chooseSurveyMethod), name='chooseSurveyMethod'),
     path('survey/', user_required(views.userSurvey), name='userSurvey'),
     path('report_form/', user_required(views.reportForm), name='reportForm'),
     path('user_reports/', user_required(views.userReports), name='userReports'),

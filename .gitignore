@@ -246,6 +246,21 @@ theme/static/css/dist/
 .django_cache/
 
 # Local files
+/docs/
+/prototypes/
 .agents/
 .vscode/settings.json
 skills.md
+
+# Generated local knowledge graph
+graphify-out/
+
+# Local AI tooling and Obsidian settings
+.opencode/
+.obsidian/
+
+# Exported videos
+*.mp4
+
+# Local diagram
+docs/data_flow_diagram.html

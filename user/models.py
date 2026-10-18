@@ -6,6 +6,7 @@ from datetime import timedelta
 from cloudinary.models import CloudinaryField
 from .validators import phone_validator
 from simple_history.models import HistoricalRecords
+from .constants import PRIORITY_SLA_HOURS
 
 
 REPORT_PREFIX = "MED-JO"
@@ -42,6 +43,10 @@ class Report(models.Model):
     ('high', 'High Priority'),
     ('standard', 'Standard'),
     ]
+    SURVEY_METHOD_CHOICES = [
+        ('system', 'Online system'),
+        ('manual', 'Manual at MED office'),
+    ]
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
     job_order_id = models.CharField(max_length=30, unique=True, blank=True, null=True)
@@ -50,8 +55,14 @@ class Report(models.Model):
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES)
     custom_category = models.CharField(max_length=100, blank=True, null=True)
     location = models.CharField(max_length=100)
+    room = models.ForeignKey('adm.Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
+    building_name = models.CharField(max_length=100, blank=True, default='')
+    room_name = models.CharField(max_length=100, blank=True, default='')
     description = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    survey_method = models.CharField(max_length=10, choices=SURVEY_METHOD_CHOICES, blank=True, default='')
+    inventory_tag_no = models.CharField(max_length=100, blank=True, default='')
+    property_inventory_no = models.CharField(max_length=100, blank=True, default='')
     submitted_at = models.DateTimeField(auto_now_add=True)
     priority = models.CharField(max_length=30, choices=PRIORITY_CHOICES, blank=True, null=True)
     assigned_personnel = models.CharField(max_length=255, blank=True, null=True)
@@ -88,7 +99,14 @@ class Report(models.Model):
 
     @property
     def room_location(self):
-        return self.location.split(",")[-1].strip()
+        return self.room_name
+
+    def set_room_location(self, room):
+        """Capture the selected room's display values without changing them later."""
+        self.room = room
+        self.building_name = room.floor.building.name
+        self.room_name = room.name
+        self.location = f"{self.building_name}, {room.floor.label}, {self.room_name}"
 
     @property
     def reporter_name(self):
@@ -104,14 +122,6 @@ class Report(models.Model):
                 item.get('name')
                 for item in self.assigned_personnel_data
                 if item.get('name')
-            )
-
-        if self.assigned_personnel:
-            import re
-            return re.sub(
-                r'\s*\(QTT\s+\d+\)',
-                '',
-                self.assigned_personnel
             )
 
         return None
@@ -131,16 +141,7 @@ class Report(models.Model):
             Typically resolved within 2–3 days(system uses 72 hours)
         """
 
-        if self.priority == 'critical':
-            return 3
-
-        if self.priority == 'high':
-            return 24
-
-        if self.priority == 'standard':
-            return 72
-
-        return None
+        return PRIORITY_SLA_HOURS.get(self.priority)
 
     @property
     def expected_resolution_at(self):
@@ -170,6 +171,17 @@ class Report(models.Model):
             return self.accomplished_at
 
     def save(self, *args, **kwargs):
+        if self._state.adding:
+            if self.room_id:
+                self.set_room_location(self.room)
+            else:
+                # Legacy/imported reports can still be created without a room link.
+                self.building_name = self.building_name or self.location.partition(',')[0].strip()
+                self.room_name = self.room_name or self.location.rpartition(',')[-1].strip()
+        # Compatibility copy only; JSON remains the editable source of truth.
+        self.assigned_personnel = (self.assigned_personnel_summary or '')[:255] or None
+        if kwargs.get('update_fields') and 'assigned_personnel_data' in kwargs['update_fields']:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {'assigned_personnel'}
         if self.job_order_id:
             return super().save(*args, **kwargs)
 
@@ -201,6 +213,9 @@ class UserProfile(models.Model):
         ('student', 'Student'),
         ('faculty', 'Faculty'),
         ('staff', 'Staff'),
+        # Maintenance and Engineering Division personnel: assignable to reports and rated in the
+        # personnel ratings; no admin access. Set by the Head Admin in User Management.
+        ('med_personnel', 'MED Personnel'),
         ('admin', 'Admin'),
     ]
 
@@ -229,6 +244,26 @@ class UserProfile(models.Model):
     # so a password change logs out every trusted device (see accounts/views.py)
     credentials_version = models.PositiveIntegerField(default=0, db_default=0)
 
+    # Staff sign up with non-UDM emails, so an admin approves them before they can log in.
+    # Existing accounts and students/faculty are 'approved'.
+    APPROVAL_PENDING = 'pending'
+    APPROVAL_APPROVED = 'approved'
+    APPROVAL_CHOICES = [
+        (APPROVAL_PENDING, 'Pending approval'),
+        (APPROVAL_APPROVED, 'Approved'),
+    ]
+    approval_status = models.CharField(max_length=10, choices=APPROVAL_CHOICES,
+                                       default=APPROVAL_APPROVED, db_default=APPROVAL_APPROVED)
+    # Set when an admin deactivates the account; tells "deactivated" apart from
+    # "never verified their email" (both have user.is_active = False)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+    # Accounts created by an admin (Excel import) get an emailed temporary password and
+    # must pick their own at first login (accounts.middleware.ForcePasswordChangeMiddleware)
+    must_change_password = models.BooleanField(default=False, db_default=False)
+    # The Head Admin (the "admin of the admins") is the only one who can open User Management.
+    # Set it from the terminal: python manage.py set_head_admin <email>
+    is_head_admin = models.BooleanField(default=False, db_default=False)
+
     def __str__(self):
         return f"{self.user.username} - Profile"
 
@@ -240,6 +275,7 @@ class SurveyResponse(models.Model):
     quality = models.IntegerField(null=True, blank=True)
     quantity = models.IntegerField(null=True, blank=True)
     timeliness = models.IntegerField(null=True, blank=True)
+    scan_file = models.ImageField(upload_to='survey_scans/', null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

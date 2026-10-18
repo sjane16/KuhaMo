@@ -1,12 +1,15 @@
 {% load static tailwind_tags %}
 {% load static %}
-<html lang="en" class="min-h-full bg-gray-50">
+<html lang="en" class="fc-app min-h-full bg-gray-50">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Fac-Check{% endblock %}</title>
+    <script src="{% static 'user/js/theme.js' %}"></script>
     {% tailwind_css %}
     <script src="{% static 'cdd/custom-dropdown.js' %}?v=2" defer></script>
+    <link rel="stylesheet" href="{% static 'submission-state.css' %}">
+    <script src="{% static 'submission-state.js' %}" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
           rel="stylesheet" />
     <link rel="icon"
@@ -15,6 +18,10 @@
     <style>
         :root {
             color-scheme: light;
+        }
+
+        :root.dark {
+            color-scheme: dark;
         }
 
         @view-transition {
@@ -26,7 +33,7 @@
             min-height: 100%;
             width: 100%;
             margin: 0;
-            background: #f9fafb;
+            background: var(--color-gray-50, #f9fafb);
         }
 
         body {
@@ -57,7 +64,7 @@
     </div>
     <!-- Logout Confirmation Modal -->
     <div id="logout_modal"
-         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">
       <div class="bg-white rounded-2xl shadow-xl p-6 w-80 mx-4">
         <div class="flex flex-col items-center text-center gap-3 mb-5">
           <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">

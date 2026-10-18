@@ -1,0 +1,12 @@
+.env*
+*.sqlite3*
+backup_*.json
+media/
+.django_cache/
+.git/
+.opencode/
+.freebuff/
+node_modules/
+graphify-out/
+theme/static/css/dist/
+**/migrations/

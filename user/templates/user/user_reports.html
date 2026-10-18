@@ -1,10 +1,10 @@
 {% extends "user/layouts/base.html" %}
 {% block title %}My Reports{% endblock %}
 {% block content %}
-  <main class="flex-1 w-full lg:mx-auto">
+  <main class="flex-1 w-full">
     <!-- MOBILE VIEW -->
     <div class="lg:hidden flex flex-col min-h-screen bg-gray-50">
-      <div class="flex-1 px-4 pt-5 pb-28 overflow-y-auto">
+      <div class="flex-1 px-6 pt-5 pb-28 overflow-y-auto">
         <!-- HEADER -->
         <div class="mb-4">
           <h1 class="text-xl font-bold text-gray-900 leading-tight">My Reports</h1>
@@ -25,6 +25,10 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25" />
               </svg>
               <select id="mobileStatusFilter"
+                      data-cdd
+                      data-cdd-width="8.5rem"
+                      data-cdd-class="cdd-sm shrink-0"
+                      aria-label="Filter reports by status"
                       class="text-xs border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                 <option value="all" {% if status_filter == "all" %}selected{% endif %}>All Status</option>
                 <option value="pending"
@@ -123,7 +127,7 @@
     <!-- ═══════════════════════════════════════════
        DESKTOP VIEW
   ════════════════════════════════════════════ -->
-    <div class="hidden lg:block px-5 pt-6 pb-10 max-w-4xl w-full mx-auto">
+    <div class="hidden lg:block px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
       <!-- HEADER -->
       <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 leading-tight">My Reports</h1>
@@ -142,6 +146,10 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25" />
           </svg>
           <select id="desktopStatusFilter"
+                  data-cdd
+                  data-cdd-width="10rem"
+                  data-cdd-class="shrink-0"
+                  aria-label="Filter reports by status"
                   class="text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
             <option value="all" {% if status_filter == "all" %}selected{% endif %}>All Status</option>
             <option value="pending"

@@ -3,7 +3,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
+from .forms import ProfilePasswordChangeForm, form_error_text
 import os
+from functools import lru_cache
 from urllib.parse import unquote
 from django.http import JsonResponse, HttpResponse
 from xhtml2pdf import pisa
@@ -11,6 +13,7 @@ from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
+from django.db import transaction
 from django.db.models import Q
 from google import genai
 from django_ratelimit.core import is_ratelimited
@@ -18,14 +21,20 @@ from security.audit import log_event
 from django.contrib.auth.models import User
 from .models import Report, SurveyResponse, UserProfile, Notification, invalidate_trusted_devices
 from adm.models import Floor, Room, Building 
-from .validators import validate_password_strength
-from .notifications import notify_status_change
-from ml.predictor import predict_image
+from .notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
+from .context_processors import get_unread_notifications_count
+from ml.predictor import predict_image, warm_model_async
 import logging
 
 logger = logging.getLogger(__name__)
 
 REPORTS_PAGE_SIZE = 5
+SURVEY_HISTORY_PAGE_SIZE = 25
+
+
+@lru_cache(maxsize=1)
+def _get_gemini_client(api_key):
+    return genai.Client(api_key=api_key)
 
 
 def normalize_cnn_prediction(value):
@@ -67,13 +76,7 @@ def menu(request):
                 return redirect('menu')
             else:
                 # Plain-text error message (avoids raw HTML from form.errors)
-                error_list = [
-                    error
-                    for form in (user_form, profile_form)
-                    for field, errors in form.errors.items()
-                    for error in errors
-                ]
-                messages.error(request, " ".join(error_list))
+                messages.error(request, form_error_text(user_form, profile_form))
 
         elif 'save_photo' in request.POST:
             photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=profile)
@@ -93,35 +96,16 @@ def menu(request):
             return redirect('menu')
 
         elif 'change_password' in request.POST:
-            old_password = request.POST.get('old_password', '').strip()
-            new_password1 = request.POST.get('new_password1', '').strip()
-            new_password2 = request.POST.get('new_password2', '').strip()
-
-            if not old_password and not new_password1 and not new_password2:
-                messages.error(request, "Please fill in the required fields.")
-            elif not old_password:
-                messages.error(request, "Please enter your current password.")
-            elif not new_password1 or not new_password2:
-                messages.error(request, "Please fill in both new password fields.")
-            elif not request.user.check_password(old_password):
-                messages.error(request, "Old password is incorrect.")
-            elif new_password1 != new_password2:
-                messages.error(request, "New passwords do not match.")
-            elif new_password1 == old_password:
-                messages.error(request, "New Password must be different from your current password.")
-            else:
-                password_errors = validate_password_strength(new_password1)
-                if password_errors:
-                    for err in password_errors:
-                        messages.error(request, err)
-                else:
-                    request.user.set_password(new_password1)
-                    request.user.save()
-                    invalidate_trusted_devices(request.user)
-                    log_event(request, 'password_changed', user=request.user, where='Edit Profile')
-                    update_session_auth_hash(request, request.user)
-                    messages.success(request, "New password saved successfully!", extra_tags='password_changed')
-                    return redirect('menu')
+            password_form = ProfilePasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                invalidate_trusted_devices(request.user)
+                log_event(request, 'password_changed', user=request.user, where='Edit Profile')
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "New password saved successfully!", extra_tags='password_changed')
+                return redirect('menu')
+            for error in password_form.non_field_errors():
+                messages.error(request, error)
 
     return render(request, 'user/menu.html', {
         "active_page": "menu",
@@ -186,11 +170,12 @@ def dashboardStatsAjax(request):
     context = {
         **status_counts,
         **percentages,
+        "user": request.user,
         "recent_reports": recent_reports,
     }
 
-    mobile_html = render_to_string('user/partials/_dashboard_stats_mobile.html', context, request=request)
-    desktop_html = render_to_string('user/partials/_dashboard_stats_desktop.html', context, request=request)
+    mobile_html = render_to_string('user/partials/_dashboard_stats_mobile.html', context)
+    desktop_html = render_to_string('user/partials/_dashboard_stats_desktop.html', context)
 
     return JsonResponse({
         "mobile_html": mobile_html,
@@ -207,7 +192,7 @@ def reportForm(request):
             report.user = request.user
 
             selected_room = form.cleaned_data['location']
-            report.location = f"{selected_room.floor.building.name}, {selected_room.floor.label}, {selected_room.name}"
+            report.set_room_location(selected_room)
 
             report.category = form.cleaned_data['category']
             report.custom_category = form.cleaned_data['custom_category']
@@ -248,6 +233,7 @@ def reportForm(request):
             "facility_building_ids": facility_building_ids,
         })
 
+    warm_model_async()
     return render(request, 'user/report_form.html', {
         "active_page": "reportForm",
     })
@@ -311,11 +297,11 @@ def userReportsAjax(request):
 
     mobile_html = render_to_string('user/partials/_reports_mobile_rows.html', {
         "reports": page_obj,
-    }, request=request)
+    })
 
     desktop_html = render_to_string('user/partials/_reports_desktop_rows.html', {
         "reports": page_obj,
-    }, request=request)
+    })
 
     return JsonResponse({
         "mobile_html": mobile_html,
@@ -398,7 +384,17 @@ def link_callback(uri, rel):
 
 @login_required
 def exportJobOrderPDF(request, report_id):
-    report = get_object_or_404(Report, id=report_id, user=request.user)
+    report = get_object_or_404(
+        Report.objects.select_related('user__profile', 'survey'),
+        id=report_id,
+        user=request.user,
+    )
+
+    if report.status not in ('in_progress', 'resolved', 'closed'):
+        return HttpResponse(
+            "Job order export is available once maintenance is in progress.",
+            status=403,
+        )
 
     category_checks = {
         'vehicle_checkup': report.category == 'vehicle_checkup',
@@ -446,14 +442,42 @@ def userSurveyAjax(request):
     submitted_surveys = SurveyResponse.objects.filter(
         report__user=request.user
     ).select_related('report').order_by('-submitted_at')
+    page_obj = Paginator(submitted_surveys, SURVEY_HISTORY_PAGE_SIZE).get_page(
+        request.GET.get('page', 1)
+    )
 
     html = render_to_string('user/partials/_survey_content.html', {
-        "submitted_surveys": submitted_surveys,
-    }, request=request)
+        "submitted_surveys": page_obj,
+    })
 
     return JsonResponse({
         "html": html,
     })
+
+
+@login_required
+def chooseSurveyMethod(request, report_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request.'}, status=400)
+
+    method = request.POST.get('method')
+    if method not in dict(Report.SURVEY_METHOD_CHOICES):
+        return JsonResponse({'success': False, 'error': 'Choose a valid survey method.'}, status=400)
+
+    with transaction.atomic():
+        report = get_object_or_404(
+            Report.objects.select_for_update(),
+            id=report_id,
+            user=request.user,
+        )
+        if report.status != 'resolved' or SurveyResponse.objects.filter(report=report).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Survey method can only be selected for a resolved report without a submitted survey.',
+            }, status=400)
+        report.survey_method = method
+        report.save(update_fields=['survey_method'])
+    return JsonResponse({'success': True, 'method': method})
 
 
 @login_required
@@ -463,12 +487,6 @@ def submitSurvey(request, report_id):
             'success': False,
             'error': 'Invalid request.'
         }, status=400)
-
-    report = get_object_or_404(
-        Report,
-        id=report_id,
-        user=request.user
-    )
 
     ratings = {}
     for field in ('quality', 'quantity', 'timeliness'):
@@ -486,25 +504,37 @@ def submitSurvey(request, report_id):
                 'error': f'{field.title()} rating must be between 1 and 5.'
             }, status=400)
 
-    if SurveyResponse.objects.filter(report=report).exists():
-        return JsonResponse({
-            'success': False,
-            'error': 'You have already submitted a survey for this report.'
-        }, status=400)
+    with transaction.atomic():
+        report = get_object_or_404(
+            Report.objects.select_for_update(),
+            id=report_id,
+            user=request.user,
+        )
+        if SurveyResponse.objects.filter(report=report).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'You have already submitted a survey for this report.'
+            }, status=400)
 
-    if report.status != 'resolved':
-        return JsonResponse({
-            'success': False,
-            'error': 'Survey is available only after the report is resolved.'
-        }, status=400)
+        if report.status != 'resolved':
+            return JsonResponse({
+                'success': False,
+                'error': 'Survey is available only after the report is resolved.'
+            }, status=400)
 
-    SurveyResponse.objects.create(
-        report=report,
-        **ratings,
-    )
+        if report.survey_method != 'system':
+            return JsonResponse({
+                'success': False,
+                'error': 'Choose the online survey method before submitting ratings.'
+            }, status=400)
 
-    report.status = 'closed'
-    report.save(update_fields=['status'])
+        SurveyResponse.objects.create(
+            report=report,
+            **ratings,
+        )
+
+        report.status = 'closed'
+        report.save(update_fields=['status'])
 
     messages.success(request, f"Thank you for your feedback! Report {report.job_order_id} is now Closed.")
 
@@ -603,9 +633,8 @@ def chatbot_response(request):
             return JsonResponse({'reply': limited}, status=429)
         try:
             api_key = getattr(settings, "GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
-            client = genai.Client(api_key=api_key)
             system_instruction = (
-                "You are FACI, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). \n\n"
+                "You are Checky, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). \n\n"
                 "STRICT RULES: \n"
                 "1. Answer the query strictly using the facts stated inside the OFFICIAL FAQ KNOWLEDGE BASE FOR FAC-CHECK SYSTEM (UDM) provided below. \n"
                 "2. Do NOT use outside knowledge. If the answer cannot be found in the text document below, "
@@ -614,7 +643,7 @@ def chatbot_response(request):
                 "3. Keep responses concise, helpful, and match the language used by the user (Tagalog, English, or a mix of both). \n\n"
                 f"OFFICIAL FAQ KNOWLEDGE BASE FOR FAC-CHECK SYSTEM (UDM): \n{UDM_FAQ_DATA}"
             )
-            response = client.models.generate_content(
+            response = _get_gemini_client(api_key).models.generate_content(
                 model="gemini-2.5-flash",
                 contents=user_message,
                 config={
@@ -655,13 +684,9 @@ def predictCategory(request):
         'raw_prediction': prediction['raw_label']
     })
 
+
 def _filter_user_notifications(request, notif_filter):
-    notifications = Notification.objects.filter(user=request.user).select_related('report')
-
-    if notif_filter == 'unread':
-        notifications = notifications.filter(is_read=False)
-
-    return notifications
+    return notifications_for_user(request.user, notif_filter)
 
 
 @login_required
@@ -677,14 +702,20 @@ def userNotifications(request):
 @login_required
 def get_notifications_page_ajax(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_user_notifications(request, notif_filter)
+    page_obj = Paginator(
+        _filter_user_notifications(request, notif_filter),
+        NOTIFICATIONS_PAGE_SIZE,
+    ).get_page(request.GET.get('page', 1))
 
     html = render_to_string('user/partials/_notifications_rows.html', {
-        "notifications": notifications,
-    }, request=request)
+        "notifications": page_obj,
+    })
 
     return JsonResponse({
         "html": html,
+        "current_page": page_obj.number,
+        "total_pages": page_obj.paginator.num_pages,
+        "total_count": page_obj.paginator.count,
     })
 
 
@@ -694,20 +725,11 @@ def get_notifications_ajax(request):
     notifications = _filter_user_notifications(request, notif_filter)[:10]
 
     data = [
-        {
-            "id": n.id,
-            "message": n.message,
-            "is_read": n.is_read,
-            "is_recent": n.is_recent,
-            "time_ago": n.time_ago,
-            "report_id": n.report.id,
-            "status": n.status_snapshot or n.report.status,
-            "completion_photo_url": n.report.completion_photo.url if (n.status_snapshot == 'resolved' and n.report.completion_photo) else None,
-        }
+        serialize_notification(n, include_completion_photo=True)
         for n in notifications
     ]
 
-    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    unread_count = get_unread_notifications_count(request)
 
     return JsonResponse({
         "notifications": data,

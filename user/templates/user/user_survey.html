@@ -1,6 +1,6 @@
 {% extends "user/layouts/base.html" %} {% block title %}Ratings{% endblock %}
 {% block content %}
-  <main class="flex-1 px-5 pt-6 pb-40 lg:pb-10 max-w-4xl w-full lg:mx-auto">
+  <main class="flex-1 px-6 lg:px-10 xl:px-16 pt-6 pb-40 lg:pb-10 w-full">
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-gray-900 leading-tight">Ratings</h1>
       <p class="text-sm text-gray-500 mt-0.5">View the feedback and ratings you've submitted for completed job orders.</p>
@@ -33,7 +33,11 @@
           const surveySkeleton = document.getElementById("surveySkeleton");
           const surveyContainer = document.getElementById("surveyContainer");
 
-          fetch("{% url 'userSurveyAjax' %}")
+          function fetchSurveys(page = 1) {
+              const url = new URL("{% url 'userSurveyAjax' %}", window.location.origin);
+              url.searchParams.set("page", page);
+
+              fetch(url)
               .then(function(response) {
                   return response.json();
               })
@@ -58,6 +62,15 @@
               .catch(function(error) {
                   console.error("Failed to load surveys:", error);
               });
+          }
+
+          surveyContainer.addEventListener("click", function(event) {
+              const button = event.target.closest("[data-survey-page]");
+              if (!button || button.disabled) return;
+              fetchSurveys(button.dataset.surveyPage);
+          });
+
+          fetchSurveys();
       });
   </script>
 {% endblock %}

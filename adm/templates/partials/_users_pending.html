@@ -1,0 +1,55 @@
+<div class="flex items-start gap-3 mb-4">
+  <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 {% if pending_users %}bg-orange-50 text-orange-600{% else %}bg-gray-100 text-gray-500{% endif %}">
+    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+    </svg>
+  </div>
+  <div class="min-w-0">
+    <div class="flex items-center gap-2 flex-wrap">
+      <h2 class="text-base lg:text-xl font-bold text-gray-900">Staff Waiting for Approval</h2>
+      {% if pending_users %}<span class="px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 text-xs font-semibold">{{ pending_users|length }} pending</span>{% endif %}
+    </div>
+    <p class="text-xs lg:text-sm text-gray-500 mt-1">Staff don't use a UDM email, so check their details before approving.</p>
+  </div>
+</div>
+<div class="space-y-3" role="region" aria-label="Pending staff accounts"
+     style="min-height: 144px; padding: 16px; border: 1px solid var(--color-gray-200, #e5e7eb); border-radius: 16px; background: var(--color-gray-50, #f9fafb);">
+{% if pending_users %}
+  {% for u in pending_users %}
+    <div class="bg-white border border-orange-100 rounded-2xl px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 shadow-sm">
+      <div class="flex items-center gap-3 flex-1 min-w-0">
+        <div class="w-11 h-11 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden">
+          {% if u.profile.profile_photo %}<img src="{{ u.profile.profile_photo.url }}" alt="" class="w-full h-full object-cover" />{% else %}{{ u.um_initials }}{% endif %}
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <p class="text-sm font-semibold text-gray-900 truncate">{{ u.get_full_name|default:u.email }}</p>
+            <span class="px-2 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-[11px] font-semibold text-orange-500">Staff</span>
+          </div>
+          <p class="text-xs text-gray-500 mt-0.5 truncate">{{ u.email }}</p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {{ u.profile.get_department_display|default:"No department" }} · {{ u.profile.phone|default:"No phone" }} · {% with ago=u.date_joined|timesince %}{% if ago|first == "0" %}Signed up just now{% else %}Signed up {{ ago }} ago{% endif %}{% endwith %}
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-2 sm:shrink-0">
+        <button type="button" data-um-action="reject" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}"
+                class="flex-1 sm:flex-none text-sm font-semibold text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-xl hover:bg-gray-50">Reject</button>
+        <button type="button" data-um-action="approve" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}"
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+          Approve
+        </button>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="flex flex-col items-center justify-center gap-3 text-center" style="min-height: 110px;">
+    <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+    <div>
+      <p class="text-sm font-semibold text-gray-700">No staff accounts awaiting approval.</p>
+      <p class="text-xs text-gray-500 mt-1">New staff sign-ups will appear here.</p>
+    </div>
+  </div>
+{% endif %}
+</div>

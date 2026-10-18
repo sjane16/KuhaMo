@@ -13,7 +13,7 @@
         <td class="px-4 py-4 text-gray-500 text-center max-w-[180px] whitespace-normal break-words">{{ report.room_location }}</td>
         <td class="px-4 py-4 text-center">
             {% if report.status == 'pending' %}
-                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-600 border border-yellow-100">Pending</span>
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-100">Pending</span>
             {% elif report.status == 'in_progress' %}
                 <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-500 border border-blue-100">In Progress</span>
             {% elif report.status == 'resolved' %}
@@ -24,15 +24,15 @@
         </td>
         <td class="px-4 py-4 text-center">
             {% if report.priority == 'critical' %}
-                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-red-600 text-white">Critical / Urgent</span>
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">Critical / Urgent</span>
             {% elif report.priority == 'high' %}
-                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-red-500 text-white">High Priority</span>
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-orange-200">High Priority</span>
             {% elif report.priority == 'standard' %}
-                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-yellow-400 text-white">Standard</span>
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">Standard</span>
             {% elif report.priority == 'awaiting_materials' %}
-                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-purple-500 text-white">Awaiting Materials</span>
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">Awaiting Materials</span>
             {% elif report.priority == 'awaiting_approval' %}
-                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500 text-white">Awaiting Approval</span>
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Awaiting Approval</span>
             {% else %}
                 <span class="text-gray-400 text-xs">Not assigned</span>
             {% endif %}

@@ -26,11 +26,13 @@ class Command(BaseCommand):
             if created:
                 user.set_password(account["password"])
                 user.save()
-                UserProfile.objects.create(
+                UserProfile.objects.update_or_create(
                     user=user,
-                    role="staff" if account["is_staff"] else "student",
-                    department=account["department"],
-                    phone=account["phone"],
+                    defaults={
+                        'role': 'admin' if account['is_staff'] else 'student',
+                        'department': next((code for code, label in UserProfile.DEPARTMENT_CHOICES if label == account['department']), ''),
+                        'phone': account['phone'],
+                    },
                 )
                 self.stdout.write(self.style.SUCCESS(f"Created {account['username']} ({account['first_name']} {account['last_name']})"))
             else:

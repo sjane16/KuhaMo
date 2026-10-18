@@ -2,10 +2,12 @@ from django.urls import path
 from . import views
 from . import passkeys
 from django.conf import settings
+from django.views.generic import TemplateView
 
 
 urlpatterns = [
     path('index/', views.splash_screen, name='index'),
+    path('contact/', TemplateView.as_view(template_name='accounts/contact.html'), name='contact'),
     path('register/',views.signup, name='signup'),
     path('login/', views.login_view, name='login'),
     path('verify-otp/', views.verify_otp, name='verify_otp'),
@@ -17,6 +19,7 @@ urlpatterns = [
     path('verify-reset-otp/', views.verify_reset_otp, name='verify_reset_otp'),
     path('resend-reset-otp/', views.resend_reset_otp, name='resend_reset_otp'),
     path('reset-password/', views.reset_password, name='reset_password'),
+    path('set-password/', views.force_password_change, name='force_password_change'),
 
     # Passkeys (fingerprint / face / screen-lock sign-in)
     path('passkeys/register/options/', passkeys.register_options, name='passkey_register_options'),

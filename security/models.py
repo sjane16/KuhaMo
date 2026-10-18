@@ -35,6 +35,15 @@ class AuditLog(models.Model):
         ('passkey_removed', 'Passkey removed'),
         ('password_changed', 'Password changed'),
         ('password_reset', 'Password reset via email code'),
+        ('user_approved', 'Staff account approved'),
+        ('user_rejected', 'Staff account rejected'),
+        ('user_deactivated', 'Account deactivated'),
+        ('user_reactivated', 'Account reactivated'),
+        ('user_deleted', 'Unverified account deleted'),
+        ('user_promoted', 'Made an admin'),
+        ('user_demoted', 'Admin access removed'),
+        ('users_imported', 'Users imported from Excel'),
+        ('role_changed', 'Role changed'),
     ]
 
     event_type = models.CharField(max_length=30, choices=EVENT_TYPES, db_index=True)

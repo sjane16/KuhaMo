@@ -2,6 +2,17 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
 from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength
+from user.models import UserProfile
+
+
+def is_unverified_signup(user):
+    """True for an account that was created at signup but never verified or used.
+    Accounts deactivated by an admin or created by an admin (User Management) are never
+    "unverified signups" - otherwise signing up again would bypass the admin."""
+    profile = getattr(user, 'profile', None)
+    if profile is not None and (profile.deactivated_at or profile.must_change_password):
+        return False
+    return not user.is_active and user.last_login is None
 
 class placeholderSelect(forms.Select):
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
@@ -16,7 +27,7 @@ class LoginForm(forms.Form):
         widget=forms.EmailInput(attrs={
             'placeholder': 'Enter your email address',
             'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400',
-            'autocomplete': 'off'
+            'autocomplete': 'username'
         })
     )
 
@@ -24,6 +35,7 @@ class LoginForm(forms.Form):
             widget=forms.PasswordInput(attrs={
                 'id': 'login_password',
                 'placeholder': 'Enter your password',
+                'autocomplete': 'current-password',
                 'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
             })
         )
@@ -41,18 +53,7 @@ class LoginForm(forms.Form):
 
 class SignUpForm(forms.Form):
 
-    DEPARTMENT_CHOICES = [
-        ('', 'Select your department'),
-        ('CCS', 'College of Computing Studies'),
-        ('CHS', 'College of Health Sciences'),
-        ('CCJ', 'College of Criminal Justice'),
-        ('CED', 'College of Education'),
-        ('NSTP', 'National Service Training Program'),
-        ('GenED', 'General Education'),
-        ('CBPM', 'College of Business and Public Management'),
-        ('COL', 'College of Law'),
-        ('CAS', 'College of Arts and Sciences'),
-    ]
+    DEPARTMENT_CHOICES = [('', 'Select your department'), *UserProfile.DEPARTMENT_CHOICES]
 
     role = forms.ChoiceField(
     choices=[
@@ -64,6 +65,9 @@ class SignUpForm(forms.Form):
     widget=placeholderSelect(attrs={
         'class': 'w-full bg-transparent outline-none text-sm text-slate-700 invalid:text-slate-400',
         'required':'required',
+        'data-cdd': '',
+        'data-cdd-variant': 'transparent',
+        'aria-label': 'Role',
     })
 )
 
@@ -85,7 +89,13 @@ class SignUpForm(forms.Form):
 
     department = forms.ChoiceField(
         choices=DEPARTMENT_CHOICES,
-        widget=placeholderSelect(attrs={'class': 'w-full bg-transparent outline-none text-sm text-slate-700 invalid:text-slate-400', 'required':'required'}),
+        widget=placeholderSelect(attrs={
+            'class': 'w-full bg-transparent outline-none text-sm text-slate-700 invalid:text-slate-400',
+            'required': 'required',
+            'data-cdd': '',
+            'data-cdd-variant': 'transparent',
+            'aria-label': 'Department',
+        }),
     )
 
     email = forms.EmailField(
@@ -201,12 +211,21 @@ class SignUpForm(forms.Form):
 
         if role != 'staff' and not email.endswith('@udm.edu.ph'):
                 raise forms.ValidationError(""
-                "Users must use their official UDM email address (@udm.edu.ph) except for university personnel"
+                "Students and faculty must use their official UDM email address (@udm.edu.ph). Staff may use a non-UDM email address."
         )
 
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("An account with this email already exists"
-            )
+        existing = User.objects.filter(email__iexact=email).select_related('profile').first()
+        if existing and not is_unverified_signup(existing):
+            profile = getattr(existing, 'profile', None)
+            if profile is not None and profile.deactivated_at:
+                raise forms.ValidationError("This account has been deactivated. Please contact the administrator.")
+            if profile is not None and profile.must_change_password:
+                # Created by an admin through User Management (Excel import)
+                raise forms.ValidationError(
+                    "An account has already been created for you by an administrator. Check your email "
+                    "for your temporary password and log in, or use \"Forgot password\" if you can't find it."
+                )
+            raise forms.ValidationError("An account with this email already exists")
 
         return email 
 
