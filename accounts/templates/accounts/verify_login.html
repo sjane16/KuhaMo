@@ -363,6 +363,7 @@
         <input type="hidden" name="otp" id="id_otp" />
         <p id="otp-error" class="fc-otp-error" role="alert" {% if not form.otp.errors %}hidden{% endif %}>{% if form.otp.errors %}{{ form.otp.errors.0 }}{% else %}Enter all 6 digits of the code.{% endif %}</p>
         {% if not form.otp.errors %}<div class="fc-otp-spacer" id="otp-spacer"></div>{% endif %}
+        {% include 'accounts/components/otp_countdown.html' %}
         <button type="submit" class="fc-signup-primary">Verify</button>
         <p class="fc-signup-help">
           Didn't receive the code?

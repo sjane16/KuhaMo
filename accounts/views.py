@@ -35,7 +35,7 @@ def _generate_otp():
 
 
 RESET_VERIFIED_WINDOW_SECONDS = 10 * 60
-OTP_EXPIRY_MINUTES = 10
+OTP_EXPIRY_MINUTES = 5
 OTP_MAX_ATTEMPTS = 5
 
 # Trusted devices: after a successful OTP, the browser gets a signed cookie
@@ -97,6 +97,15 @@ def _post_login_redirect(request, user):
         return redirect('/adm/dashboard/')
     return redirect('/user/user_dashboard/')
 
+def _otp_countdown_context(user):
+    profile = UserProfile.objects.filter(user=user).first()
+    remaining = 0
+    if profile and profile.otp and profile.otp_created_at:
+        expires_at = profile.otp_created_at + timedelta(minutes=OTP_EXPIRY_MINUTES)
+        remaining = max(0, int((expires_at - timezone.now()).total_seconds() * 1000))
+    return {'otp_remaining_ms': remaining}
+
+
 def _check_otp(profile, submitted_otp, request=None, purpose=''):
     """
     Check a submitted code against the user's current OTP.
@@ -108,7 +117,7 @@ def _check_otp(profile, submitted_otp, request=None, purpose=''):
 
     if not profile.otp or not profile.otp_created_at:
         return 'expired', 0
-    if (timezone.now() - profile.otp_created_at).total_seconds() > OTP_EXPIRY_MINUTES * 60:
+    if (timezone.now() - profile.otp_created_at).total_seconds() >= OTP_EXPIRY_MINUTES * 60:
         return 'expired', 0
 
     # Reserve an attempt atomically so parallel requests can't sneak past the limit
@@ -264,7 +273,7 @@ def login_view(request):
                    try:
                        send_mail(
                            subject='Your Fac-Check Login Code',
-                           message=f'Your login verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+                           message=f'Your login verification code is: {otp}\n This code will expire in {OTP_EXPIRY_MINUTES} minutes. Please do not share this code with anyone.',
                            from_email=settings.DEFAULT_FROM_EMAIL,
                            recipient_list=[user.email],
                            fail_silently=False,
@@ -315,7 +324,7 @@ def verify_login_otp(request):
 
        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=verify_login_otp):
            messages.error(request, "Too many verification attempts. Please try again later")
-           return render(request, 'accounts/verify_login.html', {'form': OTPVerificationForm(), 'user_email': user.email})
+           return render(request, 'accounts/verify_login.html', {'form': OTPVerificationForm(), 'user_email': user.email, **_otp_countdown_context(user)})
 
        form = OTPVerificationForm(request.POST)
        if form.is_valid():
@@ -346,7 +355,7 @@ def verify_login_otp(request):
     else:
         form = OTPVerificationForm()
 
-    return render(request, 'accounts/verify_login.html', {'form': form, 'user_email': user.email})
+    return render(request, 'accounts/verify_login.html', {'form': form, 'user_email': user.email, **_otp_countdown_context(user)})
 
 
 @never_cache
@@ -380,7 +389,7 @@ def resend_login_otp(request):
     try:
         send_mail(
             subject='Your Fac-Check Login Code',
-            message=f'Your login verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+            message=f'Your login verification code is: {otp}\n This code will expire in {OTP_EXPIRY_MINUTES} minutes. Please do not share this code with anyone.',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
@@ -486,7 +495,7 @@ def signup(request):
             try:
                 send_mail(
                     subject='Your OTP for Account Verification',
-                    message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+                    message=f'Your verification code is: {otp}\n This code will expire in {OTP_EXPIRY_MINUTES} minutes. Please do not share this code with anyone.',
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[email],
                     fail_silently=False,
@@ -535,7 +544,7 @@ def verify_otp(request):
 
        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=verify_otp):
            messages.error(request, "Too many verification attempts. Please try again later")
-           return render(request, 'accounts/verify_otp.html', {'form': OTPVerificationForm(), 'user_email': user.email})
+           return render(request, 'accounts/verify_otp.html', {'form': OTPVerificationForm(), 'user_email': user.email, **_otp_countdown_context(user)})
 
        form = OTPVerificationForm(request.POST)
        if form.is_valid():
@@ -570,7 +579,7 @@ def verify_otp(request):
     else:
         form = OTPVerificationForm()
 
-    return render(request, 'accounts/verify_otp.html', {'form': form, 'user_email': user.email})
+    return render(request, 'accounts/verify_otp.html', {'form': form, 'user_email': user.email, **_otp_countdown_context(user)})
 
 @never_cache
 def resend_otp(request):
@@ -603,7 +612,7 @@ def resend_otp(request):
     try:
         send_mail(
             subject='Your OTP for Account Verification',
-            message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+            message=f'Your verification code is: {otp}\n This code will expire in {OTP_EXPIRY_MINUTES} minutes. Please do not share this code with anyone.',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
@@ -664,7 +673,7 @@ def forgot_password(request):
             try:
                 send_mail(
                     subject='Your Fac-Check Password Reset Code',
-                    message=f'Your password reset code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+                    message=f'Your password reset code is: {otp}\n This code will expire in {OTP_EXPIRY_MINUTES} minutes. Please do not share this code with anyone.',
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[user.email],
                     fail_silently=False,
@@ -705,7 +714,7 @@ def verify_reset_otp(request):
 
         if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=verify_reset_otp):
             messages.error(request, "Too many verification attempts. Please try again later")
-            return render(request, 'accounts/verify_reset_otp.html', {'form': OTPVerificationForm(), 'user_email': user.email})
+            return render(request, 'accounts/verify_reset_otp.html', {'form': OTPVerificationForm(), 'user_email': user.email, **_otp_countdown_context(user)})
 
         form = OTPVerificationForm(request.POST)
         if form.is_valid():
@@ -734,7 +743,7 @@ def verify_reset_otp(request):
     else:
         form = OTPVerificationForm()
 
-    return render(request, 'accounts/verify_reset_otp.html', {'form': form, 'user_email': user.email})
+    return render(request, 'accounts/verify_reset_otp.html', {'form': form, 'user_email': user.email, **_otp_countdown_context(user)})
 
 
 @never_cache
@@ -768,7 +777,7 @@ def resend_reset_otp(request):
     try:
         send_mail(
             subject='Your Fac-Check Password Reset Code',
-            message=f'Your password reset code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+            message=f'Your password reset code is: {otp}\n This code will expire in {OTP_EXPIRY_MINUTES} minutes. Please do not share this code with anyone.',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,

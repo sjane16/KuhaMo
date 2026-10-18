@@ -63,7 +63,7 @@ function validatePassword() {
 
   const password = document.getElementById("new_password1").value;
 
-  const hasLength = password.length >= 8 && !/\s/.test(password);
+  const hasLength = password.length >= 8 && password.length <= 16 && !/\s/.test(password);
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /\d/.test(password);
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;']/.test(password);
@@ -138,16 +138,23 @@ function openPasswordConfirmModal() {
 // Hides the confirm modal (Cancel button or click-outside)
 function closePasswordConfirmModal() {
   const modal = document.getElementById("password_confirm_modal");
+  if (modal.dataset.submitting === "true") return;
   modal.classList.add("hidden");
   modal.classList.remove("flex");
 }
 
 // User confirmed in the modal — actually submits the password form now
 function submitPasswordForm() {
+  const modal = document.getElementById("password_confirm_modal");
+  if (modal.dataset.submitting === "true") return;
+  modal.dataset.submitting = "true";
+  document.getElementById("confirm_password_btn").setAttribute("aria-busy", "true");
+  document.getElementById("cancel_password_btn").disabled = true;
+  document.getElementById("change_password_btn").disabled = true;
   setButtonLoading(
-    "change_password_btn",
-    "change_password_spinner",
-    "change_password_text",
+    "confirm_password_btn",
+    "confirm_password_spinner",
+    "confirm_password_text",
     "Updating...",
   );
   document.getElementById("password_form").submit();

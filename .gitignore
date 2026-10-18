@@ -246,6 +246,8 @@ theme/static/css/dist/
 .django_cache/
 
 # Local files
+/docs/
+/prototypes/
 .agents/
 .vscode/settings.json
 skills.md

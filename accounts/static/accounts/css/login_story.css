@@ -20,8 +20,8 @@
 #login-title, #login-title + p { text-align: center; }
 main > section[aria-labelledby="login-title"] { min-width: 0; }
 section[aria-labelledby="login-title"] form input { min-width: 0; width: 100%; }
-.fc-login-return { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin-bottom: 8px; padding: 0 12px; border-radius: 8px; color: #526579; font-size: 12px; text-decoration: none; transition: background-color .15s, color .15s; }
-.fc-login-return:hover { background: #f0f5f9; color: #0f4c81; }
+.fc-login-return { align-self: flex-start; margin-left: -8px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; border-radius: 8px; color: #526579; font-size: 13px; text-decoration: none; transition: color .15s; }
+.fc-login-return:hover { color: #0f4c81; text-decoration: underline; text-underline-offset: 3px; }
 .fc-login-return svg { width: 15px; height: 15px; }
 @media (max-width: 1023px) {
   main:has(> .fc-login-story) { grid-template-columns: minmax(0, 1fr); }
@@ -31,8 +31,8 @@ section[aria-labelledby="login-title"] form input { min-width: 0; width: 100%; }
 /* Keep the whole sign-in composition visible on typical laptop screens. */
 main > section[aria-labelledby="login-title"] { padding-block: 20px; }
 section[aria-labelledby="login-title"] form { padding-block: 12px; }
-.fc-login-logo-link { width: 48px; height: 48px; margin-bottom: 12px; }
-.fc-login-logo-link img { width: 35px; height: 42px; }
+.fc-login-logo-link { width: 56px; height: 56px; margin-bottom: 12px; }
+.fc-login-logo-link img { width: 42px; height: 50px; }
 section[aria-labelledby="login-title"] .fc-login-fields { margin-top: 36px; }
 section[aria-labelledby="login-title"] .fc-login-signup { margin-top: 20px; }
 section[aria-labelledby="login-title"] [role="separator"] { margin-block: 12px; }
@@ -44,4 +44,9 @@ section[aria-labelledby="login-title"] footer { flex-shrink: 0; }
   .fc-login-logo-link { margin-bottom: 8px; }
   section[aria-labelledby="login-title"] .fc-login-fields { margin-top: 28px; }
   section[aria-labelledby="login-title"] .fc-login-signup { margin-top: 16px; }
+}
+
+/* Optical centering: sit the form slightly above true center on taller screens. */
+@media (min-height: 800px) {
+  section[aria-labelledby="login-title"] form { padding-bottom: 80px; }
 }

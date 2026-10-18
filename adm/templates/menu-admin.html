@@ -45,6 +45,19 @@
       </div>
       <div id="menu-content" class="hidden"></div>
     {% endif %}
+    <div class="lg:hidden mt-6 pt-4 border-t border-gray-200">
+      <button type="button"
+              onclick="openLogoutModal()"
+              class="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+        </svg>
+        Log out
+      </button>
+    </div>
   </main>
   <script src="{% static 'user/js/password_change.js' %}"></script>
   <script src="{% static 'accounts/js/passkeys.js' %}"></script>
@@ -61,6 +74,41 @@
       }
 
       function initMenuPage() {
+          const photoInput = document.getElementById("admin_profile_photo");
+          const preview = document.getElementById("admin_photo_preview");
+          const avatar = document.getElementById("admin_default_avatar");
+          const savePhoto = document.getElementById("admin_save_photo");
+          const photoError = document.getElementById("admin_photo_error");
+          if (photoInput && preview && savePhoto && photoError) {
+              const savedSource = preview.getAttribute("src");
+              photoInput.addEventListener("change", function() {
+                  savePhoto.disabled = true;
+                  savePhoto.classList.add("hidden");
+                  photoError.classList.add("hidden");
+                  if (savedSource) preview.src = savedSource;
+                  else preview.removeAttribute("src");
+                  preview.classList.toggle("hidden", !savedSource);
+                  if (avatar) avatar.classList.remove("hidden");
+                  const file = photoInput.files[0];
+                  if (!file) return;
+                  if (!/\.(jpe?g|png)$/i.test(file.name) || file.size > 5 * 1024 * 1024) {
+                      photoError.textContent = "Choose a JPG or PNG image up to 5 MB.";
+                      photoError.classList.remove("hidden");
+                      photoInput.value = "";
+                      return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = function() {
+                      if (photoInput.files[0] !== file) return;
+                      preview.src = reader.result;
+                      preview.classList.remove("hidden");
+                      if (avatar) avatar.classList.add("hidden");
+                      savePhoto.disabled = false;
+                      savePhoto.classList.remove("hidden");
+                  };
+                  reader.readAsDataURL(file);
+              });
+          }
           initPasswordChangeButton();
           initPasswordChecklistToggle();
           initPasswordModalOverlay();

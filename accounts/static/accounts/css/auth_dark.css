@@ -156,14 +156,14 @@ html.dark .fc-signup-field input:-webkit-autofill {
 /* ---- Buttons ---------------------------------------------------------- */
 html.dark .fc-login-primary,
 html.dark .fc-signup-primary {
-  background: #2f5fbf;
-  border-color: #2f5fbf;
+  background: var(--fc-brand, #24639b);
+  border-color: var(--fc-brand, #24639b);
   color: #fff;
   box-shadow: none;
 }
 html.dark .fc-login-primary:hover,
 html.dark .fc-signup-primary:hover {
-  background: #3b6bcf;
+  background: var(--fc-brand-hover, #2b70ad);
 }
 html.dark .fc-login-passkey {
   background: transparent;
@@ -237,8 +237,8 @@ html.dark .fc-signup-progress [aria-current="step"] {
   color: #7db4ff;
 }
 html.dark .fc-signup-progress [aria-current="step"] .fc-step-number {
-  background: #2f5fbf;
-  border-color: #2f5fbf;
+  background: var(--fc-brand, #24639b);
+  border-color: var(--fc-brand, #24639b);
   color: #fff;
 }
 html.dark .fc-signup-progress .is-complete {
@@ -314,7 +314,7 @@ html.dark .fc-login-bubble::after {
   border-color: #3e4042;
 }
 html.dark .fc-login-steps li { color: #e4e6eb; }
-html.dark .fc-login-steps li::before { background: #2f5fbf; }
+html.dark .fc-login-steps li::before { background: var(--fc-brand, #24639b); }
 html.dark .fc-login-form-panel > .fc-login-card {
   background: transparent;
   border: 0;
@@ -329,6 +329,39 @@ html.dark .fc-login-mascot {
   background: linear-gradient(150deg, #193157, #242526 80%);
 }
 
+/* Login: flat form panel. The body's radial glow otherwise bleeds in at the seam. */
+html.dark main > section[aria-labelledby="login-title"] { background: #18191a; }
+
+/* Login: deeper brand panel so it doesn't outshine the form side. */
+html.dark .fc-login-story { background: #0b3a64; }
+
+/* Login: Back to home — neutral text, dark hover, visible focus ring. */
+html.dark .fc-login-return { color: #b0b3b8; }
+html.dark .fc-login-return:hover { color: #e4e6eb; }
+html.dark .fc-login-logo-link:focus-visible,
+html.dark .fc-login-return:focus-visible { outline-color: #7db4ff; }
+
 html.dark .fc-login-tagline {
   color: #e4e6eb;
+}
+
+/* Match application field focus rings. Composite fields own the ring so
+   their transparent inputs and dropdown buttons do not draw a second one. */
+html:not(.fc-app) {
+  --fc-focus-color: #0f4c81;
+}
+html.dark:not(.fc-app) {
+  --fc-focus-color: #91bfe8;
+}
+html:not(.fc-app) :is(
+  .fc-login-field,
+  .fc-signup-field,
+  .focus-within\:ring-2,
+  .focus-within\:ring-3
+):not(.invalid):not(:has([aria-invalid="true"], .invalid)):focus-within,
+html:not(.fc-app) .cdd:not(.invalid):not(.cdd-transparent) .cdd-btn:not(:disabled):not(.locked):is(:focus, .open),
+html:not(.fc-app) .fc-otp:not(.has-error) .fc-otp-box:not([aria-invalid="true"]):focus {
+  outline: none;
+  border-color: var(--fc-focus-color);
+  box-shadow: 0 0 0 2px var(--fc-focus-color);
 }

@@ -55,8 +55,12 @@ html.dark .hover\:border-blue-300:hover {
 html.dark .text-\[\#0F4C81\] {
   color: #7db4ff;
 }
+/* Headline: white line plus one accent blue (was two different blues). */
 html.dark #landing-title {
-  color: #bcd6ff;
+  color: #e4e6eb;
+}
+html.dark #landing-title > .fc-heading-script {
+  color: #7db4ff;
 }
 html.dark #landing-title + p {
   color: #b0b3b8; /* also beats the tablet/mobile #334155 override */
@@ -99,6 +103,13 @@ html.dark #landing-menu-toggle:hover {
 }
 
 /* ---- Hero --------------------------------------------------------------- */
+/* Flatten the blue tint so header, hero and cards share one neutral dark. */
+html.dark .relative.overflow-x-clip > div[aria-hidden="true"]:first-child {
+  background: none !important;
+}
+html.dark section[aria-labelledby="landing-title"] > div[aria-hidden="true"] {
+  opacity: 0.45;
+}
 html.dark .fc-cta-secondary {
   color: #7db4ff;
 }
@@ -168,5 +179,33 @@ html.dark .fc-mail {
 
 /* ---- Footer --------------------------------------------------------------- */
 html.dark .fc-footer {
-  background: #11253f;
+  background: #242526;
+  border-top: 1px solid #3e4042;
+}
+html.dark .fc-footer-brand img {
+  background: transparent;
+  padding: 0;
+}
+
+/* ---- Dark polish: neutral "Where your report goes" card, brighter logo, footer hierarchy ---- */
+html.dark #about > div.rounded-3xl {
+  background: #242526;
+  border-color: #3e4042;
+}
+html.dark #landing-nav > a img,
+html.dark .fc-footer-brand img {
+  filter: brightness(1.5);
+}
+html.dark .fc-footer-brand p,
+html.dark .fc-footer-grid .fc-footer-copy {
+  color: #b0b3b8;
+}
+html.dark .fc-footer-links a {
+  color: #e4e6eb;
+}
+html.dark .fc-footer-links a:hover {
+  color: #fff;
+}
+html.dark .fc-footer::before {
+  opacity: 0.55;
 }
