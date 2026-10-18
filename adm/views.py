@@ -23,6 +23,7 @@ from user.views import link_callback
 from user.notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
 from user.context_processors import get_unread_notifications_count
 from user.constants import PRIORITY_SLA_HOURS
+from user.decorators import is_head_admin
 from .models import Building 
 from .forms import ManualSurveySubmissionForm
 
@@ -1538,13 +1539,13 @@ def ProfileMenu(request):
 
     return render(request, 'menu-admin.html', {
         "active_page": "ProfileMenu",
-        "role": "Admin",
+        "role": "Head Admin" if is_head_admin(request.user) else "Admin",
         "is_post_render": is_post_render,
     })
 
 def adm_menu_ajax(request):
     html = render_to_string('partials/_menu_content.html', {
-        "role": "Admin",
+        "role": "Head Admin" if is_head_admin(request.user) else "Admin",
     }, request = request)
 
     return JsonResponse({"html": html})

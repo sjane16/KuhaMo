@@ -54,6 +54,8 @@ def account_status(user):
     return 'active'
 
 def role_label(user):
+    if getattr(getattr(user, 'profile', None), 'is_head_admin', False):
+        return 'Head Admin'
     if is_admin_account(user):
         return 'Admin'
     profile = getattr(user, 'profile', None)
@@ -71,6 +73,7 @@ def _decorate(users):
         u.um_is_admin = is_admin_account(u)
         # Superusers are developer accounts: never changed from this page
         u.um_is_superuser = u.is_superuser
+        u.um_is_head = bool(getattr(getattr(u, 'profile', None), 'is_head_admin', False))
         u.um_base_role = getattr(getattr(u, 'profile', None), 'role', '') or ''
         u.um_initials = _initials(u)
     return users
@@ -254,6 +257,8 @@ def _change_admin_access(request, user_id, action, body):
         return _error("You can't change your own admin access.", status=403)
     if target.is_superuser:
         return _error("Superuser accounts can only be changed by a developer.", status=403)
+    if getattr(getattr(target, 'profile', None), 'is_head_admin', False):
+        return _error("The Head Admin can only be changed by a developer.", status=403)
 
     name = target.get_full_name() or target.email
     profile, _ = UserProfile.objects.get_or_create(user=target)

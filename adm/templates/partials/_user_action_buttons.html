@@ -1,6 +1,8 @@
 {% comment %} Actions depend on the account state; buttons are handled by the page script (data-um-action) {% endcomment %}
 {% if u.pk == me.pk %}
   <span class="text-xs font-semibold text-blue-500">You</span>
+{% elif u.um_is_head %}
+  <span class="text-xs text-gray-400" title="The Head Admin can only be changed by a developer">—</span>
 {% elif u.um_is_superuser %}
   <span class="text-xs text-gray-400" title="Superuser (developer) accounts can only be changed by a developer">—</span>
 {% elif u.um_is_admin %}

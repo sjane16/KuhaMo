@@ -60,6 +60,7 @@
       </svg>
       Ratings
     </a>
+{% if is_head_admin %}
     <a href="{% url 'user_management' %}"
        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'user_management' %}nav-active bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
@@ -70,6 +71,7 @@
             title="Staff waiting for approval"
             class="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold {% if request.resolver_match.url_name == 'user_management' %}bg-white text-blue-600{% else %}bg-orange-500 text-white{% endif %}"{% if not pending_staff_count %} hidden{% endif %}>{{ pending_staff_count|default:0 }}</span>
     </a>
+{% endif %}
     <!--MENU-->
     <a href="{% url 'ProfileMenu' %}"
        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'ProfileMenu' %}nav-active bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors">

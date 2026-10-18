@@ -257,6 +257,9 @@ class UserProfile(models.Model):
     # Accounts created by an admin (Excel import) get an emailed temporary password and
     # must pick their own at first login (accounts.middleware.ForcePasswordChangeMiddleware)
     must_change_password = models.BooleanField(default=False, db_default=False)
+    # The Head Admin (the "admin of the admins") is the only one who can open User Management.
+    # Set it from the terminal: python manage.py set_head_admin <email>
+    is_head_admin = models.BooleanField(default=False, db_default=False)
 
     def __str__(self):
         return f"{self.user.username} - Profile"
