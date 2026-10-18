@@ -6,7 +6,12 @@ from user.models import UserProfile
 
 
 def is_unverified_signup(user):
-    """True for an account that was created at signup but never verified or used."""
+    """True for an account that was created at signup but never verified or used.
+    Accounts deactivated by an admin or created by an admin (User Management) are never
+    "unverified signups" - otherwise signing up again would bypass the admin."""
+    profile = getattr(user, 'profile', None)
+    if profile is not None and (profile.deactivated_at or profile.must_change_password):
+        return False
     return not user.is_active and user.last_login is None
 
 class placeholderSelect(forms.Select):
@@ -209,8 +214,17 @@ class SignUpForm(forms.Form):
                 "Users must use their official UDM email address (@udm.edu.ph) except for university personnel"
         )
 
-        existing = User.objects.filter(email=email).first()
+        existing = User.objects.filter(email__iexact=email).select_related('profile').first()
         if existing and not is_unverified_signup(existing):
+            profile = getattr(existing, 'profile', None)
+            if profile is not None and profile.deactivated_at:
+                raise forms.ValidationError("This account has been deactivated. Please contact the administrator.")
+            if profile is not None and profile.must_change_password:
+                # Created by an admin through User Management (Excel import)
+                raise forms.ValidationError(
+                    "An account has already been created for you by an administrator. Check your email "
+                    "for your temporary password and log in, or use \"Forgot password\" if you can't find it."
+                )
             raise forms.ValidationError("An account with this email already exists")
 
         return email 
