@@ -25,10 +25,11 @@ from django_ratelimit.core import is_ratelimited
 
 from security.audit import log_event
 from user.models import UserProfile, invalidate_trusted_devices
+from .personnel import clear_personnel_cache
 
 USERS_PAGE_SIZE = 10
 STATUSES = ('active', 'pending', 'unverified', 'deactivated')
-ROLES = ('student', 'faculty', 'staff', 'admin')
+ROLES = ('student', 'faculty', 'staff', 'med_personnel', 'admin')
 
 ADMIN_Q = Q(is_staff=True) | Q(is_superuser=True) | Q(profile__role='admin')
 STATUS_Q = {
@@ -169,7 +170,13 @@ def user_management_action(request, user_id):
     action = body.get('action')
     reason = (body.get('reason') or '').strip()[:500]
     if action in ('make_admin', 'remove_admin'):
-        return _change_admin_access(request, user_id, action, body)
+        response = _change_admin_access(request, user_id, action, body)
+        clear_personnel_cache()
+        return response
+    if action == 'change_role':
+        response = _change_role(request, user_id, body)
+        clear_personnel_cache()
+        return response
     if action not in ACTION_RULES:
         return _error("Unknown action.")
 
@@ -233,6 +240,7 @@ def user_management_action(request, user_id):
             log_event(request, 'user_deleted', user=request.user, target=email)
             target.delete()
 
+    clear_personnel_cache()
     return JsonResponse({'ok': True, 'message': f"{name} was {done}."})
 
 
@@ -290,7 +298,7 @@ def _change_admin_access(request, user_id, action, body):
     new_role = body.get('role') or ''
     if profile.role in ('', 'admin'):
         # Accounts that were created as admins have no normal role to go back to
-        if new_role not in ('student', 'faculty', 'staff'):
+        if new_role not in CHANGEABLE_ROLES:
             return _error("Choose which role this account should have.", status=400)
     with transaction.atomic():
         target.is_staff = False
@@ -304,3 +312,47 @@ def _change_admin_access(request, user_id, action, body):
             f"Your admin access to Fac-Check was removed. Your account is now a {profile.get_role_display().lower()} account.\n\n"
             "If you think this is a mistake, please contact the Maintenance and Engineering Division.")
     return JsonResponse({'ok': True, 'message': f"{name} is no longer an admin."})
+
+
+# ---------- change role (student / faculty / staff / MED personnel) ----------
+
+CHANGEABLE_ROLES = ('student', 'faculty', 'staff', 'med_personnel')
+
+
+def _change_role(request, user_id, body):
+    """Head Admin changes a regular account's role, e.g. to MED Personnel (assignable to
+    reports and rated in the personnel ratings, no admin access). Admin access has its
+    own actions (make_admin / remove_admin) because it needs the Head Admin's password."""
+    new_role = body.get('role') or ''
+    if new_role not in CHANGEABLE_ROLES:
+        return _error("Choose a role: Student, Faculty, Staff or MED Personnel.", status=400)
+
+    target = _base_queryset().filter(pk=user_id).first()
+    if not target:
+        return _error("This account no longer exists.", status=404)
+    if target.pk == request.user.pk:
+        return _error("You can't change your own role here.", status=403)
+    if is_admin_account(target):
+        return _error("This account is an admin. Use \"Remove admin\" first.", status=403)
+    if account_status(target) != 'active':
+        return _error("Only active accounts can change roles.", status=409)
+
+    profile, _ = UserProfile.objects.get_or_create(user=target)
+    old_role = profile.role
+    if old_role == new_role:
+        return _error(f"{target.get_full_name() or target.email} is already {profile.get_role_display()}.", status=409)
+
+    profile.role = new_role
+    profile.save(update_fields=['role'])
+    new_label = profile.get_role_display()
+    log_event(request, 'role_changed', user=request.user, target=target.email, old_role=old_role, new_role=new_role)
+
+    if new_role == 'med_personnel':
+        extra = ("\n\nAs MED Personnel, you can now be assigned to facility reports, and your work "
+                 "will be included in the personnel ratings.")
+    else:
+        extra = ""
+    _notify(target, 'Your Fac-Check role was changed',
+            f"Your Fac-Check account role was changed to {new_label}.{extra}\n\n"
+            "If you think this is a mistake, please contact the Maintenance and Engineering Division.")
+    return JsonResponse({'ok': True, 'message': f"{target.get_full_name() or target.email} is now {new_label}."})

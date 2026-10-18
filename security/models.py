@@ -43,6 +43,7 @@ class AuditLog(models.Model):
         ('user_promoted', 'Made an admin'),
         ('user_demoted', 'Admin access removed'),
         ('users_imported', 'Users imported from Excel'),
+        ('role_changed', 'Role changed'),
     ]
 
     event_type = models.CharField(max_length=30, choices=EVENT_TYPES, db_index=True)
