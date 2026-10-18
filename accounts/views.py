@@ -452,7 +452,7 @@ def signup(request):
             phone = form.cleaned_data['phone']
 
             with transaction.atomic():
-                user = User.objects.filter(email=email).first()
+                user = User.objects.filter(email__iexact=email).select_related('profile').first()
                 reused_signup = bool(user and is_unverified_signup(user))
                 if reused_signup:
                     user.first_name = first_name
@@ -832,6 +832,9 @@ def reset_password(request):
             try:
                 profile = UserProfile.objects.get(user=user)
                 profile.otp = ''
+                # They just chose their own password, so an admin-created account
+                # doesn't need the first-login password change anymore
+                profile.must_change_password = False
                 profile.save()
             except UserProfile.DoesNotExist:
                 pass
