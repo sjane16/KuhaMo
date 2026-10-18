@@ -43,6 +43,10 @@ class Report(models.Model):
     ('high', 'High Priority'),
     ('standard', 'Standard'),
     ]
+    SURVEY_METHOD_CHOICES = [
+        ('system', 'Online system'),
+        ('manual', 'Manual at MED office'),
+    ]
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reports')
     job_order_id = models.CharField(max_length=30, unique=True, blank=True, null=True)
@@ -56,6 +60,9 @@ class Report(models.Model):
     room_name = models.CharField(max_length=100, blank=True, default='')
     description = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    survey_method = models.CharField(max_length=10, choices=SURVEY_METHOD_CHOICES, blank=True, default='')
+    inventory_tag_no = models.CharField(max_length=100, blank=True, default='')
+    property_inventory_no = models.CharField(max_length=100, blank=True, default='')
     submitted_at = models.DateTimeField(auto_now_add=True)
     priority = models.CharField(max_length=30, choices=PRIORITY_CHOICES, blank=True, null=True)
     assigned_personnel = models.CharField(max_length=255, blank=True, null=True)
@@ -234,6 +241,23 @@ class UserProfile(models.Model):
     # so a password change logs out every trusted device (see accounts/views.py)
     credentials_version = models.PositiveIntegerField(default=0, db_default=0)
 
+    # Staff sign up with non-UDM emails, so an admin approves them before they can log in.
+    # Existing accounts and students/faculty are 'approved'.
+    APPROVAL_PENDING = 'pending'
+    APPROVAL_APPROVED = 'approved'
+    APPROVAL_CHOICES = [
+        (APPROVAL_PENDING, 'Pending approval'),
+        (APPROVAL_APPROVED, 'Approved'),
+    ]
+    approval_status = models.CharField(max_length=10, choices=APPROVAL_CHOICES,
+                                       default=APPROVAL_APPROVED, db_default=APPROVAL_APPROVED)
+    # Set when an admin deactivates the account; tells "deactivated" apart from
+    # "never verified their email" (both have user.is_active = False)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+    # Accounts created by an admin (Excel import) get an emailed temporary password and
+    # must pick their own at first login (accounts.middleware.ForcePasswordChangeMiddleware)
+    must_change_password = models.BooleanField(default=False, db_default=False)
+
     def __str__(self):
         return f"{self.user.username} - Profile"
 
@@ -245,6 +269,7 @@ class SurveyResponse(models.Model):
     quality = models.IntegerField(null=True, blank=True)
     quantity = models.IntegerField(null=True, blank=True)
     timeliness = models.IntegerField(null=True, blank=True)
+    scan_file = models.ImageField(upload_to='survey_scans/', null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

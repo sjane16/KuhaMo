@@ -3,13 +3,14 @@
     <h1 class="text-2xl font-bold text-gray-900 leading-tight">Report a Concern</h1>
     <p class="text-sm text-gray-500 mt-0.5">Upload a photo of your concerns/report.</p>
 </div>
-<!-- Form Card -->
-<div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
-    <form id="report-form"
-          method="POST"
-          enctype="multipart/form-data"
-          action="{% url 'reportForm' %}">
-        {% csrf_token %}
+<!-- One form spanning the photo/AI and report details panels -->
+<form id="report-form"
+      method="POST"
+      enctype="multipart/form-data"
+      action="{% url 'reportForm' %}"
+      class="grid grid-cols-1 lg:grid-cols-2 items-start gap-6">
+    {% csrf_token %}
+    <div class="min-w-0 bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
         <!-- Photo Upload Area -->
         <div class="mb-6">
             <label for="photo-upload"
@@ -65,34 +66,38 @@
                 <p class="text-xs text-red-500 mt-2">{{ form.photo.errors|join:", " }}</p>
             {% endif %}
         </div>
-        <div class="mb-5">
-            <label class="block text-sm font-semibold text-gray-800 mb-2">AI Recommended Category</label>
-            <div class="relative" id="category-wrapper">
-                {{ form.category }}
-                <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="w-5 h-5 text-gray-400"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="2"
-                         stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
+        <div class="grid grid-cols-1 gap-4 sm:has-[#custom-category-wrapper:not(.hidden)]:grid-cols-2">
+            <div class="min-w-0">
+                <label for="id_category" class="flex min-h-10 items-center justify-start text-left text-sm font-semibold text-gray-800 mb-2">AI Recommended Category</label>
+                <div class="relative" id="category-wrapper">
+                    {{ form.category }}
+                    <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="w-5 h-5 text-gray-400"
+                             fill="none"
+                             viewBox="0 0 24 24"
+                             stroke-width="2"
+                             stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </div>
                 </div>
+                <p id="category-hint"
+                   class="hidden mt-1.5 text-xs text-blue-600 flex items-center gap-2"></p>
+                <p id="cnn-confidence" class="hidden text-xs text-blue-600 mt-2"></p>
             </div>
-            <p id="category-hint"
-               class="hidden mt-1.5 text-xs text-blue-600 flex items-center gap-2"></p>
-            <p id="cnn-confidence" class="hidden text-xs text-blue-600 mt-2"></p>
+            <div id="custom-category-wrapper" class="min-w-0 hidden">
+                <label for="id_custom_category" class="flex min-h-10 items-center justify-start text-left text-sm font-semibold text-gray-800 mb-2">Custom Category</label>
+                <input type="text"
+                       name="custom_category"
+                       id="id_custom_category"
+                       maxlength="30"
+                       class="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Specify the category of your concern..." />
+            </div>
         </div>
-        <div id="custom-category-wrapper" class="mb-5 hidden">
-            <label class="block text-sm font-semibold text-gray-800 mb-2">Custom Category</label>
-            <input type="text"
-                   name="custom_category"
-                   id="id_custom_category"
-                   maxlength="30"
-                   class="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-700 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                   placeholder="Specify the category of your concern..." />
-        </div>
+    </div>
+    <div class="min-w-0 bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
         <!-- Location -->
         <div class="mb-5">
             <label class="block text-sm font-semibold text-gray-800 mb-2">Building / Facility</label>
@@ -180,5 +185,5 @@
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-4 rounded-xl transition-colors duration-200">
             Submit Report
         </button>
-    </form>
-</div>
+    </div>
+</form>

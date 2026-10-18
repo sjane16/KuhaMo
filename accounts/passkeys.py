@@ -269,6 +269,10 @@ def login_verify(request):
     if not user.is_active:
         log_event(request, 'login_failed', user=user, method='passkey', reason='account not active', passkey=passkey.name)
         return _error("This account is not active. Please contact the administrator.", status=403)
+    profile = getattr(user, 'profile', None)
+    if profile and profile.approval_status == profile.APPROVAL_PENDING:
+        log_event(request, 'login_failed', user=user, method='passkey', reason='awaiting admin approval', passkey=passkey.name)
+        return _error("Your staff account is waiting for an administrator's approval.", status=403)
 
     passkey.sign_count = verification.new_sign_count
     passkey.last_used_at = timezone.now()

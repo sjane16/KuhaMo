@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect 
-from .forms import LoginForm, SignUpForm, OTPVerificationForm, PrivacyAgreementForm, ForgotPasswordForm, ResetPasswordForm
-from django.contrib.auth import authenticate, login
+from .forms import LoginForm, SignUpForm, OTPVerificationForm, PrivacyAgreementForm, ForgotPasswordForm, ResetPasswordForm, is_unverified_signup
+from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.models import User 
 from django.contrib import messages
 from django.views.decorators.cache import never_cache
@@ -168,6 +168,25 @@ def custom_lockout(request, credentials=None, *args, **kwargs):
 def splash_screen(request):
     return render(request, 'accounts/index.html')
 
+def _approval_block_message(user):
+    """Message for a verified account that may not log in yet, or None."""
+    profile = getattr(user, 'profile', None)
+    if profile and profile.approval_status == UserProfile.APPROVAL_PENDING:
+        return ("Your staff account is waiting for an administrator's approval. "
+                "You'll receive an email once it's approved.")
+    return None
+
+def _inactive_account_message(email, password):
+    """Django won't authenticate inactive accounts, so explain why - but only when the
+    password is correct, so this can't be used to discover which emails exist."""
+    user = User.objects.filter(username=email, is_active=False).select_related('profile').first()
+    if not user or not user.check_password(password):
+        return None
+    profile = getattr(user, 'profile', None)
+    if profile and profile.deactivated_at:
+        return "This account has been deactivated. Please contact the administrator."
+    return "Please verify your email before logging in"
+
 @never_cache
 def login_view(request):
     # remembers the selected page before directing to login
@@ -215,6 +234,12 @@ def login_view(request):
                        messages.error(request, "Please verify your email before logging in")
                        return render(request, 'accounts/login.html', {'form': LoginForm()})
 
+                   blocked = _approval_block_message(user)
+                   if blocked:
+                       _clear_messages(request)
+                       messages.error(request, blocked)
+                       return render(request, 'accounts/login.html', {'form': LoginForm()})
+
                    reset_request(request)
 
                    if _is_trusted_device(request, user):
@@ -255,7 +280,7 @@ def login_view(request):
 
                else:
                    _clear_messages(request)
-                   messages.error(request, "Invalid email or password")
+                   messages.error(request, _inactive_account_message(email, password) or "Invalid email or password")
 
            except PermissionDenied:
                _clear_messages(request)
@@ -370,6 +395,17 @@ def resend_login_otp(request):
 def _privacy_viewed(request):
     return bool(request.session.get('privacy_viewed') or request.session.get('privacy_accepted'))
 
+# Accepting the policy pre-ticks the signup checkbox, but only for a short window
+PRIVACY_ACCEPT_WINDOW_SECONDS = 30 * 60
+
+def _privacy_recently_accepted(request):
+    accepted_at = request.session.get('privacy_accepted_at')
+    return bool(
+        request.session.get('privacy_accepted')
+        and accepted_at
+        and timezone.now().timestamp() - accepted_at <= PRIVACY_ACCEPT_WINDOW_SECONDS
+    )
+
 def _render_signup(request, form):
     viewed = _privacy_viewed(request)
     # Until the Privacy Policy page has been opened, the checkbox can't be ticked
@@ -416,20 +452,29 @@ def signup(request):
             phone = form.cleaned_data['phone']
 
             with transaction.atomic():
-                user = User.objects.create_user(
-                    username=email,
-                    email=email,
-                    password=password,
-                    first_name=first_name,
-                    last_name=last_name,
-                    is_active=False
-                )
+                user = User.objects.filter(email=email).first()
+                reused_signup = bool(user and is_unverified_signup(user))
+                if reused_signup:
+                    user.first_name = first_name
+                    user.last_name = last_name
+                    user.set_password(password)
+                    user.save()
+                else:
+                    user = User.objects.create_user(
+                        username=email,
+                        email=email,
+                        password=password,
+                        first_name=first_name,
+                        last_name=last_name,
+                        is_active=False
+                    )
 
                 otp = _generate_otp()
                 UserProfile.objects.update_or_create(
                     user=user,
                     defaults={
                         'role': role,
+                        'approval_status': UserProfile.APPROVAL_PENDING if role == 'staff' else UserProfile.APPROVAL_APPROVED,
                         'department': department,
                         'phone': phone,
                         'otp': otp,
@@ -447,21 +492,25 @@ def signup(request):
                     fail_silently=False,
                 )
             except (SMTPException, OSError):
-                user.delete()
+                if not reused_signup:
+                    user.delete()
                 _clear_messages(request)
                 messages.error(request, "We couldn't send your verification email right now. Please try again in a moment.")
                 return _render_signup(request, form)
 
             request.session['pending_verification_user_id'] = user.id
+            # Consent flags apply to this signup only; clear them so the next signup on this browser starts fresh
+            request.session.pop('privacy_accepted', None)
+            request.session.pop('privacy_accepted_at', None)
+            request.session.pop('privacy_viewed', None)
             _clear_messages(request)
             messages.success(request, "Account created successfully! Please check your email for the verification code to verify your account.")
             return redirect('verify_otp')
        else:
-           print(form.errors)
            _clear_messages(request)
     else:
         initial = {}
-        if request.session.get('privacy_accepted'):
+        if _privacy_recently_accepted(request):
             initial['agree_to_terms'] = True
         form = SignUpForm(initial=initial)
 
@@ -508,7 +557,11 @@ def verify_otp(request):
                 user.save()
                 del request.session['pending_verification_user_id']
                 _clear_messages(request)
-                messages.success(request, "Your account has been verified successfully! You can now log in.")
+                if getattr(user, 'profile', None) and user.profile.approval_status == UserProfile.APPROVAL_PENDING:
+                    messages.success(request, "Your email has been verified! Your staff account is now waiting for an "
+                                              "administrator's approval. You'll receive an email once it's approved.")
+                else:
+                    messages.success(request, "Your account has been verified successfully! You can now log in.")
                 # The device that verified the signup is trusted, so the first login skips MFA
                 return _trust_device(redirect('login'), request, user)
        else:
@@ -547,13 +600,17 @@ def resend_otp(request):
         }
     )
 
-    send_mail(
-                    subject='Your OTP for Account Verification',
-                    message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    fail_silently=False,
-                )
+    try:
+        send_mail(
+            subject='Your OTP for Account Verification',
+            message=f'Your verification code is: {otp}\n This code will expire in 10 minutes. Please do not share this code with anyone.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except (SMTPException, OSError):
+        messages.error(request, "We couldn't resend your code right now. Please try again in a moment.")
+        return redirect('verify_otp')
 
     messages.success(request, "A new verification code has been sent to your email.")
     return redirect('verify_otp')
@@ -806,12 +863,50 @@ def privacy_policy(request):
         form = PrivacyAgreementForm(request.POST)
         if form.is_valid():
             request.session['privacy_accepted'] = True
+            request.session['privacy_accepted_at'] = timezone.now().timestamp()
             return redirect('signup')
         else:
             messages.error(request, "You must agree to the Privacy Policy and Terms of Service to continue")
             return render(request, 'accounts/privacypolicy.html', {'form': form})
 
-    initial = {'agree_to_terms': request.session.get('privacy_accepted', False)}
-    form = PrivacyAgreementForm(initial=initial)
+    form = PrivacyAgreementForm()
     return render(request, 'accounts/privacypolicy.html', {'form': form})
 
+
+
+@never_cache
+def force_password_change(request):
+    """First login of an account created by an admin: replace the emailed temporary password."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    user = request.user
+    profile = getattr(user, 'profile', None)
+    if not profile or not profile.must_change_password:
+        return _post_login_redirect(request, user)
+
+    if request.method == 'POST':
+        if request.POST.get('website'):
+            _log_honeypot(request)
+            messages.error(request, "Unable to process your request. Please contact system administrator")
+            return render(request, 'accounts/force_password_change.html', {'form': ResetPasswordForm()})
+
+        form = ResetPasswordForm(request.POST)
+        # Same rule as Edit Profile: the new password can't be the temporary one
+        if form.is_valid() and user.check_password(form.cleaned_data['new_password']):
+            form.add_error('new_password', "New Password must be different from your current password.")
+        if form.is_valid():
+            user.set_password(form.cleaned_data['new_password'])
+            user.save()
+            profile.must_change_password = False
+            profile.save(update_fields=['must_change_password'])
+            invalidate_trusted_devices(user)
+            update_session_auth_hash(request, user)  # stay logged in
+            log_event(request, 'password_changed', user=user, where='first login (temporary password)')
+            _clear_messages(request)
+            messages.success(request, "Your password has been set. Welcome to Fac-Check!")
+            return _post_login_redirect(request, user)
+        _clear_messages(request)
+    else:
+        form = ResetPasswordForm()
+
+    return render(request, 'accounts/force_password_change.html', {'form': form})

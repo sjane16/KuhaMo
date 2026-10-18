@@ -24,6 +24,7 @@ from user.notifications import notify_status_change, notifications_for_user, ser
 from user.context_processors import get_unread_notifications_count
 from user.constants import PRIORITY_SLA_HOURS
 from .models import Building 
+from .forms import ManualSurveySubmissionForm
 
 
 REPORTS_PAGE_SIZE = 5
@@ -806,6 +807,22 @@ def report_detail(request, report_id):
         'is_locked': is_locked,
         'priority_sla_hours': PRIORITY_SLA_HOURS,
     })
+
+
+def record_manual_survey(request, report_id):
+    report = get_object_or_404(Report, id=report_id)
+    if request.method == 'POST':
+        form = ManualSurveySubmissionForm(request.POST, request.FILES)
+        if report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
+            messages.error(request, 'A manual survey can only be recorded once for a resolved report selected for manual submission.')
+        elif form.is_valid():
+            SurveyResponse.objects.create(report=report, **form.cleaned_data)
+            report.status = 'closed'
+            report.save(update_fields=['status'])
+            messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
+        else:
+            messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
+    return redirect('adm_report_detail', report_id=report_id)
 
 
 def export_job_order_pdf_admin(request, report_id):

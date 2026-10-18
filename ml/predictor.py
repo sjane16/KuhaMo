@@ -35,9 +35,8 @@ def _load_model():
     global MODEL
     if MODEL is None:
         with _MODEL_LOCK:
-            import tensorflow as tf
-
             if MODEL is None:
+                import tensorflow as tf
                 MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
     return MODEL
 

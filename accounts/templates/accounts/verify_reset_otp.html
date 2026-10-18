@@ -1,275 +1,457 @@
 {% load static tailwind_tags %}
-{% tailwind_css %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fac-Check Verify Reset Code</title>
+    <script src="{% static 'user/js/theme.js' %}"></script>
+    {% tailwind_css %}
+    <link rel="stylesheet" href="{% static 'accounts/css/auth_dark.css' %}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Modak&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;display=swap"
           rel="stylesheet" />
     <link rel="icon"
           type="image/png"
           href="{% static 'accounts/images/Fac-Check-Logo.png' %}?v=2" />
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         :root {
-            --fc-blue: #2563eb;
-            --fc-blue-dark: #1d4ed8;
-            --fc-cyan: #06b6d4;
-            --fc-grid-line: rgba(37, 99, 235, 0.08);
+            color-scheme: light;
         }
 
-        html,
-        body {
-            overflow-x: hidden;
-            width: 100%;
-        }
-
-        body {
+        body.fc-signup-page {
+            margin: 0;
+            min-height: 100vh;
+            min-height: 100svh;
+            padding: 24px 16px;
+            background: linear-gradient(160deg, #fbfdff 15%, #eef4fc 100%);
+            color: #18324b;
+            font-family: "Poppins", sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             position: relative;
-            background-color: #eef4ff;
-            background-image:
-                radial-gradient(ellipse 80% 55% at 50% -10%, rgba(37, 99, 235, 0.14), transparent 60%),
-                linear-gradient(180deg, #eef4ff 0%, #e3edff 45%, #eef4ff 100%);
-            overflow-x: hidden;
         }
 
-        .fc-grid {
-            position: absolute;
+        .fc-signup-background {
+            position: fixed;
             inset: 0;
-            z-index: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
-            background-image:
-                linear-gradient(var(--fc-grid-line) 1px, transparent 1px),
-                linear-gradient(90deg, var(--fc-grid-line) 1px, transparent 1px);
-            background-size: 44px 44px;
-            -webkit-mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
-            mask-image: linear-gradient(180deg, black, black 55%, transparent 92%);
         }
 
-        .fc-blob {
-            position: absolute;
-            z-index: 0;
-            pointer-events: none;
-            border-radius: 9999px;
-            filter: blur(70px);
-            opacity: 0.55;
+        .fc-signup-page main {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 440px;
+            margin-block: auto;
         }
 
-        .fc-blob-a {
-            top: -120px;
-            left: -80px;
-            width: 420px;
-            height: 420px;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.35), transparent 70%);
+        .fc-signup-card {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            padding: 32px 32px 26px;
+            border: 1px solid #e5edf7;
+            border-radius: 24px;
+            background: #fff;
+            box-shadow: 0 16px 48px rgba(15, 76, 129, .08);
         }
 
-        .fc-blob-b {
-            top: 40px;
-            right: -140px;
-            width: 460px;
-            height: 460px;
-            background: radial-gradient(circle, rgba(6, 182, 212, 0.28), transparent 70%);
+        .fc-back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            min-height: 44px;
+            margin-bottom: 4px;
+            color: #175b9b;
+            font-size: 12px;
+            font-weight: 500;
         }
 
-        .fc-crop {
-            position: absolute;
-            width: 28px;
-            height: 28px;
-            z-index: 1;
-            opacity: 0.45;
+        .fc-back-link:hover {
+            text-decoration: underline;
         }
 
-        .fc-crop-tl {
-            top: 18px;
-            left: 18px;
-            border-top: 2px solid var(--fc-blue);
-            border-left: 2px solid var(--fc-blue);
+        .fc-signup-heading {
+            text-align: center;
+            margin-bottom: 26px;
         }
 
-        .fc-crop-tr {
-            top: 18px;
-            right: 18px;
-            border-top: 2px solid var(--fc-blue);
-            border-right: 2px solid var(--fc-blue);
-        }
-
-        .fc-crop-bl {
-            bottom: 18px;
-            left: 18px;
-            border-bottom: 2px solid var(--fc-blue);
-            border-left: 2px solid var(--fc-blue);
-        }
-
-        .fc-crop-br {
-            bottom: 18px;
-            right: 18px;
-            border-bottom: 2px solid var(--fc-blue);
-            border-right: 2px solid var(--fc-blue);
-        }
-
-        .fc-otp-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 1rem;
-            background-color: #eaf1ff;
+        .fc-signup-logo {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto;
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 18px;
+            border-radius: 16px;
+            background: #edf4ff;
+        }
+
+        .fc-signup-logo svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .fc-signup-heading h1 {
+            font-size: 22px;
+            line-height: 1.25;
+            font-weight: 700;
+            letter-spacing: -.6px;
+            color: #0f4c81;
+        }
+
+        .fc-signup-heading p {
+            margin-top: 12px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #526277;
+        }
+
+        .fc-signup-heading p strong {
+            font-weight: 600;
+            color: #18324b;
+            word-break: break-all;
+        }
+
+        /* Messages */
+        .fc-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px solid;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .fc-alert-error {
+            background: #fee2e2;
+            border-color: #dc2626;
+            color: #b91c1c;
+        }
+
+        .fc-alert-success {
+            background: #dcfce7;
+            border-color: #16a34a;
+            color: #15803d;
+        }
+
+        /* One-time code boxes */
+        .fc-otp {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 0 0 8px;
         }
 
         .fc-otp-box {
-            width: 48px;
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: 52px;
             height: 56px;
+            padding: 0;
             text-align: center;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1f2937;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 0.75rem;
+            font-family: inherit;
+            font-size: 20px;
+            font-weight: 600;
+            color: #18324b;
+            background: #f8faff;
+            border: 1px solid #dce5f1;
+            border-radius: 12px;
             outline: none;
-            background-color: #fff;
         }
 
         .fc-otp-box:focus {
-            border-color: var(--fc-blue);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            background: #fff;
+            border-color: #0f4c81;
+            box-shadow: 0 0 0 3px rgba(15, 76, 129, .13);
+        }
+
+        .fc-otp.has-error .fc-otp-box {
+            border-color: #dc2626;
+        }
+
+        .fc-otp-error {
+            margin: 0 0 16px;
+            font-size: 12px;
+            line-height: 1.5;
+            text-align: center;
+            color: #b91c1c;
+        }
+
+        .fc-otp-spacer {
+            height: 16px;
+        }
+
+        .fc-signup-primary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            min-height: 46px;
+            padding: 10px 16px;
+            border-radius: 11px;
+            border: 1px solid #0f4c81;
+            background: #0f4c81;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(15, 76, 129, .16);
+        }
+
+        .fc-signup-primary:hover {
+            background: #0d3f6b;
+        }
+
+        .fc-signup-help {
+            margin-top: 18px;
+            color: #526277;
+            font-size: 12px;
+            line-height: 1.7;
+            text-align: center;
+        }
+
+        .fc-text-action {
+            display: inline-flex;
+            align-items: center;
+            min-height: 44px;
+            padding: 0 4px;
+            border: 0;
+            background: none;
+            color: #175b9b;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .fc-text-action:hover {
+            text-decoration: underline;
+        }
+
+        .fc-signup-page a:focus-visible,
+        .fc-signup-page button:focus-visible {
+            outline: 3px solid #427eb3;
+            outline-offset: 3px;
+        }
+
+        .fc-signup-footer {
+            position: relative;
+            text-align: center;
+            margin-top: 10px;
+            color: #526277;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        @media (max-width: 480px) {
+            body.fc-signup-page {
+                padding: 20px 12px;
+            }
+
+            .fc-signup-card {
+                padding: 28px 20px 24px;
+                border-radius: 20px;
+            }
+
+            .fc-otp {
+                gap: 6px;
+            }
         }
     </style>
     <link rel="stylesheet" href="{% static 'submission-state.css' %}">
     <script src="{% static 'submission-state.js' %}" defer></script>
-</head>
-  <body class="min-h-screen flex flex-col items-center justify-start pt-14 p-4 text-black font-[Poppins]">
-    <div class="fc-grid"></div>
-    <div class="fc-blob fc-blob-a"></div>
-    <div class="fc-blob fc-blob-b"></div>
-    <div class="fc-crop fc-crop-tl"></div>
-    <div class="fc-crop fc-crop-tr"></div>
-    <div class="fc-crop fc-crop-bl"></div>
-    <div class="fc-crop fc-crop-br"></div>
-
-    <div class="login_title z-10">
-      <img />
-      <div class="flex flex-wrap text-center justify-center">
-        <h1 class="text-4xl font-bold tracking-wide text-blue-500">Fac-Check</h1>
-      </div>
-      <p class="pt-2 text-center font-semibold pb-5">Turning Everyday Concerns into Smart Insight</p>
-    </div>
-
-    <form method="POST"
-          action="{% url 'verify_reset_otp' %}"
-          class="bg-white p-8 rounded-2xl shadow-md w-full max-w-md mb-4 z-10">
-      {% csrf_token %}
-
-      <div class="flex flex-col items-start text-left mb-5">
-        <a href="{% url 'forgot_password' %}"
-           class="text-sm text-left pb-2 text-gray-500 flex items-center gap-1 hover:text-blue-600 transition-all">
-          <span aria-hidden="true">←</span> Back
-        </a>
-      </div>
-
-      {% if messages %}
-        <div class="mb-6">
+  </head>
+  <body class="fc-signup-page">
+    <svg class="fc-signup-background"
+         viewBox="0 0 1440 900"
+         preserveAspectRatio="xMidYMid slice"
+         fill="none"
+         aria-hidden="true">
+      <path d="M-100 800 C320 430 820 680 1550 350" stroke="#dbe8f8" stroke-width="2" />
+      <path d="M-100 850 C320 480 820 730 1550 400" stroke="#e2ecf9" stroke-width="2" />
+      <path d="M-100 880 C320 510 820 760 1550 430" stroke="#e2ecf9" stroke-width="2" />
+    </svg>
+    <main aria-labelledby="verify-title">
+      <form method="post"
+            action="{% url 'verify_reset_otp' %}"
+            class="fc-signup-card"
+            id="verify-form"
+            autocomplete="off"
+            novalidate>
+        {% csrf_token %}
+        <a href="{% url 'forgot_password' %}" class="fc-back-link"><span aria-hidden="true">←</span> Back</a>
+        <div class="fc-signup-heading">
+          <div class="fc-signup-logo">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 fill="none"
+                 viewBox="0 0 24 24"
+                 stroke-width="1.5"
+                 stroke="#0f4c81"
+                 aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+            </svg>
+          </div>
+          <h1 id="verify-title">Verify your identity</h1>
+          <p>
+            We sent a 6-digit reset code to
+            <br />
+            <strong>{{ user_email }}</strong>
+          </p>
+        </div>
+        {% if messages %}
           {% for message in messages %}
-            <div class="flex items-center border p-3 rounded-xl text-sm mb-2 shadow-md
-                        {% if message.tags == 'error' %}
-                          bg-red-200 border-red-600 text-red-700
-                        {% else %}
-                          bg-green-100 border-green-600 text-green-700
-                        {% endif %}">
-              <span class="font-medium">{{ message }}</span>
+            <div class="fc-alert {% if message.tags == 'error' %}fc-alert-error{% else %}fc-alert-success{% endif %}"
+                 role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">
+              <span>{{ message }}</span>
             </div>
           {% endfor %}
+        {% endif %}
+        <div class="fc-otp{% if form.otp.errors %} has-error{% endif %}"
+             id="otp-group"
+             role="group"
+             aria-label="6-digit verification code">
+          <input type="text"
+                 inputmode="numeric"
+                 autocomplete="one-time-code"
+                 class="fc-otp-box"
+                 data-otp-index="0"
+                 aria-label="Digit 1 of 6"
+                 autofocus />
+          <input type="text"
+                 inputmode="numeric"
+                 autocomplete="off"
+                 class="fc-otp-box"
+                 data-otp-index="1"
+                 aria-label="Digit 2 of 6" />
+          <input type="text"
+                 inputmode="numeric"
+                 autocomplete="off"
+                 class="fc-otp-box"
+                 data-otp-index="2"
+                 aria-label="Digit 3 of 6" />
+          <input type="text"
+                 inputmode="numeric"
+                 autocomplete="off"
+                 class="fc-otp-box"
+                 data-otp-index="3"
+                 aria-label="Digit 4 of 6" />
+          <input type="text"
+                 inputmode="numeric"
+                 autocomplete="off"
+                 class="fc-otp-box"
+                 data-otp-index="4"
+                 aria-label="Digit 5 of 6" />
+          <input type="text"
+                 inputmode="numeric"
+                 autocomplete="off"
+                 class="fc-otp-box"
+                 data-otp-index="5"
+                 aria-label="Digit 6 of 6" />
         </div>
-      {% endif %}
-
-      <div class="fc-otp-icon mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-             stroke="#2563eb" class="w-7 h-7">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-        </svg>
-      </div>
-
-      <h2 class="text-xl font-bold text-center text-slate-800 mb-1">Verify your identity</h2>
-      <p class="text-sm text-center text-slate-500 mb-6">
-        We sent a 6-digit reset code to<br>
-        <span class="font-semibold text-slate-700">{{ user_email }}</span>
-      </p>
-
-      <div class="flex justify-center gap-2 mb-6">
-        <input type="text" inputmode="numeric" maxlength="1" class="fc-otp-box" data-otp-index="0" autofocus>
-        <input type="text" inputmode="numeric" maxlength="1" class="fc-otp-box" data-otp-index="1">
-        <input type="text" inputmode="numeric" maxlength="1" class="fc-otp-box" data-otp-index="2">
-        <input type="text" inputmode="numeric" maxlength="1" class="fc-otp-box" data-otp-index="3">
-        <input type="text" inputmode="numeric" maxlength="1" class="fc-otp-box" data-otp-index="4">
-        <input type="text" inputmode="numeric" maxlength="1" class="fc-otp-box" data-otp-index="5">
-      </div>
-
-      <div class="absolute -left-[9999px] -top-[9999px]" aria-hidden="true">
-        {{ form.otp }}
-      </div>
-      {% if form.otp.errors %}
-        <p class="text-red-500 text-sm text-center mb-4">{{ form.otp.errors.0 }}</p>
-      {% endif %}
-
-      <button type="submit"
-              class="w-full bg-blue-600 hover:bg-blue-700 transition-colors p-3 rounded-xl text-white font-semibold flex items-center justify-center gap-2">
-        Verify <span aria-hidden="true">→</span>
-      </button>
-
-      <p class="text-center text-sm text-slate-500 mt-4">
-        Didn't receive the code?
-        <button type="submit" formaction="{% url 'resend_reset_otp' %}"
-                class="text-blue-600 font-semibold hover:underline">Resend code</button>
-      </p>
-    </form>
-
-    <footer>
+        <input type="hidden" name="otp" id="id_otp" />
+        <p id="otp-error" class="fc-otp-error" role="alert" {% if not form.otp.errors %}hidden{% endif %}>{% if form.otp.errors %}{{ form.otp.errors.0 }}{% else %}Enter all 6 digits of the code.{% endif %}</p>
+        {% if not form.otp.errors %}<div class="fc-otp-spacer" id="otp-spacer"></div>{% endif %}
+        <button type="submit" class="fc-signup-primary">Verify</button>
+        <p class="fc-signup-help">
+          Didn't receive the code?
+          <button type="submit"
+                  formaction="{% url 'resend_reset_otp' %}"
+                  formnovalidate
+                  class="fc-text-action">Resend code</button>
+        </p>
+      </form>
+    </main>
+    <footer class="fc-signup-footer">
       <p class="text-xs">&copy; 2026 Fac-Check. All rights reserved.</p>
     </footer>
-
     <script>
         (function () {
+            var form = document.getElementById('verify-form');
+            var group = document.getElementById('otp-group');
+            var hidden = document.getElementById('id_otp');
+            var error = document.getElementById('otp-error');
+            var spacer = document.getElementById('otp-spacer');
             var boxes = Array.prototype.slice.call(document.querySelectorAll('.fc-otp-box'));
-            var hiddenInput = document.getElementById('id_otp');
 
-            if (!boxes.length || !hiddenInput) return;
+            if (!form || !hidden || !boxes.length) return;
 
-            function syncHiddenField() {
-                hiddenInput.value = boxes.map(function (b) { return b.value; }).join('');
+            function sync() {
+                hidden.value = boxes.map(function (b) { return b.value; }).join('');
+            }
+
+            function clearError() {
+                group.classList.remove('has-error');
+                error.hidden = true;
+                if (spacer) spacer.hidden = false;
+            }
+
+            // Spreads digits over the boxes starting at `start`.
+            // Used for typing, pasting, and SMS/email autofill (all arrive as input).
+            function fill(digits, start) {
+                digits.split('').slice(0, boxes.length - start).forEach(function (digit, i) {
+                    boxes[start + i].value = digit;
+                });
+                sync();
+                boxes[Math.min(start + digits.length, boxes.length - 1)].focus();
             }
 
             boxes.forEach(function (box, index) {
                 box.addEventListener('input', function () {
-                    box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
-                    if (box.value && index < boxes.length - 1) {
-                        boxes[index + 1].focus();
+                    var digits = box.value.replace(/\D/g, '');
+                    box.value = '';
+                    clearError();
+                    if (!digits) {
+                        sync();
+                        return;
                     }
-                    syncHiddenField();
+                    fill(digits, index);
                 });
 
                 box.addEventListener('keydown', function (e) {
                     if (e.key === 'Backspace' && !box.value && index > 0) {
+                        boxes[index - 1].value = '';
                         boxes[index - 1].focus();
+                        sync();
+                        e.preventDefault();
+                    } else if (e.key === 'ArrowLeft' && index > 0) {
+                        boxes[index - 1].focus();
+                    } else if (e.key === 'ArrowRight' && index < boxes.length - 1) {
+                        boxes[index + 1].focus();
                     }
                 });
 
-                box.addEventListener('paste', function (e) {
-                    var pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
-                    if (!pasted) return;
-                    e.preventDefault();
-                    pasted.split('').slice(0, boxes.length).forEach(function (digit, i) {
-                        boxes[i].value = digit;
-                    });
-                    syncHiddenField();
-                    var next = boxes[Math.min(pasted.length, boxes.length - 1)];
-                    if (next) next.focus();
+                box.addEventListener('focus', function () {
+                    box.select();
                 });
+            });
+
+            // "Resend code" skips this check; only Verify needs all 6 digits.
+            form.addEventListener('submit', function (e) {
+                var isResend = e.submitter && e.submitter.hasAttribute('formaction');
+                if (isResend) return;
+
+                sync();
+                if (hidden.value.length < 6) {
+                    e.preventDefault();
+                    group.classList.add('has-error');
+                    error.textContent = 'Enter all 6 digits of the code.';
+                    error.hidden = false;
+                    if (spacer) spacer.hidden = true;
+                    var firstEmpty = boxes.filter(function (b) { return !b.value; })[0];
+                    (firstEmpty || boxes[0]).focus();
+                }
             });
         })();
     </script>

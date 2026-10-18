@@ -17,6 +17,7 @@ urlpatterns = [
     path('verify-reset-otp/', views.verify_reset_otp, name='verify_reset_otp'),
     path('resend-reset-otp/', views.resend_reset_otp, name='resend_reset_otp'),
     path('reset-password/', views.reset_password, name='reset_password'),
+    path('set-password/', views.force_password_change, name='force_password_change'),
 
     # Passkeys (fingerprint / face / screen-lock sign-in)
     path('passkeys/register/options/', passkeys.register_options, name='passkey_register_options'),

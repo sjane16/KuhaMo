@@ -418,13 +418,14 @@
                     Please rate the completed service from 1 to 5:
                     <table class="no-border">
                         <tr class="no-border">
-                            <td class="no-border" style="width:33%; padding: 1px 6px;">Quality: {% if report.survey %}{{ report.survey.quality|default:"-" }}{% else %}-{% endif %}/5</td>
-                            <td class="no-border" style="width:33%; padding: 1px 6px;">Quantity: {% if report.survey %}{{ report.survey.quantity|default:"-" }}{% else %}-{% endif %}/5</td>
-                            <td class="no-border" style="width:34%; padding: 1px 6px;">Timeliness: {% if report.survey %}{{ report.survey.timeliness|default:"-" }}{% else %}-{% endif %}/5</td>
+                            <td class="no-border" style="width:33%; padding: 1px 6px;">Quality: {% if report.survey and report.survey.quality %}{{ report.survey.quality }}{% else %}&nbsp;{% endif %}/5</td>
+                            <td class="no-border" style="width:33%; padding: 1px 6px;">Quantity: {% if report.survey and report.survey.quantity %}{{ report.survey.quantity }}{% else %}&nbsp;{% endif %}/5</td>
+                            <td class="no-border" style="width:34%; padding: 1px 6px;">Timeliness: {% if report.survey and report.survey.timeliness %}{{ report.survey.timeliness }}{% else %}&nbsp;{% endif %}/5</td>
                         </tr>
                     </table>
                 </td>
             </tr>
+        {% if report.survey_method != 'system' %}
             <tr>
                 <td colspan="2">
                     <div class="sig-space"></div>
@@ -438,7 +439,15 @@
                     <div class="caption">Signature on Printed Name</div>
                 </td>
             </tr>
+        {% endif %}
         </table>
-        <div class="small-italic" style="margin-top:6px;">F-MED-001 Rev.0 (08-01-25)</div>
+        <table class="no-border" style="width:100%; margin-top:6px;">
+            <tr class="no-border">
+                <td class="no-border small-italic" style="width:50%; vertical-align:bottom;">F-MED-001 Rev.0 (08-01-25)</td>
+                {% if report.survey_method == 'system' %}
+                    <td class="no-border small-italic" style="width:50%; vertical-align:bottom; text-align:right;">This is a system generated document. Signature is not required</td>
+                {% endif %}
+            </tr>
+        </table>
     </body>
 </html>

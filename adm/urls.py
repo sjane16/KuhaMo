@@ -2,6 +2,8 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from user.decorators import admin_required
 from . import views
+from . import user_management
+from . import user_import
 
 urlpatterns = [
     path('dashboard/', admin_required(views.dashboard), name='dashboard'),
@@ -11,6 +13,7 @@ urlpatterns = [
     path('reports/<int:report_id>/job-order/pdf/', admin_required(views.export_job_order_pdf_admin), name='exportJobOrderPDFAdmin'),
     path('reports/<int:report_id>/save/', admin_required(views.report_save), name='adm_report_save'),
     path('reports/<int:report_id>/status/', admin_required(views.report_status), name='adm_report_status'),
+    path('reports/<int:report_id>/manual-survey/', admin_required(views.record_manual_survey), name='adm_manual_survey'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logoutadmin'),
     path('menu/', admin_required(views.ProfileMenu), name='ProfileMenu'),
     path('ajax/menu/', admin_required(views.adm_menu_ajax), name='adm_menu_ajax'),
@@ -27,6 +30,14 @@ urlpatterns = [
     path('ajax/dashboard/', admin_required(views.adm_dashboard_ajax), name='adm_dashboard_ajax'),
     path('dashboard/report/pdf/', admin_required(views.export_dashboard_report_pdf), name='export_dashboard_report_pdf'),
     path('dashboard/report/summary/', admin_required(views.dashboard_report_summary), name='dashboard_report_summary'),
+
+    # User Management
+    path('users/', admin_required(user_management.user_management), name='user_management'),
+    path('ajax/users/', admin_required(user_management.user_management_ajax), name='user_management_ajax'),
+    path('users/<int:user_id>/action/', admin_required(user_management.user_management_action), name='user_management_action'),
+    path('users/import/template/', admin_required(user_import.import_template), name='user_import_template'),
+    path('users/import/preview/', admin_required(user_import.import_preview), name='user_import_preview'),
+    path('users/import/confirm/', admin_required(user_import.import_confirm), name='user_import_confirm'),
 
     
 

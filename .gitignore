@@ -249,3 +249,10 @@ theme/static/css/dist/
 .agents/
 .vscode/settings.json
 skills.md
+
+# Generated local knowledge graph
+graphify-out/
+
+# Local AI tooling and Obsidian settings
+.opencode/
+.obsidian/

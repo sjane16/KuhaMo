@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
+from django.db import transaction
 from django.db.models import Q
 from google import genai
 from django_ratelimit.core import is_ratelimited
@@ -448,18 +449,37 @@ def userSurveyAjax(request):
 
 
 @login_required
+def chooseSurveyMethod(request, report_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request.'}, status=400)
+
+    method = request.POST.get('method')
+    if method not in dict(Report.SURVEY_METHOD_CHOICES):
+        return JsonResponse({'success': False, 'error': 'Choose a valid survey method.'}, status=400)
+
+    with transaction.atomic():
+        report = get_object_or_404(
+            Report.objects.select_for_update(),
+            id=report_id,
+            user=request.user,
+        )
+        if report.status != 'resolved' or SurveyResponse.objects.filter(report=report).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Survey method can only be selected for a resolved report without a submitted survey.',
+            }, status=400)
+        report.survey_method = method
+        report.save(update_fields=['survey_method'])
+    return JsonResponse({'success': True, 'method': method})
+
+
+@login_required
 def submitSurvey(request, report_id):
     if request.method != 'POST':
         return JsonResponse({
             'success': False,
             'error': 'Invalid request.'
         }, status=400)
-
-    report = get_object_or_404(
-        Report,
-        id=report_id,
-        user=request.user
-    )
 
     ratings = {}
     for field in ('quality', 'quantity', 'timeliness'):
@@ -477,25 +497,37 @@ def submitSurvey(request, report_id):
                 'error': f'{field.title()} rating must be between 1 and 5.'
             }, status=400)
 
-    if SurveyResponse.objects.filter(report=report).exists():
-        return JsonResponse({
-            'success': False,
-            'error': 'You have already submitted a survey for this report.'
-        }, status=400)
+    with transaction.atomic():
+        report = get_object_or_404(
+            Report.objects.select_for_update(),
+            id=report_id,
+            user=request.user,
+        )
+        if SurveyResponse.objects.filter(report=report).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'You have already submitted a survey for this report.'
+            }, status=400)
 
-    if report.status != 'resolved':
-        return JsonResponse({
-            'success': False,
-            'error': 'Survey is available only after the report is resolved.'
-        }, status=400)
+        if report.status != 'resolved':
+            return JsonResponse({
+                'success': False,
+                'error': 'Survey is available only after the report is resolved.'
+            }, status=400)
 
-    SurveyResponse.objects.create(
-        report=report,
-        **ratings,
-    )
+        if report.survey_method != 'system':
+            return JsonResponse({
+                'success': False,
+                'error': 'Choose the online survey method before submitting ratings.'
+            }, status=400)
 
-    report.status = 'closed'
-    report.save(update_fields=['status'])
+        SurveyResponse.objects.create(
+            report=report,
+            **ratings,
+        )
+
+        report.status = 'closed'
+        report.save(update_fields=['status'])
 
     messages.success(request, f"Thank you for your feedback! Report {report.job_order_id} is now Closed.")
 
@@ -595,7 +627,7 @@ def chatbot_response(request):
         try:
             api_key = getattr(settings, "GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
             system_instruction = (
-                "You are FACI, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). \n\n"
+                "You are Checky, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). \n\n"
                 "STRICT RULES: \n"
                 "1. Answer the query strictly using the facts stated inside the OFFICIAL FAQ KNOWLEDGE BASE FOR FAC-CHECK SYSTEM (UDM) provided below. \n"
                 "2. Do NOT use outside knowledge. If the answer cannot be found in the text document below, "
