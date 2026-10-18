@@ -256,3 +256,6 @@ graphify-out/
 # Local AI tooling and Obsidian settings
 .opencode/
 .obsidian/
+
+# Exported videos
+*.mp4
