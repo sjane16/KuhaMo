@@ -259,3 +259,6 @@ graphify-out/
 
 # Exported videos
 *.mp4
+
+# Local diagram
+docs/data_flow_diagram.html
