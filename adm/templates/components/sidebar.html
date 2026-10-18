@@ -63,13 +63,18 @@
 {% if is_head_admin %}
     <a href="{% url 'user_management' %}"
        class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {% if request.resolver_match.url_name == 'user_management' %}nav-active bg-blue-500 text-white {% else %}text-gray-500 hover:bg-gray-50 hover:text-gray-900{% endif %} transition-colors">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+      <svg class="w-5 h-5"
+           fill="none"
+           stroke="currentColor"
+           stroke-width="1.8"
+           viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
       </svg>
       Users
       <span data-pending-badge
             title="Staff waiting for approval"
-            class="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold {% if request.resolver_match.url_name == 'user_management' %}bg-white text-blue-600{% else %}bg-orange-500 text-white{% endif %}"{% if not pending_staff_count %} hidden{% endif %}>{{ pending_staff_count|default:0 }}</span>
+            class="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold {% if request.resolver_match.url_name == 'user_management' %}bg-white text-blue-600{% else %}bg-orange-500 text-white{% endif %}"
+            {% if not pending_staff_count %} hidden{% endif %}>{{ pending_staff_count|default:0 }}</span>
     </a>
 {% endif %}
     <!--MENU-->
@@ -88,15 +93,21 @@
   <!-- User + Logout -->
   <div class="px-4 pb-6 border-t border-gray-100 pt-4">
     <div class="flex items-center gap-3 mb-3">
-      <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-        <svg class="w-5 h-5 text-gray-400"
-             fill="none"
-             stroke="currentColor"
-             stroke-width="1.6"
-             viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-        </svg>
-      </div>
+      {% if user.profile.profile_photo %}
+        <img src="{{ user.profile.profile_photo.url }}"
+             alt="Your profile photo"
+             class="w-9 h-9 rounded-full object-cover shrink-0">
+      {% else %}
+        <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-gray-400"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="1.6"
+               viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+          </svg>
+        </div>
+      {% endif %}
       <div class="min-w-0">
         <p class="text-sm text-gray-600 font-semibold truncate">{{ user.first_name }} {{ user.last_name }}</p>
         <p class="text-xs text-gray-500 truncate">{{ user.username }}</p>

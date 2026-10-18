@@ -1,4 +1,8 @@
 {
+  "workbench.editor.enablePreview": true,
+  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+  "python.terminal.activateEnvironment": true,
+
   "python-envs.defaultEnvManager": "ms-python.python:pipenv",
 
   "files.watcherExclude": {
@@ -9,6 +13,7 @@
     "**/staticfiles/**": true,
     "**/.venv/**": true
   },
+
   "search.exclude": {
     "**/node_modules": true,
     "**/.git": true,
@@ -17,6 +22,7 @@
     "**/db.sqlite3": true,
     "**/*.keras": true
   },
+
   "files.exclude": {
     "**/__pycache__": true
   },
@@ -24,15 +30,25 @@
   "python.analysis.indexingDepth": 1,
   "python.analysis.autoImportCompletions": false,
   "python.analysis.diagnosticMode": "openFilesOnly",
+
   "python.analysis.packageIndexDepths": [
-    { "name": "tensorflow", "depth": 0, "includeAllSymbols": false },
-    { "name": "keras", "depth": 0, "includeAllSymbols": false }
+    {
+      "name": "tensorflow",
+      "depth": 0,
+      "includeAllSymbols": false
+    },
+    {
+      "name": "keras",
+      "depth": 0,
+      "includeAllSymbols": false
+    }
   ],
 
   "[django-html]": {
     "editor.defaultFormatter": "monosans.djlint",
     "editor.formatOnSave": true
   },
+
   "djlint.enableLinting": true,
   "djlint.profile": "django",
   "djlint.formatCss": true,

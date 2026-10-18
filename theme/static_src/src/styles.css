@@ -81,8 +81,19 @@ html.fc-app:not(.dark) {
 }
 
 html.fc-app.dark {
-  --color-primary: #7db4ff;
+  /* One blue family for actions, navigation, links and selected controls. */
+  --fc-brand: #24639b;
+  --fc-brand-hover: #2b70ad;
+  --fc-brand-active: #205889;
+  --fc-accent: #91bfe8;
+  --fc-accent-strong: #c0dbf2;
+  --color-primary: var(--fc-accent);
   --color-primary-content: #0b1220;
+  --color-blue-50: #1c2b39;
+  --color-blue-100: #22384b;
+  --color-blue-200: #35536c;
+  --color-blue-300: #527b9e;
+  --color-blue-400: var(--fc-accent);
 }
 
 html.fc-app .hover\:bg-blue-600:hover,
@@ -96,7 +107,7 @@ html.fc-app .active\:bg-blue-800:active {
 }
 
 html.fc-app.dark .hover\:text-blue-500:hover {
-  color: #7db4ff;
+  color: var(--fc-accent);
 }
 
 html.dark {
@@ -158,6 +169,49 @@ html.dark {
   --color-indigo-100: #25265b;
   --color-indigo-200: #35387f;
   --color-indigo-300: #4f54b5;
+
+  /* Other neutral families follow the gray scale, so bg-slate-50,
+     text-slate-400, border-zinc-200 and friends never stay light on dark. */
+  --color-slate-50: var(--color-gray-50);
+  --color-slate-100: var(--color-gray-100);
+  --color-slate-200: var(--color-gray-200);
+  --color-slate-300: var(--color-gray-300);
+  --color-slate-400: var(--color-gray-400);
+  --color-slate-500: var(--color-gray-500);
+  --color-slate-600: var(--color-gray-500);
+  --color-slate-700: var(--color-gray-700);
+  --color-slate-800: var(--color-gray-800);
+  --color-slate-900: var(--color-gray-900);
+  --color-zinc-50: var(--color-gray-50);
+  --color-zinc-100: var(--color-gray-100);
+  --color-zinc-200: var(--color-gray-200);
+  --color-zinc-300: var(--color-gray-300);
+  --color-zinc-400: var(--color-gray-400);
+  --color-zinc-500: var(--color-gray-500);
+  --color-zinc-600: var(--color-gray-500);
+  --color-zinc-700: var(--color-gray-700);
+  --color-zinc-800: var(--color-gray-800);
+  --color-zinc-900: var(--color-gray-900);
+  --color-neutral-50: var(--color-gray-50);
+  --color-neutral-100: var(--color-gray-100);
+  --color-neutral-200: var(--color-gray-200);
+  --color-neutral-300: var(--color-gray-300);
+  --color-neutral-400: var(--color-gray-400);
+  --color-neutral-500: var(--color-gray-500);
+  --color-neutral-600: var(--color-gray-500);
+  --color-neutral-700: var(--color-gray-700);
+  --color-neutral-800: var(--color-gray-800);
+  --color-neutral-900: var(--color-gray-900);
+  --color-stone-50: var(--color-gray-50);
+  --color-stone-100: var(--color-gray-100);
+  --color-stone-200: var(--color-gray-200);
+  --color-stone-300: var(--color-gray-300);
+  --color-stone-400: var(--color-gray-400);
+  --color-stone-500: var(--color-gray-500);
+  --color-stone-600: var(--color-gray-500);
+  --color-stone-700: var(--color-gray-700);
+  --color-stone-800: var(--color-gray-800);
+  --color-stone-900: var(--color-gray-900);
 }
 
 /* Wave backgrounds on the dashboard stat cards.
@@ -210,6 +264,23 @@ html.dark [style*="c7d9f7"] {
 .dark .bg-white {
   background-color: var(--fc-surface);
 }
+html.fc-app.dark input[type="file"]::file-selector-button {
+  background-color: var(--fc-surface);
+  color: var(--color-gray-700);
+}
+html.fc-app.dark input[type="file"]::file-selector-button:hover {
+  background-color: var(--color-gray-100);
+}
+/* Responsive surfaces need matching overrides: the plain bg-white selector
+   does not match lg:bg-white, and otherwise overrides lg:bg-transparent. */
+@media (min-width: 64rem) {
+  .dark .lg\:bg-white {
+    background-color: var(--fc-surface);
+  }
+  .dark .lg\:bg-transparent {
+    background-color: transparent;
+  }
+}
 .dark .bg-white\/80 {
   background-color: rgb(36 37 38 / 0.8);
 }
@@ -228,6 +299,17 @@ html.dark [style*="c7d9f7"] {
   background-color: rgb(0 0 0 / 0.6);
 }
 
+/* Notification dropdowns: neutral rows, with blue reserved for unread dots. */
+html.fc-app.dark .fc-notification-row {
+  background-color: var(--fc-raised);
+}
+html.fc-app.dark .fc-notification-row.bg-blue-50 {
+  background-color: var(--color-gray-100);
+}
+html.fc-app.dark .fc-notification-row:hover {
+  background-color: var(--color-gray-200);
+}
+
 /* ---- Solid fills --------------------------------------------------------
    White text on Tailwind's 500s is only 2.3-3.8:1. The 600/700 steps clear
    4.5:1 and glare less on a dark page. */
@@ -237,7 +319,7 @@ html.dark [style*="c7d9f7"] {
 }
 .dark .hover\:bg-blue-600:hover,
 .dark .hover\:bg-blue-700:hover {
-  background-color: #3b6bcf;
+  background-color: var(--fc-brand-hover, #3b6bcf);
 }
 .dark .bg-red-500,
 .dark .bg-red-600 {
@@ -274,11 +356,11 @@ html.dark [style*="c7d9f7"] {
    so it wins at equal specificity. */
 .dark .nav-active {
   background-color: var(--color-blue-100);
-  color: #7db4ff;
+  color: var(--fc-accent, #7db4ff);
 }
 .dark .fc-chat-header {
   background-color: var(--color-blue-100);
-  color: #bcd6ff;
+  color: var(--fc-accent-strong, #bcd6ff);
   border-bottom: 1px solid var(--color-blue-200);
 }
 .dark .fc-chat-header button {
@@ -291,14 +373,14 @@ html.dark [style*="c7d9f7"] {
    fill (badges, alerts, toasts). All 6:1 or better on a card. */
 .dark .text-blue-500,
 .dark .text-blue-600 {
-  color: #7db4ff;
+  color: var(--fc-accent, #7db4ff);
 }
 .dark .text-blue-700,
 .dark .text-blue-800,
 .dark .text-blue-900,
 .dark .hover\:text-blue-600:hover,
 .dark .hover\:text-blue-700:hover {
-  color: #bcd6ff;
+  color: var(--fc-accent-strong, #bcd6ff);
 }
 .dark .text-red-500,
 .dark .text-red-600 {
@@ -379,7 +461,7 @@ html.dark[data-theme-choice="light"] [data-theme-choice="light"],
 html.dark[data-theme-choice="dark"] [data-theme-choice="dark"],
 html.dark[data-theme-choice="system"] [data-theme-choice="system"] {
   background: var(--color-blue-100);
-  color: #7db4ff;
+  color: var(--fc-accent, #7db4ff);
   border-color: var(--color-blue-200);
 }
 
@@ -408,6 +490,66 @@ html.dark[data-theme-choice="system"] [data-theme-choice="system"] {
   background-color: var(--color-gray-100);
   color: var(--color-gray-700);
 }
+
+/* App identity: the logo carries the blue; name and role stay neutral. */
+html.fc-app.dark aside h1.text-primary,
+html.fc-app.dark header h1.text-primary {
+  color: var(--color-gray-900);
+}
+
+html.fc-app.dark aside .role-pill {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-500);
+}
+
+/* Disabled actions are neutral, not translucent blue. Explicit state colours
+   stay consistent on cards and floating surfaces; enabled actions remain blue. */
+html.fc-app.dark button:disabled {
+  background-color: var(--color-gray-100);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-400);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/* Form fields share one inset surface, including custom dropdown triggers. */
+html.fc-app.dark input.bg-gray-50,
+html.fc-app.dark textarea.bg-gray-50,
+html.fc-app.dark select.bg-gray-50 {
+  background-color: var(--color-gray-50);
+  border-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+/* Safety net: any text field, whatever light fill its classes ask for
+   (bg-white, bg-slate-50, a bare default), gets the same inset surface, so no
+   field can stay light on a dark page. Only the fill is set here; borders and
+   text colours still come from the (already remapped) utility classes, so
+   error states keep their colour. Transparent fields that sit inside a styled
+   wrapper, the hidden CDD select and error-tinted fields are left alone. */
+html.fc-app.dark :is(input, textarea, select):not(
+    [type="checkbox"], [type="radio"], [type="file"], [type="hidden"],
+    [type="submit"], [type="button"], [type="reset"], [type="range"],
+    [type="color"], [type="image"], .bg-transparent, [data-cdd-enhanced],
+    [aria-invalid="true"], [class*="bg-red-"], .sr-only
+  ) {
+  background-color: var(--color-gray-50);
+}
+html.fc-app.dark :is(input, textarea, select):is(:disabled, [readonly]):not(.sr-only, [type="hidden"]) {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-400);
+}
+/* Placeholders: placeholder-gray-300 would be near-invisible on the dark inset. */
+html.fc-app.dark :is(input, textarea)::placeholder {
+  color: var(--color-gray-400);
+  opacity: 1;
+}
+/* Native option lists follow the field colours. */
+html.fc-app.dark select option {
+  background-color: var(--fc-raised);
+  color: var(--color-gray-700);
+}
+
 
 /* Skeleton loader — shimmer animation (Facebook-style placeholders) */
 @keyframes skeleton-shimmer {
@@ -502,8 +644,8 @@ html.dark[data-theme-choice="system"] [data-theme-choice="system"] {
 
 /* Custom dropdowns share the dark surfaces and text palette. */
 html.dark .cdd-btn {
-  background: var(--fc-surface);
-  border-color: var(--color-gray-300);
+  background: var(--color-gray-50);
+  border-color: var(--color-gray-200);
   color: var(--color-gray-700);
 }
 html.dark .cdd-btn svg,
@@ -512,7 +654,7 @@ html.dark .cdd-label.placeholder {
 }
 html.dark .cdd-btn:focus,
 html.dark .cdd-btn.open {
-  box-shadow: 0 0 0 2px #7db4ff;
+  box-shadow: 0 0 0 2px var(--fc-accent, #7db4ff);
 }
 html.dark .cdd-btn:disabled,
 html.dark .cdd-btn.locked {
@@ -529,14 +671,14 @@ html.dark .cdd-item {
 html.dark .cdd-item:hover,
 html.dark .cdd-item.active {
   background: var(--color-blue-100);
-  color: #bcd6ff;
+  color: var(--fc-accent-strong, #bcd6ff);
 }
 html.dark .cdd-item .chk {
-  color: #7db4ff;
+  color: var(--fc-accent, #7db4ff);
 }
 html.dark .cdd-item:hover .chk,
 html.dark .cdd-item.active .chk {
-  color: #bcd6ff;
+  color: var(--fc-accent-strong, #bcd6ff);
 }
 html.dark .cdd-item[aria-disabled="true"]:hover,
 html.dark .cdd-item[aria-disabled="true"].active {
@@ -560,6 +702,26 @@ html.dark .cdd.invalid .cdd-btn.open {
 }
 
 /* must come after .skeleton so it wins */
+/* One focus treatment for app fields and dropdowns. Composite password
+   fields keep the ring on their wrapper, never on the transparent input. */
+html.fc-app {
+  --fc-focus-color: var(--fc-brand);
+}
+html.fc-app.dark {
+  --fc-focus-color: var(--fc-accent);
+}
+html.fc-app :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not(.bg-transparent):not([data-cdd-enhanced]),
+  textarea,
+  select:not([data-cdd-enhanced])
+):not([aria-invalid="true"]):focus,
+html.fc-app .focus-within\:ring-2:not(:has([aria-invalid="true"])):focus-within,
+html.fc-app .cdd:not(.invalid):not(.cdd-transparent) .cdd-btn:not(:disabled):not(.locked):is(:focus, .open) {
+  outline: none;
+  border-color: var(--fc-focus-color);
+  box-shadow: 0 0 0 2px var(--fc-focus-color);
+}
+
 html.dark .skeleton {
   background: linear-gradient(
     90deg,

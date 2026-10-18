@@ -211,7 +211,7 @@ class SignUpForm(forms.Form):
 
         if role != 'staff' and not email.endswith('@udm.edu.ph'):
                 raise forms.ValidationError(""
-                "Users must use their official UDM email address (@udm.edu.ph) except for university personnel"
+                "Students and faculty must use their official UDM email address (@udm.edu.ph). Staff may use a non-UDM email address."
         )
 
         existing = User.objects.filter(email__iexact=email).select_related('profile').first()

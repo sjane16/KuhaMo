@@ -390,6 +390,12 @@ def exportJobOrderPDF(request, report_id):
         user=request.user,
     )
 
+    if report.status not in ('in_progress', 'resolved', 'closed'):
+        return HttpResponse(
+            "Job order export is available once maintenance is in progress.",
+            status=403,
+        )
+
     category_checks = {
         'vehicle_checkup': report.category == 'vehicle_checkup',
         'electrical': report.category == 'electrical',

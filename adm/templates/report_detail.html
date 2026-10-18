@@ -22,8 +22,8 @@
           <h1 class="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">Report Details</h1>
           <span class="text-[10px] lg:text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full whitespace-nowrap">{{ report.job_order_id }}</span>
           {% if report.status == 'pending' %}
-            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 whitespace-nowrap">
-              <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               {{ report.get_status_display }}
             </span>
           {% elif report.status == 'in_progress' %}
@@ -91,9 +91,9 @@
                   {% endif %}
                 </div>
                 <div>
-                  <p class="text-[10px] font-semibold text-green-600 uppercase tracking-wide mb-1.5">Resolution Proof</p>
+                  <p class="text-[10px] font-semibold text-green-600 uppercase tracking-wide mb-1.5">Completion Photo</p>
                   <img src="{{ report.completion_photo.url }}"
-                       alt="Resolution Proof"
+                       alt="Completion Photo"
                        onclick="openPhotoModal('{{ report.completion_photo.url }}')"
                        class="block w-full h-36 object-cover rounded-xl bg-gray-100 cursor-pointer" />
                 </div>
@@ -226,7 +226,7 @@
                   {% if report.priority == 'critical' %}
                     <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">Critical / Urgent</span>
                   {% elif report.priority == 'high' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">High Priority</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-orange-200">High Priority</span>
                   {% elif report.priority == 'standard' %}
                     <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">Standard</span>
                   {% elif report.priority == 'awaiting_materials' %}
@@ -775,7 +775,7 @@
   <style>
     .unit-dd { position: relative; }
     .unit-dd-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; font-size: 0.875rem; color: #374151; text-align: left; cursor: pointer; }
-    .unit-dd-btn:focus, .unit-dd-btn.open { outline: none; box-shadow: 0 0 0 2px #3b82f6; }
+    .unit-dd-btn:focus, .unit-dd-btn.open { outline: none; border-color: var(--fc-focus-color); box-shadow: 0 0 0 2px var(--fc-focus-color); }
     .unit-dd-btn svg { width: 14px; height: 14px; flex-shrink: 0; color: #9ca3af; }
     .unit-dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .unit-dd-label.placeholder { color: #9ca3af; }
@@ -783,20 +783,20 @@
     .unit-dd-list.show { display: block; }
     .unit-dd-list.up { top: auto; bottom: calc(100% + 6px); }
     .unit-dd-item { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 10px; font-size: 0.875rem; color: #374151; background: transparent; text-align: left; cursor: pointer; }
-    .unit-dd-item:hover { background: #2563eb; color: #fff; }
+    .unit-dd-item:hover { background: var(--fc-brand); color: #fff; }
     .unit-dd-item.selected { font-weight: 600; }
-    .unit-dd-item .chk { visibility: hidden; width: 16px; height: 16px; color: #2563eb; flex-shrink: 0; }
+    .unit-dd-item .chk { visibility: hidden; width: 16px; height: 16px; color: var(--fc-brand); flex-shrink: 0; }
     .unit-dd-item.selected .chk { visibility: visible; }
     .unit-dd-item:hover .chk { color: #fff; }
     /* Material units use a separate widget from the shared custom dropdown. */
     html.dark .unit-dd-btn { background: var(--fc-surface); border-color: var(--color-gray-300); color: var(--color-gray-700); }
-    html.dark .unit-dd-btn:focus, html.dark .unit-dd-btn.open { box-shadow: 0 0 0 2px #7db4ff; }
+    html.dark .unit-dd-btn:focus, html.dark .unit-dd-btn.open { border-color: var(--fc-focus-color); box-shadow: 0 0 0 2px var(--fc-focus-color); }
     html.dark .unit-dd-btn svg, html.dark .unit-dd-label.placeholder { color: var(--color-gray-400); }
     html.dark .unit-dd-list { background: var(--fc-raised); border-color: var(--color-gray-200); }
     html.dark .unit-dd-item { color: var(--color-gray-700); }
-    html.dark .unit-dd-item:hover, html.dark .unit-dd-item:focus-visible { background: var(--color-blue-100); color: #bcd6ff; }
-    html.dark .unit-dd-item .chk { color: #7db4ff; }
-    html.dark .unit-dd-item:hover .chk, html.dark .unit-dd-item:focus-visible .chk { color: #bcd6ff; }
+    html.dark .unit-dd-item:hover, html.dark .unit-dd-item:focus-visible { background: var(--color-blue-100); color: var(--fc-accent-strong); }
+    html.dark .unit-dd-item .chk { color: var(--fc-accent); }
+    html.dark .unit-dd-item:hover .chk, html.dark .unit-dd-item:focus-visible .chk { color: var(--fc-accent-strong); }
   </style>
   <!-- ═══════════════════════════════════
      PHOTO LIGHTBOX MODAL

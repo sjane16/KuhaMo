@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from requests import request
-from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices
+from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices, UserProfile
 from django.db.models import Count, Q, Sum
 from django.core.cache import cache
 from datetime import timedelta, datetime
@@ -15,7 +15,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
-from user.forms import UserForm, ProfilePasswordChangeForm, form_error_text
+from user.forms import UserForm, ProfilePhotoForm, ProfilePasswordChangeForm, form_error_text
 from security.audit import log_event
 from django.contrib.auth import update_session_auth_hash
 from xhtml2pdf import pisa
@@ -1524,6 +1524,30 @@ def ProfileMenu(request):
             else:
                 # Plain-text error message (avoids raw HTML from form.errors)
                 messages.error(request, form_error_text(user_form))
+
+        elif 'save_photo' in request.POST:
+            if 'profile_photo' not in request.FILES:
+                messages.error(request, "Please select a photo to upload.")
+            else:
+                profile, _ = UserProfile.objects.get_or_create(user=request.user)
+                photo_form = ProfilePhotoForm(request.POST, request.FILES, instance=profile)
+
+                if photo_form.is_valid():
+                    photo_form.save()
+                    messages.success(request, "Profile Photo Updated Successfully")
+                    return redirect('ProfileMenu')
+
+                for errors in photo_form.errors.values():
+                    for error in errors:
+                        messages.error(request, error)
+
+        elif 'remove_photo' in request.POST:
+            profile = UserProfile.objects.filter(user=request.user).first()
+            if profile and profile.profile_photo:
+                profile.profile_photo.delete(save=True)
+                messages.success(request, "Profile photo removed successfully")
+
+            return redirect('ProfileMenu')
 
         elif 'change_password' in request.POST:
             password_form = ProfilePasswordChangeForm(request.user, request.POST)

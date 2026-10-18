@@ -38,8 +38,8 @@
           <h1 class="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">Report Details</h1>
           <span class="text-[10px] lg:text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full whitespace-nowrap">{{ report.job_order_id }}</span>
           {% if report.status == 'pending' %}
-            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 whitespace-nowrap">
-              <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+            <span class="inline-flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs font-semibold px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               {{ report.get_status_display }}
             </span>
           {% elif report.status == 'in_progress' %}
@@ -67,7 +67,7 @@
             </svg>
             View Scanned Job Order
           </a>
-        {% else %}
+        {% elif report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
           <button type="button"
                   onclick="exportJobOrder()"
                   class="ml-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 lg:py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600 hover:bg-blue-100 active:bg-blue-100 transition-colors">
@@ -112,9 +112,9 @@
                   {% endif %}
                 </div>
                 <div>
-                  <p class="text-[10px] font-semibold text-green-600 uppercase tracking-wide mb-1.5">Resolution Proof</p>
+                  <p class="text-[10px] font-semibold text-green-600 uppercase tracking-wide mb-1.5">Completion Photo</p>
                   <img src="{{ report.completion_photo.url }}"
-                       alt="Resolution Proof"
+                       alt="Completion Photo"
                        onclick="openImageLightbox('{{ report.completion_photo.url }}')"
                        class="block w-full h-36 object-cover rounded-xl bg-gray-100 cursor-pointer" />
                 </div>
@@ -232,7 +232,7 @@
                   {% if report.priority == 'critical' %}
                     <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">Critical / Urgent</span>
                   {% elif report.priority == 'high' %}
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">High Priority</span>
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-orange-200">High Priority</span>
                   {% elif report.priority == 'standard' %}
                     <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">Standard</span>
                   {% endif %}
@@ -434,13 +434,13 @@
         <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl h-[90vh] flex flex-col overflow-hidden">
           <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
             <h2 class="text-sm font-bold text-gray-900">Job Order Form — {{ report.job_order_id }}</h2>
-            <button type="button" onclick="closeJobOrder()" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
+            <button type="button" onclick="closeJobOrder()" aria-label="Close preview" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <iframe src="{% url 'exportJobOrderPDF' report.id %}" class="flex-1 w-full border-0"></iframe>
+          <iframe src="{% url 'exportJobOrderPDF' report.id %}" title="Job order preview" class="flex-1 w-full border-0"></iframe>
         </div>
       `;
 
@@ -765,12 +765,10 @@
             if (state === "loading") {
                 btn.disabled = true;
                 btn.textContent = "Submitting...";
-                btn.style.backgroundColor = "#93c5fd"; // blue-300
                 btn.style.cursor = "not-allowed";
             } else {
                 btn.disabled = false;
                 btn.textContent = "Submit Survey";
-                btn.style.backgroundColor = "";
                 btn.style.cursor = "";
             }
         }

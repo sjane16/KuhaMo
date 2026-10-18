@@ -139,8 +139,8 @@
       showMessage(
         "passkey-login-message",
         noneUsed
-          ? "No passkey was used. If you haven't set one up yet, log in with your email and password first, " +
-            "then choose \"Set up passkey\" on your dashboard (or Profile → Passkeys)."
+          ? "Passkey sign-in didn't go through. If you haven't set up a passkey yet, sign in with your " +
+            "email and password first, then choose \"Set up passkey\" on your dashboard."
           : friendlyBrowserError(err),
         true
       );
