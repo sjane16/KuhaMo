@@ -13,7 +13,11 @@
         font: 500 13px/1.4 "Poppins", sans-serif;
         white-space: nowrap;
         transition: padding 220ms ease, gap 220ms ease;
+        touch-action: none;
+        user-select: none;
+        cursor: grab;
     }
+    #chatbot-toggle:active { cursor: grabbing; }
     #chatbot-toggle > span {
         max-width: 110px;
         overflow: hidden;
@@ -106,6 +110,7 @@
         const chatForm = document.getElementById("chat-form");
         const chatInput = document.getElementById("chat-input");
         const quickReply = document.getElementById("quick-replies");
+        const mobileBottomNav = document.getElementById("mobile-bottom-nav");
 
         // Observe the top of the document instead of running a handler on every scroll.
         if ('IntersectionObserver' in window) {
@@ -119,13 +124,60 @@
             scrollObserver.observe(scrollMarker);
         }
 
+        let drag = null;
+        let wasDragged = false;
+        function clampToggleBottom(bottom) {
+            const navVisible = mobileBottomNav && getComputedStyle(mobileBottomNav).display !== "none";
+            const navClearance = navVisible
+                ? window.innerHeight - mobileBottomNav.getBoundingClientRect().top + 12
+                : 12;
+            const minBottom = Math.min(navClearance, window.innerHeight - chatbotToggle.offsetHeight - 12);
+            const maxBottom = Math.max(minBottom, window.innerHeight - chatbotToggle.offsetHeight - 12);
+            return Math.max(minBottom, Math.min(bottom, maxBottom));
+        }
+
+        chatbotToggle.addEventListener("pointerdown", function(event) {
+            if (event.button !== undefined && event.button !== 0) return;
+            const rect = chatbotToggle.getBoundingClientRect();
+            drag = {
+                pointerId: event.pointerId,
+                startY: event.clientY,
+                startBottom: window.innerHeight - rect.bottom,
+                moved: false,
+            };
+            chatbotToggle.setPointerCapture(event.pointerId);
+        });
+        chatbotToggle.addEventListener("pointermove", function(event) {
+            if (!drag || event.pointerId !== drag.pointerId) return;
+            const deltaY = drag.startY - event.clientY;
+            if (Math.abs(deltaY) < 4 && !drag.moved) return;
+            drag.moved = true;
+            wasDragged = true;
+            chatbotToggle.style.bottom = `${clampToggleBottom(drag.startBottom + deltaY)}px`;
+        });
+        function endToggleDrag(event) {
+            if (!drag || (event.pointerId !== undefined && event.pointerId !== drag.pointerId)) return;
+            const moved = drag.moved;
+            drag = null;
+            if (event.type === "pointercancel") wasDragged = false;
+            else if (moved) setTimeout(() => { wasDragged = false; }, 0);
+        }
+        chatbotToggle.addEventListener("pointerup", endToggleDrag);
+        chatbotToggle.addEventListener("pointercancel", endToggleDrag);
+
         const localQues = {
             "how_to_report": "First, create an account and log in to Fac-Check then go to the report issue page. After that, upload a clear photo of the defect and let Fac-Check categorize your report. Then, select the location. Lastly, submit the report.",
             "turnaround_time": "The assessment and verification of concerns typically take 2-3 working days on the part of the Maintenance and Engineering Division.",
             "general_user": "All official UDM stakeholders, including active students, professors, and university administrative staff can log in and submit facility reports."
         };
 
-        chatbotToggle.addEventListener("click", () => chatWindow.classList.toggle("hidden"));
+        chatbotToggle.addEventListener("click", () => {
+            if (wasDragged) {
+                wasDragged = false;
+                return;
+            }
+            chatWindow.classList.toggle("hidden");
+        });
         chatClose.addEventListener("click", () => chatWindow.classList.add("hidden"));
 
         function appendMessage(text, isUser) {

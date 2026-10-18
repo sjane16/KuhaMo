@@ -1,17 +1,18 @@
 import json
+import logging
 from pathlib import Path
-
-import numpy as np
-import tensorflow as tf
-from PIL import Image
-
+from threading import Lock, Thread
 
 ML_DIR = Path(__file__).resolve().parent
 MODEL_PATH = ML_DIR / "faccheck_cnn_model.keras"
 LABELS_PATH = ML_DIR / "class_labels.json"
 CONFIG_PATH = ML_DIR / "inference_config.json"
 
-MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+MODEL = None
+_MODEL_LOCK = Lock()
+_WARMUP_LOCK = Lock()
+_WARMUP_STARTED = False
+logger = logging.getLogger(__name__)
 
 with open(LABELS_PATH, "r", encoding="utf-8") as file:
     CLASS_NAMES = json.load(file)
@@ -34,7 +35,43 @@ CATEGORY_MAP = {
 }
 
 
+def _load_model():
+    global MODEL
+    if MODEL is None:
+        with _MODEL_LOCK:
+            if MODEL is None:
+                import tensorflow as tf
+                MODEL = tf.keras.models.load_model(MODEL_PATH, compile=False)
+    return MODEL
+
+
+def _warm_model():
+    global _WARMUP_STARTED
+    try:
+        _load_model()
+    except Exception:
+        logger.exception("CNN model background warm-up failed")
+    finally:
+        with _WARMUP_LOCK:
+            _WARMUP_STARTED = False
+
+
+def warm_model_async():
+    """Load the model in the background while the user fills out a report."""
+    global _WARMUP_STARTED
+    if MODEL is not None:
+        return
+    with _WARMUP_LOCK:
+        if MODEL is not None or _WARMUP_STARTED:
+            return
+        _WARMUP_STARTED = True
+        Thread(target=_warm_model, name="cnn-model-warmup", daemon=True).start()
+
+
 def predict_image(image_file):
+    import numpy as np
+    from PIL import Image
+
     image_file.seek(0)
 
     image = Image.open(image_file).convert("RGB")
@@ -44,7 +81,7 @@ def predict_image(image_file):
     image_array = image_array / 255.0
     image_array = np.expand_dims(image_array, axis=0)
 
-    predictions = MODEL.predict(image_array, verbose=0)[0]
+    predictions = _load_model().predict(image_array, verbose=0)[0]
 
     sorted_indices = np.argsort(predictions)[::-1]
 

@@ -2,7 +2,7 @@
 <!-- BOTTOM NAV (mobile only)  -->
 <!-- ========================= -->
 {% load static tailwind_tags %}
-<nav class="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex items-center justify-around h-18 rounded-tl-3xl rounded-tr-4xl shadow-[0_-10px_25px_rgba(0,0,0,0.09)]">
+<nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex items-center justify-around h-18 rounded-tl-3xl rounded-tr-4xl shadow-[0_-10px_25px_rgba(0,0,0,0.09)]">
     <!-- Home -->
     <a href="{% url 'userDashboard' %}"
        class="flex flex-col items-center gap-1 flex-1 py-2 text-xs font-medium {% if request.resolver_match.url_name == 'userDashboard' %}text-blue-500{% else %}text-gray-400{% endif %}">

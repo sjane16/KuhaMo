@@ -7,17 +7,21 @@
 # urlparse separates a redirect URL into its path and query string.
 # parse_qs converts a query string into a dictionary of lists.
 from urllib.parse import parse_qs, urlparse
+from smtplib import SMTPException
+from unittest.mock import patch
 
 # AnonymousUser represents a visitor who has not logged in.
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, User
+from django.http import HttpResponse
 # RequestFactory builds requests without a browser or running development server.
 # SimpleTestCase blocks database queries by default; these checks need no test data.
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 # reverse: route name -> URL. resolve: URL -> registered view.
 from django.urls import resolve, reverse
 
 # Import the real landing view so its template and URL tags are rendered.
 from accounts.views import splash_screen
+from user.models import UserProfile
 
 
 # Regression tests protect existing navigation against future route changes.
@@ -108,3 +112,44 @@ class LandingNavigationTests(SimpleTestCase):
                     parse_qs(redirect_url.query).get('next'),
                     [destination],
                 )
+
+
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+class SignupMergeTests(TestCase):
+    def test_staff_signup_reuse_and_email_failure_cleanup(self):
+        for reuse, mail_fails in [(False, False), (False, True), (True, True)]:
+            with self.subTest(reuse=reuse, mail_fails=mail_fails):
+                email = f'staff-{reuse}-{mail_fails}@example.com'
+                existing = None
+                if reuse:
+                    existing = User.objects.create_user(
+                        username=email, email=email, password='old-password', is_active=False,
+                    )
+                    UserProfile.objects.update_or_create(user=existing, defaults={'role': 'staff'})
+
+                session = self.client.session
+                session['privacy_viewed'] = True
+                session.save()
+                with patch('accounts.views.SignUpForm') as form_class, \
+                     patch('accounts.views.is_ip_flagged', return_value=False), \
+                     patch('accounts.views.is_ratelimited', return_value=False), \
+                     patch('accounts.views.send_mail', side_effect=SMTPException('offline') if mail_fails else None), \
+                     patch('accounts.views._render_signup', return_value=HttpResponse('signup')):
+                    form_class.return_value.is_valid.return_value = True
+                    form_class.return_value.cleaned_data = {
+                        'first_name': 'Test', 'last_name': 'Staff', 'email': email,
+                        'password': 'new-password', 'role': 'staff',
+                        'department': 'Facilities', 'phone': '09123456789',
+                    }
+                    response = self.client.post(reverse('signup'))
+
+                saved = User.objects.filter(email=email).first()
+                if mail_fails and not reuse:
+                    self.assertIsNone(saved)
+                else:
+                    self.assertIsNotNone(saved)
+                    self.assertEqual(UserProfile.objects.get(user=saved).approval_status, UserProfile.APPROVAL_PENDING)
+                    if reuse:
+                        self.assertEqual(saved.pk, existing.pk)
+                    else:
+                        self.assertRedirects(response, reverse('verify_otp'), fetch_redirect_response=False)

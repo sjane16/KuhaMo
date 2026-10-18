@@ -7,6 +7,7 @@
     <title>Fac-Check Create Account</title>
     <script src="{% static 'user/js/theme.js' %}"></script>
     {% tailwind_css %}
+    <script src="{% static 'cdd/custom-dropdown.js' %}?v=2" defer></script>
     <link rel="stylesheet" href="{% static 'accounts/css/auth_dark.css' %}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,6 +25,7 @@
         }
 
         body.fc-signup-page {
+            --fc-brand: #0f4c81;
             margin: 0;
             min-height: 100vh;
             min-height: 100svh;
@@ -202,7 +204,7 @@
             color: #173b5c;
         }
 
-        .fc-signup-field button {
+        .fc-signup-field > button {
             display: grid;
             place-items: center;
             flex-shrink: 0;
@@ -212,10 +214,20 @@
             cursor: pointer;
         }
 
-        .fc-signup-field button svg {
+        .fc-signup-field > button svg {
             width: 16px;
             height: 16px;
             margin: 0;
+        }
+
+        .fc-signup-field .cdd {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .fc-signup-field .cdd-btn {
+            min-height: 44px;
+            font-size: 14px;
         }
 
         .fc-signup-card a {
@@ -366,7 +378,8 @@
                 font-size: 22px;
             }
 
-            .fc-signup-field input {
+            .fc-signup-field input,
+            .fc-signup-field .cdd-btn {
                 font-size: 16px;
             }
         }
@@ -438,6 +451,8 @@
             flex: 1;
         }
     </style>
+    <link rel="stylesheet" href="{% static 'submission-state.css' %}">
+    <script src="{% static 'submission-state.js' %}" defer></script>
   </head>
   <body class="fc-signup-page">
     <svg class="fc-signup-background"

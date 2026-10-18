@@ -1,14 +1,14 @@
 {% extends "user/layouts/base.html" %}
 {% load static %}
 {% block title %}Home{% endblock %}{% block content %}
-<main class="flex-1 w-full lg:mx-auto">
-  <div class="px-4 pt-5 -mb-5 lg:px-5 lg:pt-6 lg:mb-0 lg:max-w-4xl lg:mx-auto">
+<main class="flex-1 w-full">
+  <div class="px-6 lg:px-10 xl:px-16 pt-5 -mb-5 lg:pt-6 lg:mb-0">
     {% include 'accounts/components/passkey_setup_prompt.html' %}
   </div>
   <script src="{% static 'accounts/js/passkeys.js' %}"></script>
   <!-- MOBILE VIEW -->
   <div class="lg:hidden flex flex-col min-h-screen bg-gray-50">
-    <div class="flex-1 px-4 pt-5 pb-28 overflow-y-auto">
+    <div class="flex-1 px-6 pt-5 pb-28 overflow-y-auto">
       <div id="dashboard-skeleton-mobile">
         <div class="flex items-center gap-3 mb-5">
           <div class="skeleton w-12 h-12 rounded-full flex-shrink-0"></div>
@@ -20,9 +20,15 @@
         <div class="skeleton w-full h-14 rounded-2xl mb-4"></div>
         <div class="grid grid-cols-2 gap-3 mb-5">
           {% for n in "12345" %}
-            <div class="bg-white border border-gray-200 rounded-2xl p-4 {% if n == "5" %}col-span-2{% endif %}">
-              <div class="skeleton h-3 w-16 rounded mb-3"></div>
-              <div class="skeleton h-8 w-12 rounded"></div>
+            <div class="bg-white border border-gray-200 rounded-2xl p-1 shadow-sm {% if n == "5" %}col-span-2{% endif %}">
+              <div class="skeleton h-12 w-full rounded-xl"></div>
+              <div class="px-3 pb-3 pt-4">
+                <div class="skeleton h-9 w-12 rounded"></div>
+                <div class="flex items-center justify-between gap-2 mt-3">
+                  <div class="skeleton h-3 w-16 rounded"></div>
+                  <div class="skeleton h-6 w-10 rounded-lg"></div>
+                </div>
+              </div>
             </div>
           {% endfor %}
         </div>
@@ -42,7 +48,7 @@
     </div>
   </div>
   <!-- DESKTOP VIEW -->
-  <div class="hidden lg:block px-5 pt-6 pb-10 max-w-4xl w-full mx-auto">
+  <div class="hidden lg:block px-6 lg:px-10 xl:px-16 pt-6 pb-10 w-full">
     <div id="dashboard-skeleton-desktop">
       <div class="mb-6 space-y-2">
         <div class="skeleton h-7 w-64 rounded"></div>
@@ -53,10 +59,15 @@
       </div>
       <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {% for n in "12345" %}
-          <div class="bg-white rounded-2xl p-5 border border-gray-200 min-h-[200px]">
-            <div class="skeleton w-11 h-11 rounded-xl mb-3"></div>
-            <div class="skeleton h-3 w-20 rounded mb-2"></div>
-            <div class="skeleton h-9 w-14 rounded"></div>
+          <div class="bg-white rounded-2xl p-1 border border-gray-200 shadow-sm">
+            <div class="skeleton h-12 w-full rounded-xl"></div>
+            <div class="px-4 pb-4 pt-4">
+              <div class="skeleton h-10 w-14 rounded"></div>
+              <div class="flex items-center justify-between gap-2 mt-3">
+                <div class="skeleton h-3 w-20 rounded"></div>
+                <div class="skeleton h-6 w-10 rounded-lg"></div>
+              </div>
+            </div>
           </div>
         {% endfor %}
       </div>

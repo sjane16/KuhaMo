@@ -188,6 +188,8 @@
 
     if (notifMarkAllReadBtn) {
         notifMarkAllReadBtn.addEventListener("click", function() {
+            if (notifMarkAllReadBtn.disabled) return;
+            setSubmissionBusy(notifMarkAllReadBtn, true);
             fetch("{% url 'mark_all_notifications_read_admin' %}", {
                     method: "POST",
                     headers: {
@@ -204,7 +206,8 @@
                         if (badge) badge.remove();
                     }
                 })
-                .catch((error) => console.error("Failed to mark all as read:", error));
+                .catch((error) => console.error("Failed to mark all as read:", error))
+                .finally(() => setSubmissionBusy(notifMarkAllReadBtn, false));
         });
     }
 
