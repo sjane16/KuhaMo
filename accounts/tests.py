@@ -20,6 +20,7 @@ from django.test import RequestFactory, SimpleTestCase, TestCase, override_setti
 from django.urls import resolve, reverse
 
 # Import the real landing view so its template and URL tags are rendered.
+from accounts.forms import SignUpForm
 from accounts.views import splash_screen
 from user.models import UserProfile
 
@@ -116,10 +117,70 @@ class LandingNavigationTests(SimpleTestCase):
 
 @override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
 class SignupMergeTests(TestCase):
+    def test_signup_roles_and_email_domains(self):
+        self.assertEqual(
+            [value for value, _ in SignUpForm.base_fields['role'].choices if value],
+            ['student', 'faculty', 'staff'],
+        )
+        for role, email, valid in [
+            ('staff', 'worker@gmail.com', True),
+            ('staff', 'WORKER@GMAIL.COM', True),
+            ('staff', 'worker@yahoo.com', False),
+            ('staff', 'worker@udm.edu.ph', False),
+            ('staff', 'worker@gmail.com.example.com', False),
+            ('student', 'student@udm.edu.ph', True),
+            ('faculty', 'faculty@udm.edu.ph', True),
+            ('student', 'student@gmail.com', False),
+            ('faculty', 'faculty@gmail.com', False),
+        ]:
+            with self.subTest(role=role, email=email):
+                form = SignUpForm(data={'role': role, 'email': email})
+                form.is_valid()
+                self.assertEqual('email' not in form.errors, valid)
+        for role in ('admin', 'med_personnel'):
+            form = SignUpForm(data={'role': role, 'email': 'worker@gmail.com'})
+            self.assertFalse(form.is_valid())
+            self.assertIn('role', form.errors)
+
+    def test_staff_can_log_in_as_regular_user_after_signup_otp(self):
+        session = self.client.session
+        session['privacy_viewed'] = True
+        session.save()
+        with patch('accounts.views.SignUpForm') as form_class, \
+             patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False), \
+             patch('accounts.views.send_mail'), \
+             patch('accounts.views._render_signup', return_value=HttpResponse('signup')):
+            form_class.return_value.is_valid.return_value = True
+            form_class.return_value.cleaned_data = {
+                'first_name': 'Staff', 'last_name': 'Applicant', 'email': 'staff-applicant@gmail.com',
+                'password': 'new-password', 'role': 'staff',
+                'department': '', 'phone': '09123456789',
+            }
+            self.client.post(reverse('signup'))
+
+        user = User.objects.get(email='staff-applicant@gmail.com')
+        profile = UserProfile.objects.get(user=user)
+        self.assertEqual(profile.role, 'staff')
+        self.assertEqual(profile.approval_status, UserProfile.APPROVAL_APPROVED)
+        self.assertFalse(user.is_active)
+        with patch('accounts.views.is_ratelimited', return_value=False):
+            response = self.client.post(reverse('verify_otp'), {'otp': profile.otp})
+        self.assertRedirects(response, reverse('login'), fetch_redirect_response=False)
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        with patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False):
+            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'new-password'})
+        self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
     def test_staff_signup_reuse_and_email_failure_cleanup(self):
         for reuse, mail_fails in [(False, False), (False, True), (True, True)]:
             with self.subTest(reuse=reuse, mail_fails=mail_fails):
-                email = f'staff-{reuse}-{mail_fails}@example.com'
+                email = f'staff-{reuse}-{mail_fails}@gmail.com'
                 existing = None
                 if reuse:
                     existing = User.objects.create_user(
@@ -148,7 +209,7 @@ class SignupMergeTests(TestCase):
                     self.assertIsNone(saved)
                 else:
                     self.assertIsNotNone(saved)
-                    self.assertEqual(UserProfile.objects.get(user=saved).approval_status, UserProfile.APPROVAL_PENDING)
+                    self.assertEqual(UserProfile.objects.get(user=saved).approval_status, UserProfile.APPROVAL_APPROVED)
                     if reuse:
                         self.assertEqual(saved.pk, existing.pk)
                     else:

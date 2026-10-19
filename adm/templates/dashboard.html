@@ -41,6 +41,7 @@
             </div>
             <div id="dashboardContainer" class="hidden"></div>
         </main>
+        {% if is_head_admin %}
         <div id="reportModal"
              class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
              role="dialog"
@@ -132,6 +133,7 @@
                 <canvas id="report_resolutionChart"></canvas>
             </div>
         </div>
+        {% endif %}
         <style>
             /* Dashboard actions row: mobile = button first (full width), then Showing + pills on one row */
             #dashboardActionsRow {
@@ -630,6 +632,7 @@
             }
 
             function initReportModal() {
+                if (!document.getElementById("reportModal")) return;
                 document.getElementById("reportModalClose").addEventListener("click", closeDashboardReport);
                 document.getElementById("reportEdit").addEventListener("click", toggleReportEditPanel);
                 document.getElementById("reportUpdatePreview").addEventListener("click", requestDashboardReportPreview);

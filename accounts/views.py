@@ -181,7 +181,7 @@ def _approval_block_message(user):
     """Message for a verified account that may not log in yet, or None."""
     profile = getattr(user, 'profile', None)
     if profile and profile.approval_status == UserProfile.APPROVAL_PENDING:
-        return ("Your staff account is waiting for an administrator's approval. "
+        return ("Your account is waiting for an administrator's approval. "
                 "You'll receive an email once it's approved.")
     return None
 
@@ -483,7 +483,7 @@ def signup(request):
                     user=user,
                     defaults={
                         'role': role,
-                        'approval_status': UserProfile.APPROVAL_PENDING if role == 'staff' else UserProfile.APPROVAL_APPROVED,
+                        'approval_status': UserProfile.APPROVAL_APPROVED,
                         'department': department,
                         'phone': phone,
                         'otp': otp,
@@ -541,39 +541,38 @@ def verify_otp(request):
         return redirect('signup')
 
     if request.method == 'POST':
+        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=verify_otp):
+            messages.error(request, "Too many verification attempts. Please try again later")
+            return render(request, 'accounts/verify_otp.html', {'form': OTPVerificationForm(), 'user_email': user.email, **_otp_countdown_context(user)})
 
-       if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=verify_otp):
-           messages.error(request, "Too many verification attempts. Please try again later")
-           return render(request, 'accounts/verify_otp.html', {'form': OTPVerificationForm(), 'user_email': user.email, **_otp_countdown_context(user)})
+        form = OTPVerificationForm(request.POST)
+        if form.is_valid():
+            submitted_otp = form.cleaned_data['otp']
 
-       form = OTPVerificationForm(request.POST)
-       if form.is_valid():
-           submitted_otp = form.cleaned_data['otp']
-
-           try:
-               profile = UserProfile.objects.get(user=user)
-           except UserProfile.DoesNotExist:
+            try:
+                profile = UserProfile.objects.get(user=user)
+            except UserProfile.DoesNotExist:
                 _clear_messages(request)
                 messages.error(request, "Verification failed. Please sign up again.")
                 return redirect('signup')
 
-           status, attempts_left = _check_otp(profile, submitted_otp, request, 'signup verification')
+            status, attempts_left = _check_otp(profile, submitted_otp, request, 'signup verification')
 
-           if status != 'ok':
-               _otp_error(request, status, attempts_left)
-           else:
+            if status != 'ok':
+                _otp_error(request, status, attempts_left)
+            else:
                 user.is_active = True
                 user.save()
                 del request.session['pending_verification_user_id']
                 _clear_messages(request)
                 if getattr(user, 'profile', None) and user.profile.approval_status == UserProfile.APPROVAL_PENDING:
-                    messages.success(request, "Your email has been verified! Your staff account is now waiting for an "
+                    messages.success(request, "Your email has been verified! Your account is now waiting for an "
                                               "administrator's approval. You'll receive an email once it's approved.")
                 else:
                     messages.success(request, "Your account has been verified successfully! You can now log in.")
                 # The device that verified the signup is trusted, so the first login skips MFA
                 return _trust_device(redirect('login'), request, user)
-       else:
+        else:
             _clear_messages(request)
             messages.error(request, "Please enter a valid 6-digit code")
     else:

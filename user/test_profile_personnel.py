@@ -73,7 +73,8 @@ class PersonnelMigrationTests(TestCase):
         self.assertEqual(existing.assigned_personnel_data, [{'name': 'External Person'}])
         self.assertEqual(legacy.history.first().assigned_personnel_data, legacy.assigned_personnel_data)
         self.assertEqual(legacy.assigned_personnel_summary, 'Mr. Remigio, External Person')
-        self.assertTrue(build_personnel_rows(legacy)[0][0]['checked'])
+        _, legacy_names = build_personnel_rows(legacy)
+        self.assertIn({'name': 'Mr. Remigio'}, legacy_names)
         self.assertTrue(_filter_admin_reports('', 'External Person').filter(pk=legacy.pk).exists())
 
     def test_json_edit_updates_compatibility_copy_and_removal_clears_assignments(self):

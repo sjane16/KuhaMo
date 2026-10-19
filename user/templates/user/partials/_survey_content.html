@@ -14,7 +14,7 @@
                              viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>
-                        Submitted
+                        {% if survey.rating_source == 'head_admin' %}Rated by Head Admin{% else %}Submitted{% endif %}
                     </span>
                 </div>
                 <!-- Details -->
@@ -28,7 +28,8 @@
                             {% endif %}
                         </div>
                         <p class="text-sm text-gray-600"><span class="text-gray-400">Category:</span> {{ survey.report.get_category_display }}</p>
-                        <p class="text-sm text-gray-600"><span class="text-gray-400">Survey method:</span> {{ survey.report.get_survey_method_display|default:"Online system" }}</p>
+                        <p class="text-sm text-gray-600"><span class="text-gray-400">Rating source:</span> {{ survey.get_rating_source_display }}</p>
+                        {% if survey.rated_by %}<p class="text-sm text-gray-600"><span class="text-gray-400">Rated by:</span> {{ survey.rated_by.get_full_name|default:survey.rated_by.username }}</p>{% endif %}
                     </div>
                     <div class="grid grid-cols-3 gap-2 mb-3">
                         <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Quality</p><p class="text-sm font-semibold text-gray-700">{{ survey.quality|default:"-" }}</p></div>
@@ -66,7 +67,9 @@
                     </div>
                 </div>
                 <!-- Survey completion note -->
-                {% if survey.report.survey_method == 'manual' %}
+                {% if survey.rating_source == 'head_admin' %}
+                <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 leading-relaxed">The Head Admin recorded this group QQT rating for the assigned MED personnel.</div>
+                {% elif survey.report.survey_method == 'manual' %}
                 <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3">
                     <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0"
                          fill="none"

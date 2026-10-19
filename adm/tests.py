@@ -4,13 +4,14 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.db import connection
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
+from django.template.loader import render_to_string
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from django.core.cache import cache
 
-from user.models import Notification, Report, SurveyResponse
+from user.models import Notification, Report, SurveyResponse, UserProfile
 from user.views import dashboardStatsAjax, get_notifications_page_ajax, userSurveyAjax
 
 from .views import (
@@ -23,6 +24,8 @@ from .views import (
     _reports_for_resolution_buckets,
     _build_pdf_priority_tables,
 )
+from .user_management import _decorate
+from .personnel import personnel_options
 
 
 class SurveyAnalyticsPaginationTests(TestCase):
@@ -40,7 +43,7 @@ class SurveyAnalyticsPaginationTests(TestCase):
                 description="Test report",
                 status="closed",
                 priority="standard",
-                assigned_personnel_data=[{"name": "Mr. Remigio"}],
+                assigned_personnel_data=[{"name": "George L. Castro"}],
                 in_progress_at=started_at,
                 accomplished_at=started_at + timedelta(hours=1),
             )
@@ -66,9 +69,12 @@ class SurveyAnalyticsPaginationTests(TestCase):
         self.assertEqual(len(second_page), 1)
         self.assertEqual(page.paginator.count, 26)
         self.assertEqual(second_page_obj.number, 2)
-        self.assertLessEqual(len(queries), 2)
+        # Includes one cold-cache lookup for the dynamic MED personnel names.
+        self.assertLessEqual(len(queries), 3)
 
     def test_analytics_aggregate_scores_and_do_not_issue_survey_n_plus_one(self):
+        # Isolate analytics queries from the separately tested cold roster lookup.
+        personnel_options()
         with CaptureQueriesContext(connection) as queries:
             context = build_survey_analysis_context()
 
@@ -174,12 +180,16 @@ class PendingReportProgressionTests(TestCase):
         data = {
             "category": "electrical",
             "priority": "standard",
-            "personnel_names": ["remigio"],
+            "personnel_names": ["george-l-castro"],
             "pending_awaiting_personnel": "1",
             "findings": "Inspected and identified the issue.",
             "recommendation": "Replace the damaged part.",
         }
         data.update(overrides)
+        personnel_response = self.client.post(reverse('adm_report_personnel', args=[self.report.pk]), {
+            'personnel_names': data.pop('personnel_names'),
+        })
+        self.assertEqual(personnel_response.status_code, 200)
         return self.client.post(reverse("adm_report_save", args=[self.report.pk]), data)
 
     def test_pending_form_marks_full_width_and_conditional_requirements(self):
@@ -192,6 +202,8 @@ class PendingReportProgressionTests(TestCase):
         self.assertContains(response, "Required if Materials Available is unchecked")
         self.assertContains(response, "Findings")
         self.assertContains(response, "Recommendation")
+        self.assertContains(response, "Air-Conditioning and Mechanical")
+        self.assertContains(response, "George L. Castro")
 
     def test_materials_available_allows_progress_without_a_material_list(self):
         response = self.save_report(pending_awaiting_materials="1")
@@ -254,6 +266,126 @@ class PendingReportProgressionTests(TestCase):
         self.save_report(pending_awaiting_materials="1", pending_awaiting_personnel="")
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, "pending")
+
+
+@override_settings(
+    PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'],
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+)
+class StaffAdminPromotionTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.head = User.objects.create_user(username='head-role-admin', is_staff=True, password='test')
+        head_profile, _ = UserProfile.objects.get_or_create(user=self.head)
+        head_profile.role = 'admin'
+        head_profile.is_head_admin = True
+        head_profile.save(update_fields=['role', 'is_head_admin'])
+        self.account = User.objects.create_user(
+            username='staff-account', email='worker@gmail.com', is_active=True,
+            first_name='Test', last_name='Staff',
+        )
+        account_profile, _ = UserProfile.objects.get_or_create(user=self.account)
+        account_profile.role = 'staff'
+        account_profile.save(update_fields=['role'])
+        self.client.force_login(self.head)
+
+    def action(self, action='make_admin', password='test', **extra):
+        return self.client.post(
+            reverse('user_management_action', args=[self.account.pk]),
+            data=json.dumps({'action': action, 'password': password, **extra}),
+            content_type='application/json',
+        )
+
+    def test_head_can_promote_staff_and_remove_admin_without_changing_base_role(self):
+        response = self.action()
+        self.assertEqual(response.status_code, 200)
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.is_staff)
+        self.assertFalse(self.account.is_superuser)
+        self.assertEqual(self.account.profile.role, 'staff')
+        self.assertFalse(self.account.profile.is_head_admin)
+        self.assertEqual(self.action('remove_admin').status_code, 200)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.is_staff)
+        self.assertEqual(self.account.profile.role, 'staff')
+
+    def test_promotion_requires_correct_head_password(self):
+        for password in ('', 'wrong-password'):
+            with self.subTest(password=password):
+                self.assertEqual(self.action(password=password).status_code, 403)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.is_staff)
+
+    def test_only_staff_can_be_promoted_even_with_forged_role_payload(self):
+        for role in ('student', 'faculty', 'med_personnel'):
+            with self.subTest(role=role):
+                UserProfile.objects.filter(user=self.account).update(role=role)
+                response = self.action(role='staff')
+                self.assertEqual(response.status_code, 403)
+                self.account.refresh_from_db()
+                self.assertFalse(self.account.is_staff)
+                self.assertEqual(self.account.profile.role, role)
+
+    def test_change_role_action_is_no_longer_available(self):
+        self.assertEqual(self.action('change_role', role='admin').status_code, 400)
+        self.account.profile.refresh_from_db()
+        self.assertEqual(self.account.profile.role, 'staff')
+
+    def test_inactive_or_pending_staff_cannot_be_promoted(self):
+        UserProfile.objects.filter(user=self.account).update(approval_status=UserProfile.APPROVAL_PENDING)
+        self.assertEqual(self.action().status_code, 409)
+        UserProfile.objects.filter(user=self.account).update(approval_status=UserProfile.APPROVAL_APPROVED)
+        self.account.is_active = False
+        self.account.save(update_fields=['is_active'])
+        self.assertEqual(self.action().status_code, 409)
+
+    def test_regular_admin_cannot_promote_accounts(self):
+        admin = User.objects.create_user(username='regular-admin', is_staff=True, password='test')
+        self.client.force_login(admin)
+        self.assertEqual(self.action().status_code, 403)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.is_staff)
+
+    def test_regular_staff_cannot_promote_itself(self):
+        self.account.set_password('test')
+        self.account.save(update_fields=['password'])
+        self.client.force_login(self.account)
+        response = self.action()
+        self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.is_staff)
+
+    def test_head_user_management_page_and_ajax_offer_direct_staff_promotion(self):
+        response = self.client.get(reverse('user_management'))
+        self.assertContains(response, 'Enter your password to confirm')
+        self.assertNotContains(response, 'changeRoleNeedsPassword')
+        response = self.client.get(reverse('user_management_ajax'), {'search': self.account.email})
+        self.assertEqual(response.status_code, 200)
+        for key in ('desktop_html', 'mobile_html'):
+            self.assertIn('data-um-action="make_admin"', response.json()[key])
+            self.assertNotIn('data-um-action="change_role"', response.json()[key])
+
+    def test_active_user_buttons_match_role_and_deactivation_still_works(self):
+        for role in ('student', 'faculty', 'staff'):
+            with self.subTest(role=role):
+                UserProfile.objects.filter(user=self.account).update(role=role)
+                target = _decorate([User.objects.select_related('profile').get(pk=self.account.pk)])[0]
+                html = render_to_string('partials/_user_action_buttons.html', {'u': target, 'me': self.head})
+                self.assertIn('data-um-action="deactivate"', html)
+                self.assertNotIn('change_role', html)
+                self.assertEqual('data-um-action="make_admin"' in html, role == 'staff')
+        response = self.action('deactivate')
+        self.assertEqual(response.status_code, 200)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.is_active)
+        self.assertIsNotNone(self.account.profile.deactivated_at)
+        self.assertEqual(self.action('reactivate').status_code, 200)
+
+    def test_admin_promotion_remains_rate_limited(self):
+        with patch('adm.user_management.is_ratelimited', return_value=True):
+            self.assertEqual(self.action().status_code, 429)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.is_staff)
 
 
 class AdminProfileMenuTests(TestCase):

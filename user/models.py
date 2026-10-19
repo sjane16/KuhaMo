@@ -6,7 +6,7 @@ from datetime import timedelta
 from cloudinary.models import CloudinaryField
 from .validators import phone_validator
 from simple_history.models import HistoricalRecords
-from .constants import PRIORITY_SLA_HOURS
+from .constants import MED_PERSONNEL_CATEGORY_CHOICES, PRIORITY_SLA_HOURS
 
 
 REPORT_PREFIX = "MED-JO"
@@ -213,8 +213,7 @@ class UserProfile(models.Model):
         ('student', 'Student'),
         ('faculty', 'Faculty'),
         ('staff', 'Staff'),
-        # Maintenance and Engineering Division personnel: assignable to reports and rated in the
-        # personnel ratings; no admin access. Set by the Head Admin in User Management.
+        # MED personnel accounts can submit concerns and appear in assignments.
         ('med_personnel', 'MED Personnel'),
         ('admin', 'Admin'),
     ]
@@ -233,6 +232,8 @@ class UserProfile(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    med_personnel_slug = models.CharField(max_length=64, blank=True, default='')
+    med_personnel_category = models.CharField(max_length=40, blank=True, default='', choices=MED_PERSONNEL_CATEGORY_CHOICES)
     department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES, blank=True)
     phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
@@ -244,8 +245,7 @@ class UserProfile(models.Model):
     # so a password change logs out every trusted device (see accounts/views.py)
     credentials_version = models.PositiveIntegerField(default=0, db_default=0)
 
-    # Staff sign up with non-UDM emails, so an admin approves them before they can log in.
-    # Existing accounts and students/faculty are 'approved'.
+    # Retained for existing pending accounts. New signups need only email verification.
     APPROVAL_PENDING = 'pending'
     APPROVAL_APPROVED = 'approved'
     APPROVAL_CHOICES = [
@@ -271,11 +271,18 @@ class UserProfile(models.Model):
 
 
 class SurveyResponse(models.Model):
+    RATING_SOURCE_CHOICES = [
+        ('client', 'Client feedback'),
+        ('head_admin', 'Head Admin personnel rating'),
+    ]
+
     report = models.OneToOneField(Report, on_delete=models.CASCADE, related_name='survey')
     quality = models.IntegerField(null=True, blank=True)
     quantity = models.IntegerField(null=True, blank=True)
     timeliness = models.IntegerField(null=True, blank=True)
     scan_file = models.ImageField(upload_to='survey_scans/', null=True, blank=True)
+    rating_source = models.CharField(max_length=12, choices=RATING_SOURCE_CHOICES, default='client')
+    rated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='head_ratings')
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

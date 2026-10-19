@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% load static %}
 {% block title %}User Management{% endblock %}
 {% block content %}
   <main class="flex-1 min-w-0 w-full bg-gray-50">
@@ -8,10 +9,10 @@
       <div class="mb-5 lg:mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 class="text-xl lg:text-lg font-bold text-gray-900 lg:text-gray-800 leading-tight">User Management</h1>
-          <p class="text-xs lg:text-sm text-gray-500 mt-0.5">Approve staff accounts and manage who can access Fac-Check.</p>
+          <p class="text-xs lg:text-sm text-gray-500 mt-0.5">Manage user accounts and grant admin access to staff.</p>
         </div>
         <button type="button" id="openImport"
-                class="inline-flex items-center gap-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-xl shadow-sm transition-colors">
+                class="inline-flex w-full lg:w-auto items-center justify-center gap-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-xl shadow-sm transition-colors">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
           Import users
         </button>
@@ -73,14 +74,33 @@
       </div>
 
       <!-- All users -->
-      <div class="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-3xl shadow overflow-hidden">
-        <div class="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-6 pt-5 pb-4">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900">All Users</h2>
-            <p id="userCount" class="text-xs text-gray-400"><span class="skeleton inline-block h-3 w-24 rounded align-middle"></span></p>
+      <div class="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-3xl shadow overflow-visible">
+        <div id="managementControls" data-mobile-search-open="false" class="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-6 pt-5 pb-4">
+          <div id="managementHeadingRow" class="flex items-center gap-3 w-full lg:w-auto">
+            <div>
+              <h2 id="managementListTitle" class="text-lg font-bold text-gray-900">All Users</h2>
+              <p id="userCount" data-um-switch-panel class="text-xs text-gray-400"><span class="skeleton inline-block h-3 w-24 rounded align-middle"></span></p>
+              <p id="personnelCount" data-um-switch-panel hidden class="text-xs text-gray-400" aria-live="polite"></p>
+            </div>
+            <button id="managementListSwitch" type="button" aria-label="Switch to All Personnels" aria-pressed="false" title="Switch to All Personnels"
+                    class="rounded-xl border border-gray-200 p-2 text-blue-600 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-500">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3v15m0-15L4 7m4-4 4 4m4 14V6m0 15-4-4m4 4 4-4" /></svg>
+            </button>
+            <button id="managementMobileSearchButton" type="button" aria-label="Search users" aria-controls="managementMobileSearchField" aria-expanded="false"
+                    class="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 shadow-sm lg:hidden">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+            </button>
           </div>
-          <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-            <div class="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 bg-white shadow-sm w-full lg:w-64">
+          <div id="managementMobileSearchField" data-um-switch-panel hidden class="flex w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm lg:hidden">
+            <svg class="w-4 h-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+            <input id="managementMobileSearchInput" type="text" enterkeyhint="search" maxlength="100" autocomplete="off" data-lpignore="true" data-1p-ignore
+                   placeholder="Search name or email" aria-label="Search users" class="min-w-0 flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none">
+            <button id="managementMobileSearchClose" type="button" aria-label="Close search" class="shrink-0 rounded-lg p-1 text-gray-400 hover:text-gray-600">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <div id="userFilters" data-um-switch-panel class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div class="hidden lg:flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 bg-white shadow-sm w-full lg:w-64">
               <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
               <!-- type="search" + autocomplete off: stops browsers filling the admin's saved email here -->
               <input id="userSearch" type="search" name="um-user-search" autocomplete="off" data-lpignore="true" data-1p-ignore
@@ -109,8 +129,20 @@
               </select>
             </div>
           </div>
+          <div id="personnelFilters" data-um-switch-panel hidden class="grid grid-cols-2 gap-2 w-full lg:flex lg:flex-wrap lg:items-center lg:w-auto">
+            <input id="personnelSearch" type="search" maxlength="100" autocomplete="off" placeholder="Search personnel name" aria-label="Search personnel name"
+                   class="hidden lg:block min-w-0 lg:flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100">
+            <div class="min-w-0 lg:w-64">
+              <select id="personnelCategoryFilter" data-cdd data-cdd-plain-empty aria-label="Filter personnel by category" class="max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                <option value="">All categories</option>
+                {% for value, label in med_personnel_categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <button type="button" id="openAddPersonnel" class="w-full lg:w-auto rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">+ Add Personnel</button>
+          </div>
         </div>
 
+        <div id="userList" data-um-switch-panel>
         <!-- Desktop table -->
         <div class="hidden lg:block w-full max-w-full overflow-x-auto">
           <table class="w-full min-w-[760px] text-sm">
@@ -158,9 +190,44 @@
           <button id="nextBtn" type="button" disabled
                   class="text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
         </div>
+        </div>
+        <div id="personnelPanel" data-um-switch-panel hidden
+             data-list-url="{% url 'personnel_management_ajax' %}" data-add-url="{% url 'personnel_add' %}"
+             data-edit-url="{% url 'personnel_edit' 0 %}" data-delete-url="{% url 'personnel_delete' 0 %}">
+          <div id="personnelManagementRows" class="px-4 lg:px-6 pb-4" aria-live="polite"></div>
+          <div class="flex items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
+            <button id="personnelPrev" type="button" disabled class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-500 disabled:opacity-40">Previous</button>
+            <span id="personnelPageInfo" class="text-xs text-gray-400"></span>
+            <button id="personnelNext" type="button" disabled class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-500 disabled:opacity-40">Next</button>
+          </div>
+        </div>
       </div>
+      <template id="personnelLoadingTemplate">
+        <div class="divide-y divide-gray-100" aria-hidden="true">
+          {% for n in "12345" %}
+            <div class="flex items-center justify-between gap-3 py-4">
+              <div class="min-w-0 flex-1 space-y-2">
+                <div class="skeleton h-3 w-40 max-w-full rounded"></div>
+                <div class="skeleton h-2.5 w-48 max-w-full rounded"></div>
+              </div>
+              <div class="flex shrink-0 gap-2">
+                <div class="skeleton h-7 w-12 rounded-lg"></div>
+                <div class="skeleton h-7 w-14 rounded-lg"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </template>
     </div>
   </main>
+  {% include 'partials/_personnel_management_modal.html' %}
+  <style>
+    [data-um-switch-panel][hidden] { display: none !important; }
+    @media (max-width: 1023px) {
+      #managementControls[data-mobile-search-open="true"] :is(#managementHeadingRow, #userFilters, #personnelFilters) { display: none !important; }
+    }
+  </style>
+  <script src="{% static 'adm/js/personnel_management.js' %}" defer></script>
 
   <!-- Confirm dialog -->
   <div id="umModal" class="hidden fixed inset-0 z-[60] bg-black/40 items-center justify-center p-4">
@@ -181,6 +248,20 @@
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>
           <option value="staff">Staff</option>
+        </select>
+      </div>
+      <div id="umModalPersonnelWrap" class="hidden mt-4">
+        <label for="umModalPersonnel" class="block text-xs font-semibold text-gray-600 mb-1.5">Roster entry</label>
+        <select id="umModalPersonnel" data-cdd aria-label="Matching MED personnel name"
+                class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-100">
+          <option value="">Choose a roster entry</option>
+        </select>
+      </div>
+      <div id="umModalPersonnelCategoryWrap" class="hidden mt-4">
+        <label for="umModalPersonnelCategory" class="block text-xs font-semibold text-gray-600 mb-1.5">MED section</label>
+        <select id="umModalPersonnelCategory" data-cdd aria-label="MED personnel section"
+                class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-100">
+          <option value="">Choose a category</option>
         </select>
       </div>
       <!-- Its own form with its own username field, so password managers fill these two
@@ -291,6 +372,8 @@
   <!-- Toast -->
   <div id="umToast" class="hidden fixed top-5 right-5 z-[9999] w-80 max-lg:left-4 max-lg:right-4 max-lg:w-auto"></div>
 
+  {{ med_personnel_options|json_script:"med-personnel-options" }}
+  {{ med_personnel_categories|json_script:"med-personnel-categories" }}
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const AJAX_URL = "{% url 'user_management_ajax' %}";
@@ -306,8 +389,12 @@
       const search = document.getElementById("userSearch");
       const roleFilter = document.getElementById("roleFilter");
       const statusFilter = document.getElementById("statusFilter");
+      const usersList = document.getElementById("userList");
+      const desktopLoading = body.innerHTML;
+      const mobileLoading = mobile.innerHTML;
+      const countLoading = userCount.innerHTML;
 
-      let page = 1, searchTimer = null, searchText = "";
+      let page = 1, searchTimer = null, searchText = "", loadSequence = 0;
 
       function csrf() {
         const m = document.cookie.match(/csrftoken=([^;]+)/);
@@ -327,10 +414,21 @@
       }
 
       function load() {
+        const sequence = ++loadSequence;
+        body.innerHTML = desktopLoading;
+        mobile.innerHTML = mobileLoading;
+        userCount.innerHTML = countLoading;
+        usersList.setAttribute("aria-busy", "true");
+        pageInfo.textContent = "";
+        prevBtn.disabled = nextBtn.disabled = true;
         const params = new URLSearchParams({ page: page, search: searchText, role: roleFilter.value, status: statusFilter.value });
         fetch(AJAX_URL + "?" + params.toString())
-          .then(function (r) { return r.json(); })
+          .then(function (r) {
+            if (!r.ok || r.redirected) throw new Error();
+            return r.json();
+          })
           .then(function (data) {
+            if (sequence !== loadSequence) return;
             body.innerHTML = data.desktop_html;
             mobile.innerHTML = data.mobile_html;
             pendingList.innerHTML = data.pending_html;
@@ -341,8 +439,18 @@
             nextBtn.disabled = !data.has_next;
             page = data.current_page;
           })
-          .catch(function () { toast("Couldn't load users. Please refresh the page.", true); });
+          .catch(function () {
+            if (sequence !== loadSequence) return;
+            body.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-sm text-gray-500">Couldn\'t load users. Please try again.</td></tr>';
+            mobile.textContent = "Couldn't load users. Please try again.";
+            userCount.textContent = "Unable to load users";
+            toast("Couldn't load users. Please refresh the page.", true);
+          })
+          .finally(function () {
+            if (sequence === loadSequence) usersList.removeAttribute("aria-busy");
+          });
       }
+      document.addEventListener("management:refresh-users", load);
 
       // ---------- filters ----------
       // Only real typing/pasting/clearing counts as a search. Password managers can drop the
@@ -418,9 +526,7 @@
                       button: "Reactivate", color: "bg-blue-600 hover:bg-blue-700", icon: "bg-blue-50 text-blue-500", reason: false },
         "delete": { title: "Delete {name}?", text: "This account never verified its email. Deleting it frees the email so they can sign up again.",
                     button: "Delete", color: "bg-red-600 hover:bg-red-700", icon: "bg-red-50 text-red-500", reason: false },
-        change_role: { title: "Change {name}'s role", text: "MED Personnel can be assigned to reports and are included in the personnel ratings, but they don't get admin access. Choosing Admin needs your password.",
-                       button: "Change role", color: "bg-blue-600 hover:bg-blue-700", icon: "bg-blue-50 text-blue-500", reason: false },
-        make_admin: { title: "Make {name} an admin?", text: "They'll be able to approve and deactivate accounts, manage reports, and give or remove admin access. They'll get an email and must verify with a code at their next login.",
+        make_admin: { title: "Make {name} an admin?", text: "They'll get admin access and an email notification. Enter your own password to confirm.",
                       button: "Make admin", color: "bg-blue-600 hover:bg-blue-700", icon: "bg-blue-50 text-blue-500", reason: false, password: true },
         remove_admin: { title: "Remove admin access from {name}?", text: "They'll go back to a regular account and lose access to the admin pages. They'll get an email about it.",
                         button: "Remove admin", color: "bg-red-600 hover:bg-red-700", icon: "bg-red-50 text-red-500", reason: false, password: true },
@@ -439,38 +545,68 @@
       const passwordInput = document.getElementById("umModalPassword");
       const roleWrap = document.getElementById("umModalRoleWrap");
       const roleSelect = document.getElementById("umModalRole");
+      const personnelWrap = document.getElementById("umModalPersonnelWrap");
+      const personnelSelect = document.getElementById("umModalPersonnel");
+      const personnelCategoryWrap = document.getElementById("umModalPersonnelCategoryWrap");
+      const personnelCategorySelect = document.getElementById("umModalPersonnelCategory");
+      const personnelOptions = JSON.parse(document.getElementById("med-personnel-options").textContent);
+      const personnelCategories = JSON.parse(document.getElementById("med-personnel-categories").textContent);
 
       const roleLabel = document.getElementById("umModalRoleLabel");
-      const ROLE_NAMES = { student: "Student", faculty: "Faculty", staff: "Staff", med_personnel: "MED Personnel", admin: "Admin (needs your password)" };
+      const ROLE_NAMES = { student: "Student", faculty: "Faculty", staff: "Staff", med_personnel: "MED Personnel" };
       function setRoleOptions(roles) {
         roleSelect.innerHTML = '<option value="">Choose a role</option>' + roles.map(function (r) {
           return '<option value="' + r + '">' + ROLE_NAMES[r] + "</option>";
         }).join("");
         if (window.CDD && CDD.refresh) CDD.refresh(roleSelect);
       }
-      function changeRoleNeedsPassword() {
-        return pending && pending.action === "change_role" && roleSelect.value === "admin";
+      const addPersonnelOption = document.createElement("option");
+      addPersonnelOption.value = "__new__";
+      addPersonnelOption.textContent = "Add as a new MED personnel";
+      personnelSelect.appendChild(addPersonnelOption);
+      personnelOptions.forEach(function (personnel) {
+        const option = document.createElement("option");
+        option.value = personnel.slug;
+        option.textContent = personnel.category + " — " + personnel.name;
+        personnelSelect.appendChild(option);
+      });
+      personnelCategories.forEach(function (category) {
+        const option = document.createElement("option");
+        option.value = category[0];
+        option.textContent = category[1];
+        personnelCategorySelect.appendChild(option);
+      });
+      if (window.CDD && CDD.refresh) {
+        CDD.refresh(personnelSelect);
+        CDD.refresh(personnelCategorySelect);
       }
+      function updatePersonnelCategoryVisibility() {
+        personnelCategoryWrap.classList.toggle("hidden", roleSelect.value !== "med_personnel" || personnelSelect.value !== "__new__");
+      }
+      personnelSelect.addEventListener("change", updatePersonnelCategoryVisibility);
       roleSelect.addEventListener("change", function () {
-        if (pending && pending.action === "change_role") {
-          passwordWrap.classList.toggle("hidden", !changeRoleNeedsPassword());
-          if (changeRoleNeedsPassword()) setTimeout(function () { passwordInput.focus(); }, 50);
-        }
+        personnelWrap.classList.toggle("hidden", roleSelect.value !== "med_personnel");
+        updatePersonnelCategoryVisibility();
       });
 
-      function openModal(action, userId, name, currentRole) {
+      function openModal(action, userId, name, currentRole, currentPersonnel, currentCategory) {
         const cfg = ACTIONS[action];
         // Accounts created as admins have no normal role to fall back to
-        const isChangeRole = action === "change_role";
-        const needsRole = isChangeRole || (action === "remove_admin" && (!currentRole || currentRole === "admin"));
+        const needsRole = action === "remove_admin" && (!currentRole || currentRole === "admin");
         pending = { action: action, userId: userId, needsRole: needsRole };
         passwordInput.value = "";
         passwordWrap.classList.toggle("hidden", !cfg.password);
-        setRoleOptions(isChangeRole
-          ? ["student", "faculty", "staff", "med_personnel", "admin"].filter(function (r) { return r !== currentRole; })
-          : ["student", "faculty", "staff", "med_personnel"]);
-        roleLabel.textContent = isChangeRole ? "New role" : "This account was created as an admin. What role should it have now?";
+        setRoleOptions(["student", "faculty", "staff", "med_personnel"]);
+        roleLabel.textContent = "This account was created as an admin. What role should it have now?";
         roleSelect.value = "";
+        personnelSelect.value = currentPersonnel && currentPersonnel.indexOf("account-") === 0 ? "__new__" : (currentPersonnel || "");
+        personnelCategorySelect.value = currentCategory || "";
+        if (window.CDD && CDD.refresh) {
+          CDD.refresh(personnelSelect);
+          CDD.refresh(personnelCategorySelect);
+        }
+        personnelWrap.classList.add("hidden");
+        updatePersonnelCategoryVisibility();
         roleWrap.classList.toggle("hidden", !needsRole);
         modalTitle.textContent = cfg.title.replace("{name}", name);
         modalText.textContent = cfg.text;
@@ -506,7 +642,19 @@
           modalError.classList.remove("hidden");
           return;
         }
-        if ((ACTIONS[pending.action].password || changeRoleNeedsPassword()) && !passwordInput.value) {
+        if (pending.action === "remove_admin" && roleSelect.value === "med_personnel" && !personnelSelect.value) {
+          modalError.textContent = "Choose an existing roster entry or add this account as a new personnel.";
+          modalError.classList.remove("hidden");
+          personnelSelect.focus();
+          return;
+        }
+        if (pending.action === "remove_admin" && roleSelect.value === "med_personnel" && personnelSelect.value === "__new__" && !personnelCategorySelect.value) {
+          modalError.textContent = "Choose the MED section for this new personnel.";
+          modalError.classList.remove("hidden");
+          personnelCategorySelect.focus();
+          return;
+        }
+        if (ACTIONS[pending.action].password && !passwordInput.value) {
           modalError.textContent = "Enter your password to confirm.";
           modalError.classList.remove("hidden");
           passwordInput.focus();
@@ -518,7 +666,7 @@
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
-          body: JSON.stringify({ action: changeRoleNeedsPassword() ? "make_admin" : pending.action, reason: modalReason.value, password: passwordInput.value, role: roleSelect.value }),
+          body: JSON.stringify({ action: pending.action, reason: modalReason.value, password: passwordInput.value, role: roleSelect.value, med_personnel_slug: personnelSelect.value, med_personnel_category: personnelCategorySelect.value }),
         })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok && d.ok, data: d }; }); })
           .then(function (res) {
@@ -544,7 +692,7 @@
       document.addEventListener("click", function (e) {
         const btn = e.target.closest("[data-um-action]");
         if (!btn) return;
-        openModal(btn.dataset.umAction, btn.dataset.userId, btn.dataset.userName, btn.dataset.currentRole);
+        openModal(btn.dataset.umAction, btn.dataset.userId, btn.dataset.userName, btn.dataset.currentRole, btn.dataset.medPersonnelSlug, btn.dataset.medPersonnelCategory);
       });
 
       // ---------- import users from Excel ----------
