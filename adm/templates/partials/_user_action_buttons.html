@@ -19,9 +19,10 @@
   <div class="flex items-center justify-center gap-1.5">
     <button type="button" data-um-action="deactivate" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}"
             class="text-xs font-semibold text-gray-600 border border-gray-200 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-50">Deactivate</button>
-    <button type="button" data-um-action="change_role" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}" data-current-role="{{ u.um_base_role }}"
-            title="Change role (Student, Faculty, Staff, MED Personnel or Admin)"
-            class="text-xs font-semibold text-blue-600 border border-blue-200 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 whitespace-nowrap">Change role</button>
+    {% if u.um_base_role == 'staff' %}
+      <button type="button" data-um-action="make_admin" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}"
+              class="text-xs font-semibold text-blue-600 border border-blue-200 bg-blue-50 px-2.5 py-1.5 rounded-lg hover:bg-blue-100 whitespace-nowrap">Make Admin</button>
+    {% endif %}
   </div>
 {% elif u.um_status == 'deactivated' %}
   <button type="button" data-um-action="reactivate" data-user-id="{{ u.pk }}" data-user-name="{{ u.get_full_name|default:u.email }}"

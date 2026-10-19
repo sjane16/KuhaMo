@@ -272,7 +272,7 @@ def login_verify(request):
     profile = getattr(user, 'profile', None)
     if profile and profile.approval_status == profile.APPROVAL_PENDING:
         log_event(request, 'login_failed', user=user, method='passkey', reason='awaiting admin approval', passkey=passkey.name)
-        return _error("Your staff account is waiting for an administrator's approval.", status=403)
+        return _error("Your account is waiting for an administrator's approval.", status=403)
 
     passkey.sign_count = verification.new_sign_count
     passkey.last_used_at = timezone.now()

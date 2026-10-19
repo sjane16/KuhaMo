@@ -8,6 +8,7 @@ from django.urls import reverse
 from PIL import Image
 
 from .models import Report, SurveyResponse, UserProfile
+from adm.views import build_survey_analysis_context
 
 
 @override_settings(STORAGES={
@@ -114,14 +115,14 @@ class SurveyMethodWorkflowTests(TestCase):
         self.assertContains(details, 'View Scanned Job Order')
         self.assertNotContains(details, 'Export')
         self.assertEqual(details.content.count(b'View Scanned Job Order'), 1)
-        self.assertContains(details, 'Resolution Proof')
+        self.assertContains(details, 'Completion Photo')
 
         self.client.force_login(self.user)
         user_details = self.client.get(reverse('reportedIssue', args=[self.report.pk]))
         self.assertContains(user_details, 'View Scanned Job Order')
         self.assertNotContains(user_details, 'Export')
         self.assertEqual(user_details.content.count(b'View Scanned Job Order'), 1)
-        self.assertContains(user_details, 'Resolution Proof')
+        self.assertContains(user_details, 'Completion Photo')
 
         self.client.force_login(self.user)
         details = self.client.get(reverse('reportedIssue', args=[self.report.pk]))
@@ -177,7 +178,7 @@ class SurveyMethodWorkflowTests(TestCase):
         self.client.force_login(admin)
         online_page = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
         self.assertNotContains(online_page, 'Scanned Job Order (JPG or PNG)')
-        self.assertContains(online_page, 'Export')
+        self.assertNotContains(online_page, 'onclick="exportJobOrder()"')
         self.assertContains(online_page, 'Waiting for their submission')
 
         SurveyResponse.objects.create(
@@ -205,13 +206,25 @@ class SurveyMethodWorkflowTests(TestCase):
         online_survey_section = online_pdf.split('Customer Service Survey', 1)[1]
         self.assertIn('This is a system generated document. Signature is not required', online_survey_section)
         self.assertIn('Quality: 5/5', online_survey_section)
-        self.assertNotIn('Signature on Printed Name', online_survey_section)
+        self.assertIn('Signature on Printed Name', online_survey_section)
+        self.assertIn('survey-client', online_survey_section)
 
         self.report.survey_method = 'manual'
         manual_pdf = render_to_string('user/job_order_pdf.html', context)
         manual_survey_section = manual_pdf.split('Customer Service Survey', 1)[1]
         self.assertNotIn('This is a system generated document. Signature is not required', manual_survey_section)
         self.assertIn('Signature on Printed Name', manual_survey_section)
+
+        self.report.survey_method = ''
+        self.report.survey.rating_source = 'head_admin'
+        med_pdf = render_to_string('user/job_order_pdf.html', {
+            **context,
+            'is_med_personnel_report': True,
+        })
+        med_rating_section = med_pdf.split('Head Admin Group QQT Rating', 1)[1]
+        self.assertIn('This is a system generated document. Signature is not required', med_pdf)
+        self.assertIn('Signature on Printed Name', med_rating_section)
+        self.assertIn('survey-client', med_rating_section)
 
     def test_blank_job_order_survey_scores_print_empty_over_five(self):
         context = {
@@ -227,3 +240,109 @@ class SurveyMethodWorkflowTests(TestCase):
         self.assertIn('Quantity: &nbsp;/5', survey_section)
         self.assertIn('Timeliness: &nbsp;/5', survey_section)
         self.assertNotIn('-/5', survey_section)
+
+
+class HeadAdminGroupRatingTests(TestCase):
+    def setUp(self):
+        self.personnel = User.objects.create_user(
+            username='med-personnel',
+            email='med-personnel@example.com',
+            password='test-password',
+            first_name='George L.',
+            last_name='Castro',
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=self.personnel)
+        profile.role = 'med_personnel'
+        profile.med_personnel_slug = 'george-l-castro'
+        profile.save(update_fields=['role', 'med_personnel_slug'])
+        self.head = User.objects.create_user(
+            username='head-admin', password='test-password', is_staff=True,
+        )
+        profile, _ = UserProfile.objects.get_or_create(user=self.head)
+        profile.role = 'admin'
+        profile.is_head_admin = True
+        profile.save(update_fields=['role', 'is_head_admin'])
+        self.report = Report.objects.create(
+            user=self.personnel,
+            job_order_id='MED-GROUP-RATING-1',
+            category='electrical',
+            location='Test Room',
+            description='MED personnel concern',
+            status='resolved',
+            assigned_personnel_data=[
+                {'name': 'George L. Castro'},
+                {'name': 'Percival D. Padilla'},
+            ],
+        )
+
+    def test_med_reporter_cannot_choose_or_submit_self_rating(self):
+        self.client.force_login(self.personnel)
+
+        details = self.client.get(reverse('reportedIssue', args=[self.report.pk]))
+        self.assertContains(details, 'Head Admin will provide the QQT rating')
+        self.assertNotContains(details, 'Take Survey Online')
+
+        method = self.client.post(reverse('chooseSurveyMethod', args=[self.report.pk]), {'method': 'system'})
+        survey = self.client.post(reverse('submitSurvey', args=[self.report.pk]), {
+            'quality': 5, 'quantity': 4, 'timeliness': 3,
+        })
+        self.assertEqual(method.status_code, 403)
+        self.assertEqual(survey.status_code, 403)
+        self.assertFalse(SurveyResponse.objects.filter(report=self.report).exists())
+
+    def test_head_admin_group_rating_applies_once_and_closes_report(self):
+        self.client.force_login(self.head)
+        details = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
+        self.assertContains(details, 'id="head-rating-modal"')
+        self.assertContains(details, 'id="head-quality-emoji-5"')
+        self.assertContains(details, 'id="head-timeliness-emoji-1"')
+        self.assertContains(details, 'George L. Castro, Percival D. Padilla')
+        self.assertContains(details, 'max-w-3xl max-h-[94vh] overflow-y-auto')
+        self.assertNotContains(details, 'Change method')
+        self.assertNotContains(details, 'open-head-rating-modal')
+        self.assertNotContains(details, 'Close rating modal')
+        page_html = details.content.decode()
+        self.assertLess(page_html.index('</main>'), page_html.index('id="head-rating-modal"'))
+
+        response = self.client.post(reverse('adm_personnel_rating', args=[self.report.pk]), {
+            'quality': 5, 'quantity': 4, 'timeliness': 3,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('adm_report_detail', args=[self.report.pk]))
+        self.report.refresh_from_db()
+        rating = SurveyResponse.objects.get(report=self.report)
+        self.assertEqual(self.report.status, 'closed')
+        self.assertEqual((rating.quality, rating.quantity, rating.timeliness), (5, 4, 3))
+        self.assertEqual(rating.rating_source, 'head_admin')
+        self.assertEqual(rating.rated_by, self.head)
+
+        analysis = build_survey_analysis_context(include_responses=False)
+        self.assertEqual(analysis['total_surveys'], 0)
+        performance = {row['name']: row for row in analysis['personnel_rows']}
+        for name in ('George L. Castro', 'Percival D. Padilla'):
+            self.assertEqual(performance[name]['quality'], 5)
+            self.assertEqual(performance[name]['quantity'], 4)
+            self.assertEqual(performance[name]['timeliness'], 3)
+
+        success = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
+        self.assertContains(success, 'id="personnel-rating-success-modal"')
+        self.assertContains(success, 'The group CSS rating was recorded for')
+        self.assertContains(success, 'George L. Castro, Percival D. Padilla')
+        self.assertNotContains(self.client.get(reverse('adm_report_detail', args=[self.report.pk])), 'id="personnel-rating-success-modal"')
+
+    def test_regular_admin_cannot_submit_head_rating(self):
+        admin = User.objects.create_user(username='co-admin', password='test-password', is_staff=True)
+        profile, _ = UserProfile.objects.get_or_create(user=admin)
+        profile.role = 'admin'
+        profile.save(update_fields=['role'])
+        self.client.force_login(admin)
+
+        details = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
+        self.assertNotContains(details, 'id="head-rating-modal"')
+        self.assertContains(details, 'Waiting for the Head Admin')
+
+        response = self.client.post(reverse('adm_personnel_rating', args=[self.report.pk]), {
+            'quality': 5, 'quantity': 5, 'timeliness': 5,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(SurveyResponse.objects.filter(report=self.report).exists())

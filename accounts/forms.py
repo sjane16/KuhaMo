@@ -209,10 +209,10 @@ class SignUpForm(forms.Form):
         email = self.cleaned_data.get('email', '').strip().lower()
         role = self.cleaned_data.get('role')
 
-        if role != 'staff' and not email.endswith('@udm.edu.ph'):
-                raise forms.ValidationError(""
-                "Students and faculty must use their official UDM email address (@udm.edu.ph). Staff may use a non-UDM email address."
-        )
+        if role == 'staff' and not email.endswith('@gmail.com'):
+            raise forms.ValidationError("Staff must use a personal Gmail address (@gmail.com).")
+        if role in ('student', 'faculty') and not email.endswith('@udm.edu.ph'):
+            raise forms.ValidationError("Students and faculty must use their official UDM email address (@udm.edu.ph).")
 
         existing = User.objects.filter(email__iexact=email).select_related('profile').first()
         if existing and not is_unverified_signup(existing):

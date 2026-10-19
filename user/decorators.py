@@ -43,7 +43,7 @@ def is_head_admin(user):
     return bool(profile and profile.is_head_admin)
 
 def head_admin_required(view_func):
-    """Like admin_required, but only the Head Admin gets in (User Management)."""
+    """Restrict user management, ratings and exports to the Head Admin."""
     @wraps(view_func)
     @never_cache
     def wrapper(request, *args, **kwargs):
@@ -54,9 +54,10 @@ def head_admin_required(view_func):
         if not is_head_admin(request.user):
             # JSON endpoints get a clear error instead of a redirect page
             if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json' \
-                    or request.path.startswith('/adm/ajax/') or '/action/' in request.path or '/import/' in request.path:
+                    or request.path.startswith('/adm/ajax/') or '/action/' in request.path or '/import/' in request.path \
+                    or request.path.endswith(('/pdf/', '/summary/')):
                 from django.http import JsonResponse
-                return JsonResponse({'ok': False, 'error': "Only the Head Admin can manage users."}, status=403)
+                return JsonResponse({'ok': False, 'error': "Only the Head Admin can access this feature."}, status=403)
             return redirect('dashboard')
         return view_func(request, *args, **kwargs)
     return wrapper

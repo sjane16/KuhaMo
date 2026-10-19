@@ -467,6 +467,11 @@
           }
       });
   </script>
+  {% if is_med_personnel_report and report.status == 'resolved' and not already_surveyed %}
+    <div class="mx-auto mt-6 max-w-3xl rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-700">
+      Your concern is resolved. The Head Admin will provide the QQT rating for the assigned MED personnel.
+    </div>
+  {% endif %}
   {% if show_survey %}
     <div id="resolved-notif"
          class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">

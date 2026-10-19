@@ -1,4 +1,7 @@
 from django.db import models
+from django.db.models.functions import Lower
+
+from user.constants import MED_PERSONNEL_CATEGORY_CHOICES
 
 
 class Building(models.Model):
@@ -31,6 +34,22 @@ class Room(models.Model):
 
     class Meta:
         ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class Personnel(models.Model):
+    slug = models.SlugField(max_length=64, unique=True)
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=40, choices=MED_PERSONNEL_CATEGORY_CHOICES)
+    is_active = models.BooleanField(default=True)
+    # Assignment snapshots keep their original name; aliases preserve rating identity.
+    previous_names = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ['pk']
+        constraints = [models.UniqueConstraint(Lower('name'), name='unique_personnel_name')]
 
     def __str__(self):
         return self.name

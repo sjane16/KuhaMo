@@ -25,6 +25,12 @@ from django_ratelimit.core import is_ratelimited
 
 from security.audit import log_event
 from user.models import UserProfile, invalidate_trusted_devices
+from user.constants import (
+    MED_PERSONNEL_BY_SLUG,
+    MED_PERSONNEL_CATEGORY_BY_SLUG,
+    MED_PERSONNEL_CATEGORY_CHOICES,
+    MED_PERSONNEL_OPTIONS,
+)
 from .personnel import clear_personnel_cache
 
 USERS_PAGE_SIZE = 10
@@ -76,6 +82,8 @@ def _decorate(users):
         u.um_is_superuser = u.is_superuser
         u.um_is_head = bool(getattr(getattr(u, 'profile', None), 'is_head_admin', False))
         u.um_base_role = getattr(getattr(u, 'profile', None), 'role', '') or ''
+        u.um_med_personnel_slug = getattr(getattr(u, 'profile', None), 'med_personnel_slug', '') or ''
+        u.um_med_personnel_category = getattr(getattr(u, 'profile', None), 'med_personnel_category', '') or ''
         u.um_initials = _initials(u)
     return users
 
@@ -119,6 +127,8 @@ def user_management(request):
         'active_page': 'user_management',
         'stats': _stats(),
         'pending_users': pending_staff(),
+        'med_personnel_options': MED_PERSONNEL_OPTIONS,
+        'med_personnel_categories': MED_PERSONNEL_CATEGORY_CHOICES,
     })
 
 
@@ -171,10 +181,6 @@ def user_management_action(request, user_id):
     reason = (body.get('reason') or '').strip()[:500]
     if action in ('make_admin', 'remove_admin'):
         response = _change_admin_access(request, user_id, action, body)
-        clear_personnel_cache()
-        return response
-    if action == 'change_role':
-        response = _change_role(request, user_id, body)
         clear_personnel_cache()
         return response
     if action not in ACTION_RULES:
@@ -272,6 +278,8 @@ def _change_admin_access(request, user_id, action, body):
     profile, _ = UserProfile.objects.get_or_create(user=target)
 
     if action == 'make_admin':
+        if profile.role != 'staff':
+            return _error("Only Staff accounts can be made admins.", status=403)
         if is_admin_account(target):
             return _error(f"{name} is already an admin.", status=409)
         if account_status(target) != 'active':
@@ -296,16 +304,27 @@ def _change_admin_access(request, user_id, action, body):
     if target.is_active and active_admin_count() <= 1:
         return _error("You can't remove the last admin. Make someone else an admin first.", status=409)
     new_role = body.get('role') or ''
+    personnel_slug = profile.med_personnel_slug
+    personnel_category = profile.med_personnel_category
     if profile.role in ('', 'admin'):
         # Accounts that were created as admins have no normal role to go back to
         if new_role not in CHANGEABLE_ROLES:
             return _error("Choose which role this account should have.", status=400)
+        if new_role == 'med_personnel':
+            mapping = _med_personnel_mapping(target, body)
+            if isinstance(mapping, JsonResponse):
+                return mapping
+            personnel_slug, personnel_category = mapping
+        else:
+            personnel_slug = personnel_category = ''
     with transaction.atomic():
         target.is_staff = False
         target.save(update_fields=['is_staff'])
         if profile.role in ('', 'admin'):
             profile.role = new_role
-            profile.save(update_fields=['role'])
+            profile.med_personnel_slug = personnel_slug
+            profile.med_personnel_category = personnel_category
+            profile.save(update_fields=['role', 'med_personnel_slug', 'med_personnel_category'])
         invalidate_trusted_devices(target)
         log_event(request, 'user_demoted', user=request.user, target=target.email, new_role=profile.role)
     _notify(target, 'Your Fac-Check admin access was removed',
@@ -314,45 +333,29 @@ def _change_admin_access(request, user_id, action, body):
     return JsonResponse({'ok': True, 'message': f"{name} is no longer an admin."})
 
 
-# ---------- change role (student / faculty / staff / MED personnel) ----------
+# Legacy admin accounts can still choose a fallback role when access is removed.
 
 CHANGEABLE_ROLES = ('student', 'faculty', 'staff', 'med_personnel')
 
 
-def _change_role(request, user_id, body):
-    """Head Admin changes a regular account's role, e.g. to MED Personnel (assignable to
-    reports and rated in the personnel ratings, no admin access). Admin access has its
-    own actions (make_admin / remove_admin) because it needs the Head Admin's password."""
-    new_role = body.get('role') or ''
-    if new_role not in CHANGEABLE_ROLES:
-        return _error("Choose a role: Student, Faculty, Staff or MED Personnel.", status=400)
-
-    target = _base_queryset().filter(pk=user_id).first()
-    if not target:
-        return _error("This account no longer exists.", status=404)
-    if target.pk == request.user.pk:
-        return _error("You can't change your own role here.", status=403)
-    if is_admin_account(target):
-        return _error("This account is an admin. Use \"Remove admin\" first.", status=403)
-    if account_status(target) != 'active':
-        return _error("Only active accounts can change roles.", status=409)
-
-    profile, _ = UserProfile.objects.get_or_create(user=target)
-    old_role = profile.role
-    if old_role == new_role:
-        return _error(f"{target.get_full_name() or target.email} is already {profile.get_role_display()}.", status=409)
-
-    profile.role = new_role
-    profile.save(update_fields=['role'])
-    new_label = profile.get_role_display()
-    log_event(request, 'role_changed', user=request.user, target=target.email, old_role=old_role, new_role=new_role)
-
-    if new_role == 'med_personnel':
-        extra = ("\n\nAs MED Personnel, you can now be assigned to facility reports, and your work "
-                 "will be included in the personnel ratings.")
-    else:
-        extra = ""
-    _notify(target, 'Your Fac-Check role was changed',
-            f"Your Fac-Check account role was changed to {new_label}.{extra}\n\n"
-            "If you think this is a mistake, please contact the Maintenance and Engineering Division.")
-    return JsonResponse({'ok': True, 'message': f"{target.get_full_name() or target.email} is now {new_label}."})
+def _med_personnel_mapping(target, body):
+    slug = (body.get('med_personnel_slug') or '').strip()
+    category = (body.get('med_personnel_category') or '').strip()
+    if slug == '__new__':
+        if category not in MED_PERSONNEL_CATEGORY_BY_SLUG:
+            return _error('Choose the MED section for this new personnel.')
+        name = (target.get_full_name() or target.email or target.username).strip().casefold()
+        if any(name == option['name'].casefold() for option in MED_PERSONNEL_BY_SLUG.values()):
+            return _error('This name is already in the hardcoded roster; select that roster entry instead.')
+        existing_names = (
+            (profile.user.get_full_name() or profile.user.email or profile.user.username).strip().casefold()
+            for profile in UserProfile.objects.filter(role='med_personnel').exclude(user=target).select_related('user')
+        )
+        if name in existing_names:
+            return _error('A MED personnel account with this name is already linked.')
+        return f'account-{target.pk}', category
+    if slug not in MED_PERSONNEL_BY_SLUG:
+        return _error('Choose an existing roster name or add this account as a new personnel.')
+    if UserProfile.objects.filter(med_personnel_slug=slug).exclude(user=target).exists():
+        return _error('That MED personnel name is already linked to another account.', status=409)
+    return slug, ''

@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from requests import request
+from django.db import transaction
 from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices, UserProfile
 from django.db.models import Count, Q, Sum
 from django.core.cache import cache
@@ -15,6 +16,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.template.loader import render_to_string
+from django.views.decorators.http import require_POST
 from user.forms import UserForm, ProfilePhotoForm, ProfilePasswordChangeForm, form_error_text
 from security.audit import log_event
 from django.contrib.auth import update_session_auth_hash
@@ -25,14 +27,14 @@ from user.context_processors import get_unread_notifications_count
 from user.constants import PRIORITY_SLA_HOURS
 from user.decorators import is_head_admin
 from .models import Building 
-from .forms import ManualSurveySubmissionForm
+from .forms import HeadAdminPersonnelRatingForm, ManualSurveySubmissionForm
 
 
 REPORTS_PAGE_SIZE = 5
 ANALYTICS_CACHE_SECONDS = 60
 
 # Personnel roster: MED Personnel accounts (see adm/personnel.py)
-from .personnel import personnel_options
+from .personnel import personnel_groups, personnel_options, personnel_name_map
 
 
 def build_personnel_rows(report):
@@ -43,23 +45,83 @@ def build_personnel_rows(report):
         if item.get("name")
     }
 
-    rows = []
-    known_names = {item["name"] for item in personnel_options()}
-
-    for option in personnel_options():
-        rows.append({
-            **option,
-            "checked": option["name"] in saved_names,
-        })
+    active_names = {
+        name: item['name'] for item in personnel_options()
+        for name in [item['name'], *item['previous_names']]
+    }
+    current_names = {active_names[name] for name in saved_names if name in active_names}
+    groups = [
+        {
+            **group,
+            "personnel": [
+                {**item, "checked": item["name"] in current_names}
+                for item in group["personnel"]
+            ],
+        }
+        for group in personnel_groups()
+    ]
 
     other_names = [
         name
         for name in saved_names
-        if name not in known_names
+        if name not in active_names
     ]
     others = [{"name": name} for name in other_names]
 
-    return rows, others
+    return groups, others
+
+
+def personnel_assignment_context(report):
+    groups, others = build_personnel_rows(report)
+    selected_groups = []
+    for group in groups:
+        selected = [item for item in group['personnel'] if item['checked']]
+        if selected:
+            selected_groups.append({**group, 'personnel': selected})
+    return {
+        'personnel_groups': groups,
+        'selected_personnel_groups': selected_groups,
+        'other_personnel': others,
+        'has_personnel': bool(report.assigned_personnel_data),
+    }
+
+
+@require_POST
+def save_report_personnel(request, report_id):
+    with transaction.atomic():
+        report = get_object_or_404(Report.objects.select_for_update(), id=report_id)
+        if report.status != 'pending':
+            return JsonResponse({'ok': False, 'error': 'Personnel assignments can only be changed while the report is Pending.'}, status=409)
+
+        selected = set(request.POST.getlist('personnel_names'))
+        options = personnel_options()
+        if selected - {item['slug'] for item in options}:
+            return JsonResponse({'ok': False, 'error': 'One or more personnel are no longer available. Refresh the page and try again.'}, status=400)
+        assignments = [{'name': item['name']} for item in options if item['slug'] in selected]
+        if request.POST.get('include_other_personnel') == '1':
+            for value in request.POST.getlist('other_personnel'):
+                name = value.strip()
+                if len(name) > 100:
+                    return JsonResponse({'ok': False, 'error': 'Other personnel names must not exceed 100 characters.'}, status=400)
+                if name and name.casefold() not in {item['name'].casefold() for item in assignments}:
+                    assignments.append({'name': name})
+        report.assigned_personnel_data = assignments
+        report.save(update_fields=['assigned_personnel_data'])
+
+    context = personnel_assignment_context(report)
+    return JsonResponse({
+        'ok': True,
+        'html': render_to_string('partials/_selected_personnel.html', {
+            **context, 'can_edit_personnel': True,
+        }, request=request),
+        'selected_slugs': [item['slug'] for group in context['selected_personnel_groups'] for item in group['personnel']],
+        'other_names': [item['name'] for item in context['other_personnel']],
+    })
+
+
+def is_med_personnel_report(report):
+    profile = getattr(report.user, 'profile', None) if report.user_id else None
+    return bool(profile and profile.role == 'med_personnel')
 
 
 def format_hours(hours):
@@ -120,12 +182,12 @@ def _percent_to_score(pct):
 def _known_personnel_names(assignments):
     """Filter assignment dicts down to names that match the official MED personnel roster
     (excludes outsourced/typed-in "other personnel")."""
-    known = {option["name"] for option in personnel_options()}
-    return [item.get("name") for item in assignments if item.get("name") in known]
+    known = personnel_name_map()
+    return list(dict.fromkeys(known[item.get('name')] for item in assignments if item.get('name') in known))
 
 
 def _survey_responses_queryset():
-    personnel_names = [option["name"] for option in personnel_options()]
+    personnel_names = personnel_name_map()
     if not personnel_names:
         # An empty Q() would match every survey; with no MED personnel there's nothing to show
         return SurveyResponse.objects.none()
@@ -136,7 +198,7 @@ def _survey_responses_queryset():
     return (
         SurveyResponse.objects
         .filter(assignments)
-        .select_related('report')
+        .select_related('report', 'rated_by')
         .order_by('-submitted_at')
     )
 
@@ -165,6 +227,8 @@ def _build_survey_response(survey):
 
     return {
         "personnel": ", ".join(personnel_names),
+        "rating_source": survey.get_rating_source_display(),
+        "rated_by": survey.rated_by.get_full_name() if survey.rated_by_id else "Client",
         "category": report.get_category_display(),
         "quality": survey.quality,
         "quantity": survey.quantity,
@@ -202,7 +266,7 @@ def build_survey_analysis_context(response_page=1, include_responses=True):
             + Count('id', filter=Q(quantity=rating))
             + Count('id', filter=Q(timeliness=rating))
         )
-    survey_stats = SurveyResponse.objects.aggregate(**aggregates)
+    survey_stats = SurveyResponse.objects.filter(rating_source='client').aggregate(**aggregates)
     score_count = sum(survey_stats[f"{field}_count"] for field in ('quality', 'quantity', 'timeliness'))
     score_sum = sum(survey_stats[f"{field}_sum"] or 0 for field in ('quality', 'quantity', 'timeliness'))
     total_surveys = survey_stats['total_surveys']
@@ -238,7 +302,7 @@ def build_survey_analysis_context(response_page=1, include_responses=True):
             "qqt_quantity_sum": 0,
             "qqt_timeliness_sum": 0,
         }
-        for option in personnel_options()
+        for option in personnel_options(include_inactive=True)
     }
 
     for report in Report.objects.select_related('survey').iterator(chunk_size=500):
@@ -492,7 +556,7 @@ def _build_dashboard_data(period, start_date=None, end_date=None):
             + Count('id', filter=Q(quantity=rating))
             + Count('id', filter=Q(timeliness=rating))
         )
-    survey_scores = SurveyResponse.objects.aggregate(**survey_aggregates)
+    survey_scores = SurveyResponse.objects.filter(rating_source='client').aggregate(**survey_aggregates)
     score_count = sum(survey_scores[f'{field}_count'] for field in ('quality', 'quantity', 'timeliness'))
     score_sum = sum(survey_scores[f'{field}_sum'] or 0 for field in ('quality', 'quantity', 'timeliness'))
     avg_satisfaction = round(score_sum / score_count, 1) if score_count else 0
@@ -684,7 +748,7 @@ def adm_dashboard_ajax(request):
 
     return JsonResponse({
         'html': html,
-        'can_generate_report': settings.DEBUG or _is_last_day_of_month(today) or bool(report_month),
+        'can_generate_report': is_head_admin(request.user) and (settings.DEBUG or _is_last_day_of_month(today) or bool(report_month)),
         'report_available_on': last_day.strftime('%b %d, %Y'),
         **data,
     })
@@ -787,10 +851,13 @@ def adm_reports_ajax(request):
 
 def report_detail(request, report_id):
     report = get_object_or_404(
-        Report.objects.select_related('user', 'survey'),
+        Report.objects.select_related('user__profile', 'survey__rated_by'),
         id=report_id,
     )
-    personnel_rows, other_personnel = build_personnel_rows(report)
+    personnel_context = personnel_assignment_context(report)
+    med_report = is_med_personnel_report(report)
+    has_med_assignees = bool(_known_personnel_names(report.assigned_personnel_data or []))
+    rating_success_personnel = request.session.pop(f'med_personnel_rating_success_{report.id}', '')
     is_locked = report.status in ('resolved', 'closed')
 
     if report.status == 'closed':
@@ -802,9 +869,25 @@ def report_detail(request, report_id):
     return render(request, 'report_detail.html', {
         'report': report,
         'active_page': 'reports',
-        'personnel_rows': personnel_rows,
-        'other_personnel': other_personnel,
+        **personnel_context,
+        'can_edit_personnel': report.status == 'pending',
         'is_locked': is_locked,
+        'is_med_personnel_report': med_report,
+        'has_med_assignees': has_med_assignees,
+        'can_rate_med_personnel': med_report and has_med_assignees and report.status == 'resolved' and is_head_admin(request.user) and not hasattr(report, 'survey'),
+        'qqt_emojis': [
+            ('😤', 'Unsatisfactory', 1),
+            ('😞', 'Fair', 2),
+            ('😐', 'Satisfactory', 3),
+            ('😊', 'Very Satisfactory', 4),
+            ('😄', 'Outstanding', 5),
+        ],
+        'qqt_questions': (
+            ('quality', 'Quality of Work'),
+            ('quantity', 'Quantity of Work'),
+            ('timeliness', 'Timeliness of Service'),
+        ),
+        'rating_success_personnel': rating_success_personnel,
         'priority_sla_hours': PRIORITY_SLA_HOURS,
     })
 
@@ -813,7 +896,9 @@ def record_manual_survey(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     if request.method == 'POST':
         form = ManualSurveySubmissionForm(request.POST, request.FILES)
-        if report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
+        if is_med_personnel_report(report):
+            messages.error(request, 'MED personnel reports must be rated by the Head Admin.')
+        elif report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
             messages.error(request, 'A manual survey can only be recorded once for a resolved report selected for manual submission.')
         elif form.is_valid():
             SurveyResponse.objects.create(report=report, **form.cleaned_data)
@@ -823,6 +908,38 @@ def record_manual_survey(request, report_id):
             messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
         else:
             messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
+    return redirect('adm_report_detail', report_id=report_id)
+
+
+def record_med_personnel_rating(request, report_id):
+    if request.method == 'POST':
+        form = HeadAdminPersonnelRatingForm(request.POST)
+        with transaction.atomic():
+            report = get_object_or_404(
+                Report.objects.select_for_update(of=('self',)).select_related('user__profile'),
+                id=report_id,
+            )
+            assigned_names = _known_personnel_names(report.assigned_personnel_data or [])
+            if not is_med_personnel_report(report):
+                messages.error(request, 'Only reports submitted by MED personnel use Head Admin ratings.')
+            elif report.status != 'resolved' or SurveyResponse.objects.filter(report=report).exists():
+                messages.error(request, 'A Head Admin rating can only be recorded once for a resolved MED personnel report.')
+            elif not assigned_names:
+                messages.error(request, 'Assign at least one MED personnel before recording the group rating.')
+            elif form.is_valid():
+                SurveyResponse.objects.create(
+                    report=report,
+                    rated_by=request.user,
+                    rating_source='head_admin',
+                    **form.cleaned_data,
+                )
+                report.status = 'closed'
+                report.save(update_fields=['status'])
+                request.session[f'closed_seen_{report.id}'] = True
+                request.session[f'med_personnel_rating_success_{report.id}'] = report.assigned_personnel_summary or ''
+                notify_status_change(report, 'closed', f'Report {report.job_order_id} is now Closed after Head Admin QQT evaluation.')
+            else:
+                messages.error(request, 'Please select a valid 1–5 score for all three QQT ratings.')
     return redirect('adm_report_detail', report_id=report_id)
 
 
@@ -845,6 +962,7 @@ def export_job_order_pdf_admin(request, report_id):
     html = render_to_string('user/job_order_pdf.html', {
         "report": report,
         "category_checks": category_checks,
+        "is_med_personnel_report": is_med_personnel_report(report),
     })
 
     response = HttpResponse(content_type='application/pdf')
@@ -1317,8 +1435,9 @@ def dashboard_report_summary(request):
     return JsonResponse({'summary': _build_report_summary(data, period_start, period_end)})
 
 
+@transaction.atomic
 def report_save(request, report_id):
-    report = get_object_or_404(Report, id=report_id)
+    report = get_object_or_404(Report.objects.select_for_update(), id=report_id)
 
     if request.method == 'POST':
         if report.status in ('resolved', 'closed'):
@@ -1328,9 +1447,6 @@ def report_save(request, report_id):
         category = request.POST.get('category', '').strip()
         custom_category = request.POST.get('custom_category', '').strip()
         priority = request.POST.get('priority', '').strip()
-        selected_personnel = request.POST.getlist('personnel_names')
-        other_personnel_list = request.POST.getlist('other_personnel')
-        include_other_personnel = request.POST.get('include_other_personnel') == '1'
 
         awaiting_personnel = request.POST.get('pending_awaiting_personnel') == '1'
         awaiting_materials = request.POST.get('pending_awaiting_materials') == '1'
@@ -1346,22 +1462,8 @@ def report_save(request, report_id):
         report.recommendation = request.POST.get('recommendation', '').strip()
 
         report.priority = priority if priority else None
-        assignments = []
-        personnel_by_slug = {item["slug"]: item["name"] for item in personnel_options()}
-
-        for slug in selected_personnel:
-            name = personnel_by_slug.get(slug)
-            if not name:
-                continue
-            assignments.append({"name": name})
-
-        if include_other_personnel:
-            for name in other_personnel_list:
-                name = name.strip()
-                if name:
-                    assignments.append({"name": name})
-
-        report.assigned_personnel_data = assignments
+        # Personnel are saved independently by the Add/Edit modal.
+        assignments = report.assigned_personnel_data or []
 
         # ── MATERIALS REQUIREMENT (Phase 3: Phase 1 save logic) ─────────────────
         mat_qtys = request.POST.getlist('mat_qty')
