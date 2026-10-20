@@ -8,6 +8,7 @@
 # parse_qs converts a query string into a dictionary of lists.
 from urllib.parse import parse_qs, urlparse
 from smtplib import SMTPException
+from types import SimpleNamespace
 from unittest.mock import patch
 
 # AnonymousUser represents a visitor who has not logged in.
@@ -15,14 +16,15 @@ from django.contrib.auth.models import AnonymousUser, User
 from django.http import HttpResponse
 # RequestFactory builds requests without a browser or running development server.
 # SimpleTestCase blocks database queries by default; these checks need no test data.
-from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.utils import timezone
 # reverse: route name -> URL. resolve: URL -> registered view.
 from django.urls import resolve, reverse
 
 # Import the real landing view so its template and URL tags are rendered.
 from accounts.forms import SignUpForm
 from accounts.views import splash_screen
-from user.models import UserProfile
+from user.models import Passkey, UserProfile
 
 
 # Regression tests protect existing navigation against future route changes.
@@ -117,6 +119,22 @@ class LandingNavigationTests(SimpleTestCase):
 
 @override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
 class SignupMergeTests(TestCase):
+    def signup_account(self, role, email):
+        session = self.client.session
+        session['privacy_viewed'] = True
+        session.save()
+        with patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False), \
+             patch('accounts.views.send_mail'):
+            response = self.client.post(reverse('signup'), {
+                'first_name': 'Anna', 'last_name': 'Santos', 'email': email,
+                'password': 'Campus!Safe2048', 'confirm_password': 'Campus!Safe2048',
+                'role': role, 'department': 'CCS', 'phone': '09123456789',
+                'agree_to_terms': 'on',
+            })
+        self.assertRedirects(response, reverse('verify_otp'), fetch_redirect_response=False)
+        return User.objects.get(email=email)
+
     def test_signup_roles_and_email_domains(self):
         self.assertEqual(
             [value for value, _ in SignUpForm.base_fields['role'].choices if value],
@@ -142,23 +160,8 @@ class SignupMergeTests(TestCase):
             self.assertFalse(form.is_valid())
             self.assertIn('role', form.errors)
 
-    def test_staff_signup_waits_for_head_admin_approval(self):
-        session = self.client.session
-        session['privacy_viewed'] = True
-        session.save()
-        with patch('accounts.views.SignUpForm') as form_class, \
-             patch('accounts.views.is_ratelimited', return_value=False), \
-             patch('accounts.views.send_mail'), \
-             patch('accounts.views._render_signup', return_value=HttpResponse('signup')):
-            form_class.return_value.is_valid.return_value = True
-            form_class.return_value.cleaned_data = {
-                'first_name': 'Staff', 'last_name': 'Applicant', 'email': 'staff-applicant@gmail.com',
-                'password': 'new-password', 'role': 'staff',
-                'department': '', 'phone': '09123456789',
-            }
-            self.client.post(reverse('signup'))
-
-        user = User.objects.get(email='staff-applicant@gmail.com')
+    def test_staff_can_only_log_in_after_email_verification_and_head_admin_approval(self):
+        user = self.signup_account('staff', 'staff-applicant@gmail.com')
         profile = UserProfile.objects.get(user=user)
         self.assertEqual(profile.role, 'staff')
         self.assertEqual(profile.approval_status, UserProfile.APPROVAL_PENDING)
@@ -170,17 +173,156 @@ class SignupMergeTests(TestCase):
         self.assertTrue(user.is_active)
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
-        # Verified, but blocked until the Head Admin approves the account
-        with patch('accounts.views.is_ratelimited', return_value=False):
-            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'new-password'})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "waiting for an administrator")
-        self.assertNotIn('_auth_user_id', self.client.session)
+        profile.refresh_from_db()
+        self.assertEqual(profile.approval_status, UserProfile.APPROVAL_PENDING)
+        self.assertIn(f'fc_td_{user.pk}', self.client.cookies)
 
-        UserProfile.objects.filter(user=user).update(approval_status=UserProfile.APPROVAL_APPROVED)
-        with patch('accounts.views.is_ratelimited', return_value=False):
-            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'new-password'})
+        with patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False), \
+             patch('accounts.views.send_mail') as send_mail:
+            response = self.client.post(reverse('login'), {
+                'email': user.email, 'password': 'Campus!Safe2048',
+            })
+        self.assertContains(response, 'Head Admin')
+        self.assertNotIn('_auth_user_id', self.client.session)
+        send_mail.assert_not_called()
+        self.assertEqual(self.client.get(reverse('userDashboard')).status_code, 302)
+
+        admin = User.objects.create_user(username='regular-admin', password='test', is_staff=True)
+        admin_client = Client()
+        admin_client.force_login(admin)
+        response = admin_client.post(reverse('user_management_action', args=[user.pk]), {
+            'action': 'approve',
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 403)
+        profile.refresh_from_db()
+        self.assertEqual(profile.approval_status, UserProfile.APPROVAL_PENDING)
+
+        head = User.objects.create_user(username='head-admin', password='test', is_staff=True)
+        UserProfile.objects.update_or_create(user=head, defaults={'role': 'admin', 'is_head_admin': True})
+        head_client = Client()
+        head_client.force_login(head)
+        self.assertContains(head_client.get(reverse('user_management')), user.email)
+        with patch('adm.user_management._notify') as notify:
+            response = head_client.post(reverse('user_management_action', args=[user.pk]), {
+                'action': 'approve',
+            }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        notify.assert_called_once()
+        profile.refresh_from_db()
+        self.assertEqual(profile.approval_status, UserProfile.APPROVAL_APPROVED)
+        with patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False):
+            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'Campus!Safe2048'})
         self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+        self.assertEqual(self.client.get(reverse('userDashboard')).status_code, 200)
+
+    def test_students_and_faculty_do_not_need_staff_approval(self):
+        for role in ('student', 'faculty'):
+            with self.subTest(role=role):
+                self.client = Client()
+                user = self.signup_account(role, f'{role}@udm.edu.ph')
+                profile = UserProfile.objects.get(user=user)
+                self.assertEqual(profile.approval_status, UserProfile.APPROVAL_APPROVED)
+                with patch('accounts.views.is_ratelimited', return_value=False):
+                    self.client.post(reverse('verify_otp'), {'otp': profile.otp})
+                with patch('accounts.views.is_ip_flagged', return_value=False), \
+                     patch('accounts.views.is_ratelimited', return_value=False):
+                    response = self.client.post(reverse('login'), {
+                        'email': user.email, 'password': 'Campus!Safe2048',
+                    })
+                self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
+                self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+    def test_existing_approved_staff_can_still_log_in(self):
+        user = User.objects.create_user(username='existing@gmail.com', email='existing@gmail.com', password='test')
+        UserProfile.objects.update_or_create(user=user, defaults={'role': 'staff'})
+        with patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False), \
+             patch('accounts.views._is_trusted_device', return_value=True):
+            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'test'})
+        self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+    def test_approved_staff_can_log_in_with_a_fresh_email_code(self):
+        user = User.objects.create_user(username='approved@gmail.com', email='approved@gmail.com', password='test')
+        UserProfile.objects.update_or_create(user=user, defaults={'role': 'staff'})
+        with patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False), \
+             patch('accounts.views.send_mail'):
+            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'test'})
+        self.assertRedirects(response, reverse('verify_login_otp'), fetch_redirect_response=False)
+        self.assertNotIn('_auth_user_id', self.client.session)
+        with patch('accounts.views.is_ratelimited', return_value=False):
+            response = self.client.post(reverse('verify_login_otp'), {
+                'otp': UserProfile.objects.get(user=user).otp,
+            })
+        self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+    def test_head_admin_cannot_approve_staff_before_email_verification(self):
+        user = self.signup_account('staff', 'unverified@gmail.com')
+        head = User.objects.create_user(username='head-admin', password='test', is_staff=True)
+        UserProfile.objects.update_or_create(user=head, defaults={'role': 'admin', 'is_head_admin': True})
+        head_client = Client()
+        head_client.force_login(head)
+        response = head_client.post(reverse('user_management_action', args=[user.pk]), {
+            'action': 'approve',
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(UserProfile.objects.get(user=user).approval_status, UserProfile.APPROVAL_PENDING)
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+
+    def test_pending_staff_cannot_use_stale_login_code_or_resend_session(self):
+        user = User.objects.create_user(username='pending@gmail.com', is_active=True)
+        UserProfile.objects.update_or_create(user=user, defaults={
+            'role': 'staff', 'approval_status': UserProfile.APPROVAL_PENDING,
+            'otp': '123456', 'otp_created_at': timezone.now(),
+        })
+        for route in ('verify_login_otp', 'resend_login_otp'):
+            with self.subTest(route=route):
+                session = self.client.session
+                session['pending_login_user_id'] = user.pk
+                session['pending_login_backend'] = 'django.contrib.auth.backends.ModelBackend'
+                session.save()
+                with patch('accounts.views.is_ratelimited', return_value=False), \
+                     patch('accounts.views.send_mail') as send_mail:
+                    response = self.client.post(reverse(route), {'otp': '123456'})
+                self.assertRedirects(response, reverse('login'), fetch_redirect_response=False)
+                self.assertNotIn('_auth_user_id', self.client.session)
+                self.assertNotIn('pending_login_user_id', self.client.session)
+                self.assertNotIn('pending_login_backend', self.client.session)
+                send_mail.assert_not_called()
+
+    def test_passkey_login_waits_for_staff_approval(self):
+        user = User.objects.create_user(username='passkey@gmail.com', is_active=True)
+        UserProfile.objects.update_or_create(user=user, defaults={
+            'role': 'staff', 'approval_status': UserProfile.APPROVAL_PENDING,
+        })
+        passkey = Passkey.objects.create(
+            user=user, name='Test device', credential_id='staff-credential', public_key=b'test-key',
+        )
+        with patch('accounts.passkeys.is_ip_flagged', return_value=False), \
+             patch('accounts.passkeys.is_ratelimited', return_value=False), \
+             patch('accounts.passkeys._pop_challenge', return_value=b'test-challenge'), \
+             patch('accounts.passkeys.verify_authentication_response', return_value=SimpleNamespace(new_sign_count=1)):
+            response = self.client.post(reverse('passkey_login_verify'), {
+                'credential': {'rawId': passkey.credential_id, 'response': {}},
+            }, content_type='application/json')
+            self.assertEqual(response.status_code, 403)
+            self.assertIn('Head Admin', response.json()['error'])
+            self.assertNotIn('_auth_user_id', self.client.session)
+            passkey.refresh_from_db()
+            self.assertIsNone(passkey.last_used_at)
+
+            UserProfile.objects.filter(user=user).update(approval_status=UserProfile.APPROVAL_APPROVED)
+            response = self.client.post(reverse('passkey_login_verify'), {
+                'credential': {'rawId': passkey.credential_id, 'response': {}},
+            }, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['redirect'], reverse('userDashboard'))
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
 
     def test_staff_signup_reuse_and_email_failure_cleanup(self):

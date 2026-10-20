@@ -3,11 +3,14 @@ from html import escape
 from smtplib import SMTPException
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
+from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 
-from .models import Notification
+from .decorators import is_head_admin
+from .models import Notification, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +26,28 @@ NOTIFICATIONS_PAGE_SIZE = 25
 
 def notifications_for_user(user, notif_filter='all'):
     notifications = Notification.objects.filter(user=user).select_related('report')
+    if not is_head_admin(user):
+        notifications = notifications.filter(staff_account__isnull=True)
     if notif_filter == 'unread':
         notifications = notifications.filter(is_read=False)
     return notifications
+
+
+def notify_staff_approval(user):
+    if not UserProfile.objects.filter(
+        user=user, role='staff', approval_status=UserProfile.APPROVAL_PENDING,
+        user__is_active=True, deactivated_at__isnull=True,
+    ).exists():
+        return
+    heads = User.objects.filter(
+        Q(is_staff=True) | Q(is_superuser=True), is_active=True, profile__is_head_admin=True,
+    )
+    name = user.get_full_name().strip() or user.email or user.username
+    for head in heads:
+        Notification.objects.get_or_create(
+            user=head, staff_account=user,
+            defaults={'message': f'Staff account awaiting approval: {name[:150]} has verified their email.'},
+        )
 
 
 def serialize_notification(notification, include_completion_photo=False):
@@ -36,12 +58,14 @@ def serialize_notification(notification, include_completion_photo=False):
         'is_recent': notification.is_recent,
         'time_ago': notification.time_ago,
         'report_id': notification.report_id,
-        'status': notification.status_snapshot or notification.report.status,
+        'staff_account_id': notification.staff_account_id,
+        'status': ('staff_approval' if notification.staff_account_id else
+                   notification.status_snapshot or notification.report.status),
     }
     if include_completion_photo:
         data['completion_photo_url'] = (
             notification.report.completion_photo.url
-            if notification.status_snapshot == 'resolved' and notification.report.completion_photo
+            if notification.report_id and notification.status_snapshot == 'resolved' and notification.report.completion_photo
             else None
         )
     return data

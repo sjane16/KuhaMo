@@ -1,9 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
-from .forms import ProfilePasswordChangeForm, form_error_text
+from .forms import form_error_text
 import hashlib
 import os
 from functools import lru_cache
@@ -107,18 +106,6 @@ def menu(request):
             profile.profile_photo.delete(save=True)
             messages.success(request, "Profile Photo Removed Successfully")
             return redirect('menu')
-
-        elif 'change_password' in request.POST:
-            password_form = ProfilePasswordChangeForm(request.user, request.POST)
-            if password_form.is_valid():
-                password_form.save()
-                invalidate_trusted_devices(request.user)
-                log_event(request, 'password_changed', user=request.user, where='Edit Profile')
-                update_session_auth_hash(request, request.user)
-                messages.success(request, "New password saved successfully!", extra_tags='password_changed')
-                return redirect('menu')
-            for error in password_form.non_field_errors():
-                messages.error(request, error)
 
     return render(request, 'user/menu.html', {
         "active_page": "menu",
@@ -803,7 +790,7 @@ def get_notifications_ajax(request):
 
 @login_required
 def view_notification(request, notification_id):
-    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notification = get_object_or_404(notifications_for_user(request.user), id=notification_id)
 
     if not notification.is_read:
         notification.is_read = True

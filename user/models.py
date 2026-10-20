@@ -245,7 +245,7 @@ class UserProfile(models.Model):
     # so a password change logs out every trusted device (see accounts/views.py)
     credentials_version = models.PositiveIntegerField(default=0, db_default=0)
 
-    # Retained for existing pending accounts. New signups need only email verification.
+    # New Staff signups also need Head Admin approval after email verification.
     APPROVAL_PENDING = 'pending'
     APPROVAL_APPROVED = 'approved'
     APPROVAL_CHOICES = [
@@ -293,7 +293,10 @@ class SurveyResponse(models.Model):
 
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='notifications')
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
+    staff_account = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='approval_notifications', null=True, blank=True,
+    )
     message = models.CharField(max_length=255)
     status_snapshot = models.CharField(max_length=20, choices=Report.STATUS_CHOICES, blank=True)
     is_read = models.BooleanField(default=False)
@@ -301,6 +304,16 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'staff_account'], name='unique_staff_approval_notification'),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(report__isnull=False, staff_account__isnull=True)
+                    | models.Q(report__isnull=True, staff_account__isnull=False)
+                ),
+                name='notification_has_one_target',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - {self.message[:40]}"

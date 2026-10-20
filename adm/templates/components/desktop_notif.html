@@ -23,12 +23,10 @@
                  viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
             </svg>
-            {% if unread_notifications_count > 0 %}
                 <span id="desktop_notif_badge"
-                      class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      class="{% if not unread_notifications_count %}hidden {% endif %}absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                     {{ unread_notifications_count }}
                 </span>
-            {% endif %}
         </button>
     {% endif %}
     <!-- Dropdown -->
@@ -206,7 +204,7 @@
                         loadNotifications();
 
                         const badge = document.getElementById("desktop_notif_badge");
-                        if (badge) badge.remove();
+                        if (badge) badge.classList.add("hidden");
                     }
                 })
                 .catch((error) => console.error("Failed to mark all as read:", error))
@@ -217,6 +215,10 @@
     let currentNotifFilter = "all";
 
     const STATUS_BADGES = {
+        staff_approval: {
+            color: "bg-blue-500",
+            icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v6m-3-3h6m-8.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109" />`,
+        },
         pending: {
             color: "bg-orange-500",
             icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />`,
@@ -259,11 +261,12 @@
           </div>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm text-gray-800 ${notif.is_read ? "" : "font-semibold"}">${notif.message}</p>
+          <p data-notification-message class="text-sm text-gray-800 ${notif.is_read ? "" : "font-semibold"}"></p>
           <p class="text-xs text-gray-400 mt-1">${notif.time_ago}</p>
         </div>
         ${!notif.is_read ? '<span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 mt-1.5"></span>' : ""}
       `;
+        item.querySelector("[data-notification-message]").textContent = notif.message;
         return item;
     }
 
@@ -307,10 +310,9 @@
                 }
 
                 const badge = document.getElementById("desktop_notif_badge");
-                if (badge && data.unread_count === 0) {
-                    badge.remove();
-                } else if (badge) {
+                if (badge) {
                     badge.textContent = data.unread_count;
+                    badge.classList.toggle("hidden", data.unread_count === 0);
                 }
 
                 notifTabsSkeleton.classList.add('hidden');

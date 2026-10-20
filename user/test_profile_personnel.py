@@ -34,7 +34,7 @@ class ProfilePasswordTests(TestCase):
             self.assertTrue(self.user.check_password('Original1!'))
 
     def test_both_views_preserve_device_invalidation_audit_and_session_update(self):
-        for view, module in ((menu, 'user.views'), (ProfileMenu, 'adm.views')):
+        for view, module in ((ProfileMenu, 'adm.views'),):
             self.user.set_password('Original1!')
             self.user.save()
             request = RequestFactory().post('/profile/', {
