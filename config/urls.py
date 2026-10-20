@@ -15,9 +15,21 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.shortcuts import redirect
+from django.urls import path, include, reverse
+from django.utils.http import urlencode
 from django.conf import settings
 from django.conf.urls.static import static
+
+
+def admin_login_via_fac_check(request, extra_context=None):
+    """Django's own admin login only asks for a password. Send every admin sign-in
+    through Fac-Check's login instead, so the email code (or a passkey) is required."""
+    next_url = request.GET.get('next', reverse('admin:index'))
+    return redirect(f"{reverse('login')}?{urlencode({'next': next_url})}")
+
+
+admin.site.login = admin_login_via_fac_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),

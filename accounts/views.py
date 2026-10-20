@@ -4,12 +4,12 @@ from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.models import User 
 from django.contrib import messages
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from django.contrib.messages import get_messages
 from axes.utils import reset_request
 from django.core.exceptions import PermissionDenied
 from django_ratelimit.core import is_ratelimited
 from security.models import HoneypotHit
-from security.utils import is_ip_flagged
 from security.audit import log_event, LOGIN_PASSWORD_OTP, LOGIN_TRUSTED_DEVICE
 from user.models import UserProfile, invalidate_trusted_devices
 import secrets
@@ -32,6 +32,20 @@ def _clear_messages(request):
 
 def _generate_otp():
     return ''.join(secrets.choice(string.digits) for _ in range(6))
+
+
+# Every resend issues a fresh code and resets the wrong-guess counter, so resends are
+# capped per browser address AND per account (an attacker can switch addresses, but not accounts).
+RESEND_RATE_PER_IP = '2/m'
+RESEND_RATE_PER_ACCOUNT = '5/h'
+
+def _resend_limited(request, purpose, user_id):
+    over_ip = is_ratelimited(request, group=f'otp-resend-ip:{purpose}', key='ip',
+                             rate=RESEND_RATE_PER_IP, method='POST', increment=True)
+    over_account = is_ratelimited(request, group=f'otp-resend-account:{purpose}',
+                                  key=lambda group, req: str(user_id),
+                                  rate=RESEND_RATE_PER_ACCOUNT, method='POST', increment=True)
+    return over_ip or over_account
 
 
 RESET_VERIFIED_WINDOW_SECONDS = 10 * 60
@@ -152,10 +166,52 @@ def _otp_error(request, status, attempts_left):
         plural = '' if attempts_left == 1 else 's'
         messages.error(request, f"Invalid verification code. You have {attempts_left} attempt{plural} left.")
 
+RESET_DECOY_SESSION_KEY = 'pending_reset_decoy'
+
 def _clear_reset_session(request):
     for key in ('pending_reset_user_id', 'password_reset_verified_user_id',
-                'password_reset_verified_at', 'password_reset_verified'):
+                'password_reset_verified_at', 'password_reset_verified', RESET_DECOY_SESSION_KEY):
         request.session.pop(key, None)
+
+def _start_reset_decoy(request, email):
+    """Forgot Password for an email with no usable account. The visitor goes through the same
+    screens as a real reset, so the page never reveals which emails are registered.
+    No code is sent, and no code will ever be accepted."""
+    _clear_reset_session(request)
+    request.session[RESET_DECOY_SESSION_KEY] = {
+        'email': email, 'sent_at': timezone.now().timestamp(), 'attempts': 0,
+    }
+
+def _reset_decoy_context(decoy):
+    remaining = decoy['sent_at'] + OTP_EXPIRY_MINUTES * 60 - timezone.now().timestamp()
+    return {'user_email': decoy['email'], 'otp_remaining_ms': max(0, int(remaining * 1000))}
+
+def _verify_reset_decoy(request, decoy):
+    """Mirrors verify_reset_otp's responses (attempt counts, expiry, lockout) for the decoy flow."""
+    context = _reset_decoy_context(decoy)
+    if request.method == 'POST':
+        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=verify_reset_otp):
+            messages.error(request, "Too many verification attempts. Please try again later")
+            return render(request, 'accounts/verify_reset_otp.html', {'form': OTPVerificationForm(), **context})
+
+        form = OTPVerificationForm(request.POST)
+        if form.is_valid():
+            if decoy['attempts'] >= OTP_MAX_ATTEMPTS:
+                status, attempts_left = 'locked', 0
+            elif context['otp_remaining_ms'] == 0:
+                status, attempts_left = 'expired', 0
+            else:
+                decoy['attempts'] += 1
+                request.session[RESET_DECOY_SESSION_KEY] = decoy
+                attempts_left = OTP_MAX_ATTEMPTS - decoy['attempts']
+                status = 'invalid' if attempts_left > 0 else 'locked'
+            _otp_error(request, status, max(attempts_left, 0))
+        else:
+            _clear_messages(request)
+            messages.error(request, "Please enter a valid 6-digit code")
+    else:
+        form = OTPVerificationForm()
+    return render(request, 'accounts/verify_reset_otp.html', {'form': form, **context})
 
 def _log_honeypot(request):
     HoneypotHit.objects.create(
@@ -212,13 +268,9 @@ def login_view(request):
             request.session.pop('pending_login_next', None)
 
     if request.method == 'POST':
-       ip = request.META.get('REMOTE_ADDR')
-
-       if is_ip_flagged(ip):
-           _clear_messages(request)
-           messages.error(request, "Invalid email or password")
-           return render(request, 'accounts/login.html', {'form': LoginForm()})
-
+       # Honeypot hits are still logged, but no longer block sign-in for the whole IP:
+       # on campus Wi-Fi one address is shared by everyone, so one curious visitor
+       # would lock every student out. Axes, rate limits and the email code protect login.
        if request.POST.get('website'):
            _log_honeypot(request)
            _clear_messages(request)
@@ -359,6 +411,7 @@ def verify_login_otp(request):
 
 
 @never_cache
+@require_POST
 def resend_login_otp(request):
     user_id = request.session.get('pending_login_user_id')
 
@@ -366,7 +419,7 @@ def resend_login_otp(request):
         messages.error(request, "No pending login found. Please log in again.")
         return redirect('login')
 
-    if is_ratelimited(request, key='ip', rate='2/m', method='POST', increment=True, fn=resend_login_otp):
+    if _resend_limited(request, 'login', user_id):
         messages.error(request, "Please wait before requesting another code")
         return redirect('verify_login_otp')
 
@@ -425,14 +478,6 @@ def _render_signup(request, form):
 @never_cache
 def signup(request):
     if request.method == 'POST':
-       ip = request.META.get('REMOTE_ADDR')
-
-       if is_ip_flagged(ip):
-           _clear_messages(request)
-           messages.error(request, "Unable to process your request. Please contact system administrator")
-
-           return _render_signup(request, SignUpForm())
-
        if request.POST.get('website'):
            _log_honeypot(request)
            _clear_messages(request)
@@ -582,6 +627,7 @@ def verify_otp(request):
     return render(request, 'accounts/verify_otp.html', {'form': form, 'user_email': user.email, **_otp_countdown_context(user)})
 
 @never_cache
+@require_POST
 def resend_otp(request):
     user_id = request.session.get('pending_verification_user_id')
 
@@ -589,7 +635,7 @@ def resend_otp(request):
         messages.error(request, "No pending verification found. Please sign up first.")
         return redirect('signup')
 
-    if is_ratelimited(request, key='ip', rate='2/m', method='POST', increment=True, fn=resend_otp):
+    if _resend_limited(request, 'signup', user_id):
         messages.error(request, "Please wait before requesting another code")
         return redirect('verify_otp')
 
@@ -627,13 +673,6 @@ def resend_otp(request):
 @never_cache
 def forgot_password(request):
     if request.method == 'POST':
-        ip = request.META.get('REMOTE_ADDR')
-
-        if is_ip_flagged(ip):
-            _clear_messages(request)
-            messages.error(request, "Unable to process your request. Please contact system administrator")
-            return render(request, 'accounts/forgot_password.html', {'form': ForgotPasswordForm()})
-
         if request.POST.get('website'):
             _log_honeypot(request)
             _clear_messages(request)
@@ -648,17 +687,15 @@ def forgot_password(request):
         if form.is_valid():
             email = form.cleaned_data.get('email', '').strip().lower()
 
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                _clear_messages(request)
-                messages.error(request, "No account found with that email address")
-                return render(request, 'accounts/forgot_password.html', {'form': ForgotPasswordForm()})
+            # filter().first(): two accounts sharing an email used to crash this page (500)
+            user = User.objects.filter(email__iexact=email).order_by('id').first()
 
-            if not user.is_active:
+            # Unknown or not-yet-verified email: same next screen as a real reset,
+            # so this page can't be used to find out who has an account.
+            if user is None or not user.is_active:
+                _start_reset_decoy(request, email)
                 _clear_messages(request)
-                messages.error(request, "Please verify your email before resetting your password")
-                return render(request, 'accounts/forgot_password.html', {'form': ForgotPasswordForm()})
+                return redirect('verify_reset_otp')
 
             otp = _generate_otp()
             UserProfile.objects.update_or_create(
@@ -701,6 +738,9 @@ def verify_reset_otp(request):
     user_id = request.session.get('pending_reset_user_id')
 
     if not user_id:
+        decoy = request.session.get(RESET_DECOY_SESSION_KEY)
+        if decoy:
+            return _verify_reset_decoy(request, decoy)
         messages.error(request, "No pending password reset found. Please try again.")
         return redirect('forgot_password')
 
@@ -747,14 +787,25 @@ def verify_reset_otp(request):
 
 
 @never_cache
+@require_POST
 def resend_reset_otp(request):
     user_id = request.session.get('pending_reset_user_id')
 
     if not user_id:
+        decoy = request.session.get(RESET_DECOY_SESSION_KEY)
+        if decoy:
+            # Same limits and messages as a real resend, but nothing is sent
+            if _resend_limited(request, 'reset', f"decoy:{decoy['email']}"):
+                messages.error(request, "Please wait before requesting another code")
+                return redirect('verify_reset_otp')
+            decoy.update(sent_at=timezone.now().timestamp(), attempts=0)
+            request.session[RESET_DECOY_SESSION_KEY] = decoy
+            messages.success(request, "A new reset code has been sent to your email.")
+            return redirect('verify_reset_otp')
         messages.error(request, "No pending password reset found. Please try again.")
         return redirect('forgot_password')
 
-    if is_ratelimited(request, key='ip', rate='2/m', method='POST', increment=True, fn=resend_reset_otp):
+    if _resend_limited(request, 'reset', user_id):
         messages.error(request, "Please wait before requesting another code")
         return redirect('verify_reset_otp')
 

@@ -698,12 +698,17 @@ def chatbot_response(request):
 
 #AJAX VIEWS FOR THE DROPDOWN
 def load_floors(request):
-    building_id = request.GET.get('building')
+    building_id = request.GET.get('building', '')
+    if not building_id.isdigit():
+        # A non-numeric id used to crash the lookup (500); there is simply nothing to list
+        return JsonResponse([], safe=False)
     floors = Floor.objects.filter(building_id=building_id).order_by('floor_number')
     return JsonResponse(list(floors.values('id', 'label')), safe=False)
 
 def load_rooms(request):
-    floor_id = request.GET.get('floor')
+    floor_id = request.GET.get('floor', '')
+    if not floor_id.isdigit():
+        return JsonResponse([], safe=False)
     rooms = Room.objects.filter(floor_id=floor_id).order_by('order')
     return JsonResponse(list(rooms.values('id','name', 'code')), safe=False)
 

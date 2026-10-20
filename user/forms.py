@@ -124,7 +124,9 @@ class ReportForm(forms.ModelForm):
 class UserForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email']
+        # Email is not editable here: it is the sign-in name and where reset codes go, so
+        # changing it without re-verification would let anyone at an open session take the account.
+        fields = ['first_name', 'last_name']
 
     # Sanitizes first/last name (shared by admin & user)
     def clean_first_name(self):

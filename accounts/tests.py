@@ -147,7 +147,6 @@ class SignupMergeTests(TestCase):
         session['privacy_viewed'] = True
         session.save()
         with patch('accounts.views.SignUpForm') as form_class, \
-             patch('accounts.views.is_ip_flagged', return_value=False), \
              patch('accounts.views.is_ratelimited', return_value=False), \
              patch('accounts.views.send_mail'), \
              patch('accounts.views._render_signup', return_value=HttpResponse('signup')):
@@ -172,16 +171,14 @@ class SignupMergeTests(TestCase):
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
         # Verified, but blocked until the Head Admin approves the account
-        with patch('accounts.views.is_ip_flagged', return_value=False), \
-             patch('accounts.views.is_ratelimited', return_value=False):
+        with patch('accounts.views.is_ratelimited', return_value=False):
             response = self.client.post(reverse('login'), {'email': user.email, 'password': 'new-password'})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "waiting for an administrator")
         self.assertNotIn('_auth_user_id', self.client.session)
 
         UserProfile.objects.filter(user=user).update(approval_status=UserProfile.APPROVAL_APPROVED)
-        with patch('accounts.views.is_ip_flagged', return_value=False), \
-             patch('accounts.views.is_ratelimited', return_value=False):
+        with patch('accounts.views.is_ratelimited', return_value=False):
             response = self.client.post(reverse('login'), {'email': user.email, 'password': 'new-password'})
         self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
@@ -201,7 +198,6 @@ class SignupMergeTests(TestCase):
                 session['privacy_viewed'] = True
                 session.save()
                 with patch('accounts.views.SignUpForm') as form_class, \
-                     patch('accounts.views.is_ip_flagged', return_value=False), \
                      patch('accounts.views.is_ratelimited', return_value=False), \
                      patch('accounts.views.send_mail', side_effect=SMTPException('offline') if mail_fails else None), \
                      patch('accounts.views._render_signup', return_value=HttpResponse('signup')):

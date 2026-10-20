@@ -893,21 +893,26 @@ def report_detail(request, report_id):
 
 
 def record_manual_survey(request, report_id):
-    report = get_object_or_404(Report, id=report_id)
+    get_object_or_404(Report, id=report_id)
     if request.method == 'POST':
         form = ManualSurveySubmissionForm(request.POST, request.FILES)
-        if is_med_personnel_report(report):
-            messages.error(request, 'MED personnel reports must be rated by the Head Admin.')
-        elif report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
-            messages.error(request, 'A manual survey can only be recorded once for a resolved report selected for manual submission.')
-        elif form.is_valid():
-            SurveyResponse.objects.create(report=report, **form.cleaned_data)
-            report.status = 'closed'
-            report.save(update_fields=['status'])
-            request.session[f'closed_seen_{report.id}'] = True
-            messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
-        else:
-            messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
+        # Lock the report like submitSurvey / record_med_personnel_rating do, so an admin recording the
+        # paper survey and a client submitting online at the same moment can't both get through
+        # (the loser used to hit an IntegrityError and a 500 page).
+        with transaction.atomic():
+            report = Report.objects.select_for_update().get(id=report_id)
+            if is_med_personnel_report(report):
+                messages.error(request, 'MED personnel reports must be rated by the Head Admin.')
+            elif report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
+                messages.error(request, 'A manual survey can only be recorded once for a resolved report selected for manual submission.')
+            elif form.is_valid():
+                SurveyResponse.objects.create(report=report, **form.cleaned_data)
+                report.status = 'closed'
+                report.save(update_fields=['status'])
+                request.session[f'closed_seen_{report.id}'] = True
+                messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
+            else:
+                messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
     return redirect('adm_report_detail', report_id=report_id)
 
 
@@ -1569,6 +1574,13 @@ def report_status(request, report_id):
     if request.method == 'POST':
         new_status = request.POST.get('status')
         if new_status == 'resolved':
+            # Only work that is in progress can be resolved. Without this, a pending report could skip
+            # assignment, and a closed one could be re-resolved (overwriting its completion photo and
+            # sending the client another survey request).
+            if report.status != 'in_progress':
+                messages.error(request, "Only reports that are In Progress can be marked Resolved.")
+                return redirect('adm_report_detail', report_id=report_id)
+
             completion_photo = request.FILES.get('completion_photo')
             if not completion_photo:
                 messages.error(request, "Please upload a photo proof of the completed repair.")
