@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
 from .forms import ProfilePasswordChangeForm, form_error_text
+import hashlib
 import os
 from functools import lru_cache
 from urllib.parse import unquote
@@ -23,7 +24,7 @@ from .models import Report, SurveyResponse, UserProfile, Notification, invalidat
 from adm.models import Floor, Room, Building 
 from .notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
 from .context_processors import get_unread_notifications_count
-from ml.predictor import predict_image, warm_model_async
+from ml.predictor import ImageDecodeError, predict_image, warm_model_async
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,23 +38,35 @@ def _get_gemini_client(api_key):
     return genai.Client(api_key=api_key)
 
 
-def normalize_cnn_prediction(value):
-    """Convert an AI confidence/margin value to a validated float in [0.0, 1.0], or None.
+CNN_PREDICTION_SESSION_KEY = 'cnn_prediction'
 
-    Django's FloatField will raise on bad input, so this safely parses incoming
-    text, rejects out-of-range values, and logs warnings instead of crashing.
+
+def _photo_digest(photo):
+    """SHA-256 of an uploaded photo, used to tie a stored prediction to the exact file."""
+    digest = hashlib.sha256()
+    photo.seek(0)
+    for chunk in photo.chunks():
+        digest.update(chunk)
+    photo.seek(0)
+    return digest.hexdigest()
+
+
+def _resolve_cnn_prediction(request, photo):
+    """Return the model's prediction for the submitted photo, never trusting browser fields.
+
+    Reuses the result predictCategory stored in the session for this exact file;
+    otherwise runs inference again. Returns None if the model cannot classify it.
     """
-    if not value:
-        return None
+    stored = request.session.pop(CNN_PREDICTION_SESSION_KEY, None)
+    if stored and stored.get('photo_sha256') == _photo_digest(photo):
+        return stored
     try:
-        num = float(value)
-    except (ValueError, TypeError):
-        logger.warning("Invalid CNN confidence/margin value received: %r", value)
+        return predict_image(photo)
+    except Exception:
+        logger.exception("CNN prediction failed during report submission")
         return None
-    if not (0.0 <= num <= 1.0):
-        logger.warning("CNN confidence/margin out of range [0.0-1.0]: %r", value)
-        return None
-    return num
+    finally:
+        photo.seek(0)
 
 @login_required
 def menu(request):
@@ -197,10 +210,20 @@ def reportForm(request):
             report.category = form.cleaned_data['category']
             report.custom_category = form.cleaned_data['custom_category']
 
-            report.cnn_raw_prediction = request.POST.get('cnn_raw_prediction')
-            report.cnn_confidence = normalize_cnn_prediction(request.POST.get('cnn_confidence'))
-            report.cnn_margin = normalize_cnn_prediction(request.POST.get('cnn_margin'))
-            report.flagged_for_review = request.POST.get('flagged_for_review') == 'true'
+            prediction = _resolve_cnn_prediction(request, form.cleaned_data['photo'])
+            if prediction:
+                # The AI category is locked in the UI, so enforce it here too
+                report.category = prediction['category']
+                report.cnn_raw_prediction = prediction['raw_label']
+                report.cnn_confidence = prediction['confidence']
+                report.cnn_margin = prediction['margin']
+                report.flagged_for_review = prediction['flagged_for_review']
+            else:
+                # Manual classification: keep the user's category and send it to an admin
+                report.cnn_raw_prediction = None
+                report.cnn_confidence = None
+                report.cnn_margin = None
+                report.flagged_for_review = True
 
             report.save()
 
@@ -687,9 +710,29 @@ def load_rooms(request):
 @login_required
 def predictCategory(request):
     if request.method != 'POST' or 'photo' not in request.FILES:
-        return JsonResponse({'success': False}, status=400)
+        return JsonResponse({'success': False, 'error': 'Please upload a photo.'}, status=400)
 
-    prediction = predict_image(request.FILES['photo'])
+    photo = request.FILES['photo']
+    request.session.pop(CNN_PREDICTION_SESSION_KEY, None)
+    try:
+        prediction = predict_image(photo)
+    except ImageDecodeError:
+        logger.warning("CNN could not decode uploaded photo", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': "We couldn't read this photo. Please upload a clear JPG or PNG image.",
+            'retry': False,
+        }, status=400)
+    except Exception:
+        logger.exception("CNN prediction failed")
+        return JsonResponse({
+            'success': False,
+            'error': "AI categorization is unavailable right now. Try again or choose a category manually.",
+            'retry': True,
+        }, status=503)
+
+    # Keep the model output server-side; reportForm reuses it for this exact file
+    request.session[CNN_PREDICTION_SESSION_KEY] = {**prediction, 'photo_sha256': _photo_digest(photo)}
 
     return JsonResponse({
         'success': True,

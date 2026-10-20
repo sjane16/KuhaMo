@@ -116,6 +116,14 @@ class TFLiteInferenceTests(SimpleTestCase):
         self.assertEqual(result['category'], 'others')
         self.assertTrue(result['flagged_for_review'])
 
+    def test_undecodable_image_raises_image_decode_error_before_loading_model(self):
+        image_bytes = BytesIO(b'not an image')
+        with patch.object(predictor, '_load_model') as load_model:
+            with self.assertRaises(predictor.ImageDecodeError):
+                predictor.predict_image(image_bytes)
+        load_model.assert_not_called()
+        self.assertEqual(image_bytes.tell(), 0)
+
     def test_background_warmup_starts_only_once(self):
         previous_started = predictor._WARMUP_STARTED
         predictor.MODEL = None
