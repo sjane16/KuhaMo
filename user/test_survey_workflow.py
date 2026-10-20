@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
-from .models import Report, SurveyResponse, UserProfile
+from .models import Notification, Report, SurveyResponse, UserProfile
 from adm.views import build_survey_analysis_context
 
 
@@ -56,11 +56,48 @@ class SurveyMethodWorkflowTests(TestCase):
         locked = self.choose_method('system')
         self.assertEqual(locked.status_code, 400)
 
+    def test_manual_choice_notifies_active_admins_once_per_method_change(self):
+        admin = User.objects.create_user(username='visit-admin', is_staff=True)
+        head = User.objects.create_user(username='visit-head', is_superuser=True)
+        User.objects.create_user(username='inactive-admin', is_staff=True, is_active=False)
+        self.user.first_name = 'Maria'
+        self.user.last_name = 'Santos'
+        self.user.save(update_fields=['first_name', 'last_name'])
+        self.client.force_login(self.user)
+        alerts = Notification.objects.filter(report=self.report)
+
+        self.assertEqual(self.choose_method('system').status_code, 200)
+        self.assertFalse(alerts.exists())
+        self.assertEqual(self.choose_method('manual').status_code, 200)
+        self.assertCountEqual(alerts.values_list('user_id', flat=True), [admin.pk, head.pk])
+        for alert in alerts.all():
+            self.assertIn('Maria Santos will visit the MED office', alert.message)
+            self.assertIn('during office hours', alert.message)
+            self.assertIn(self.report.job_order_id, alert.message)
+            self.assertEqual(alert.status_snapshot, 'resolved')
+            self.assertFalse(alert.is_read)
+
+        self.assertEqual(self.choose_method('manual').status_code, 200)
+        self.assertEqual(alerts.count(), 2)
+        self.assertEqual(self.choose_method('system').status_code, 200)
+        self.assertEqual(alerts.count(), 2)
+        self.assertEqual(self.choose_method('manual').status_code, 200)
+        self.assertEqual(alerts.count(), 4)
+
+    def test_rejected_manual_choice_does_not_notify_admins(self):
+        User.objects.create_user(username='visit-admin', is_staff=True)
+        self.client.force_login(self.user)
+        self.report.status = 'in_progress'
+        self.report.save(update_fields=['status'])
+        self.assertEqual(self.choose_method('manual').status_code, 400)
+        self.assertFalse(Notification.objects.filter(report=self.report).exists())
+
     def test_manual_choice_confirmation_has_got_it_and_back_without_print_button(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse('reportedIssue', args=[self.report.pk]))
         self.assertContains(response, 'Got it')
         self.assertContains(response, 'Back — choose another method')
+        self.assertContains(response, 'office during office hours')
         self.assertNotContains(response, 'Open / Print Job Order')
 
     def test_online_survey_requires_online_choice_and_closes_report(self):

@@ -201,22 +201,6 @@
                 </div>
               </div>
             {% endif %}
-            {% if report.assigned_personnel_summary %}
-              <div class="flex items-start gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg"
-                     class="w-4 h-4 text-gray-400 mt-0.5 shrink-0"
-                     fill="none"
-                     viewBox="0 0 24 24"
-                     stroke-width="1.6"
-                     stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                </svg>
-                <div>
-                  <p class="text-xs text-gray-400">Assigned Personnel</p>
-                  <p class="text-sm font-semibold text-gray-800">{{ report.assigned_personnel_summary }}</p>
-                </div>
-              </div>
-            {% endif %}
             {% if report.priority %}
               <div class="flex items-start gap-3 pt-3 border-t border-gray-200">
                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -278,6 +262,16 @@
               <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-700 leading-relaxed italic">
                 {{ report.recommendation }}
               </div>
+            </div>
+          {% endif %}
+          {% if report.assigned_personnel_summary %}
+            <div>
+              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">MED Personnel</p>
+              <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                {% for personnel in report.assigned_personnel_data %}
+                  {% if personnel.name %}<li>{{ personnel.name }}</li>{% endif %}
+                {% endfor %}
+              </ul>
             </div>
           {% endif %}
           <!-- Progress -->
@@ -547,7 +541,7 @@
             </div>
             {% if report.assigned_personnel_summary %}
               <div class="grid grid-cols-2 gap-4 items-start">
-                <span class="text-sm text-gray-500 shrink-0">Assigned Personnel</span>
+                <span class="text-sm text-gray-500 shrink-0">MED Personnel</span>
                 <span class="text-sm font-semibold text-gray-800 text-right leading-5 break-words whitespace-normal min-w-0">{{ report.assigned_personnel_summary }}</span>
               </div>
             {% endif %}
@@ -563,7 +557,7 @@
           <button type="button"
                   onclick="chooseSurveyMethod('system')"
                   class="w-full flex items-center justify-center text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">
-            Take Survey Online
+            Take Survey
           </button>
           <button type="button"
                   onclick="chooseSurveyMethod('manual')"
@@ -586,7 +580,7 @@
           <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
           </svg>
-          <p class="text-xs text-blue-700 leading-relaxed text-justify">Please visit the Maintenance and Engineering Division office to print and sign the Job Order and complete the Customer Service Survey. An admin will upload the scanned form and record your ratings.</p>
+          <p class="text-xs text-blue-700 leading-relaxed text-justify">Please visit the Maintenance and Engineering Division office during office hours to print and sign the Job Order and complete the Customer Service Survey. An admin will upload the scanned form and record your ratings.</p>
         </div>
         <button type="button" onclick="closeManualSurveyConfirmation()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">Got it</button>
         <button type="button" onclick="backToSurveyChoices()" class="mt-3 text-xs font-semibold text-blue-700 hover:text-blue-900">Back — choose another method</button>

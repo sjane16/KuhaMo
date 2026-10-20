@@ -496,8 +496,20 @@ def chooseSurveyMethod(request, report_id):
                 'success': False,
                 'error': 'The Head Admin will provide the QQT rating for MED personnel reports.',
             }, status=403)
+        notify_manual_visit = method == 'manual' and report.survey_method != 'manual'
         report.survey_method = method
         report.save(update_fields=['survey_method'])
+        if notify_manual_visit:
+            for admin_user in get_admin_users().filter(is_active=True):
+                Notification.objects.create(
+                    user=admin_user,
+                    report=report,
+                    message=(
+                        f"{report.reporter_name[:100]} will visit the MED office during office hours "
+                        f"to complete the manual CSS for report {report.job_order_id}."
+                    ),
+                    status_snapshot=report.status,
+                )
     return JsonResponse({'success': True, 'method': method})
 
 
