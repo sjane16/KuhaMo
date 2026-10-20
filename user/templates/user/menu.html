@@ -61,7 +61,6 @@
       </button>
     </div>
   </main>
-  <script src="{% static 'user/js/password_change.js' %}"></script>
   <script src="{% static 'accounts/js/passkeys.js' %}"></script>
   <script>
       function setButtonLoading(btnId, spinnerId, textId, loadingText) {
@@ -76,9 +75,6 @@
       }
 
       function initMenuPage() {
-          initPasswordChangeButton();
-          initPasswordChecklistToggle();
-          initPasswordModalOverlay();
           // Contact Number field: strips non-digit characters and caps input at 11 chars while typing
           const phoneInput = document.getElementById("phone_input");
           if (phoneInput) {
