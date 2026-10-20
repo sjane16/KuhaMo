@@ -114,7 +114,6 @@
                 <option value="student">Student</option>
                 <option value="faculty">Faculty</option>
                 <option value="staff">Staff</option>
-                <option value="med_personnel">MED Personnel</option>
                 <option value="admin">Admin</option>
               </select>
             </div>
@@ -553,7 +552,7 @@
       const personnelCategories = JSON.parse(document.getElementById("med-personnel-categories").textContent);
 
       const roleLabel = document.getElementById("umModalRoleLabel");
-      const ROLE_NAMES = { student: "Student", faculty: "Faculty", staff: "Staff", med_personnel: "MED Personnel" };
+      const ROLE_NAMES = { student: "Student", faculty: "Faculty", staff: "Staff" };
       function setRoleOptions(roles) {
         roleSelect.innerHTML = '<option value="">Choose a role</option>' + roles.map(function (r) {
           return '<option value="' + r + '">' + ROLE_NAMES[r] + "</option>";
@@ -596,7 +595,7 @@
         pending = { action: action, userId: userId, needsRole: needsRole };
         passwordInput.value = "";
         passwordWrap.classList.toggle("hidden", !cfg.password);
-        setRoleOptions(["student", "faculty", "staff", "med_personnel"]);
+        setRoleOptions(["student", "faculty", "staff"]);
         roleLabel.textContent = "This account was created as an admin. What role should it have now?";
         roleSelect.value = "";
         personnelSelect.value = currentPersonnel && currentPersonnel.indexOf("account-") === 0 ? "__new__" : (currentPersonnel || "");

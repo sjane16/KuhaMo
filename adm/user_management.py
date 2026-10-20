@@ -35,7 +35,7 @@ from .personnel import clear_personnel_cache
 
 USERS_PAGE_SIZE = 10
 STATUSES = ('active', 'pending', 'unverified', 'deactivated')
-ROLES = ('student', 'faculty', 'staff', 'med_personnel', 'admin')
+ROLES = ('student', 'faculty', 'staff', 'admin')
 
 ADMIN_Q = Q(is_staff=True) | Q(is_superuser=True) | Q(profile__role='admin')
 STATUS_Q = {
@@ -335,7 +335,7 @@ def _change_admin_access(request, user_id, action, body):
 
 # Legacy admin accounts can still choose a fallback role when access is removed.
 
-CHANGEABLE_ROLES = ('student', 'faculty', 'staff', 'med_personnel')
+CHANGEABLE_ROLES = ('student', 'faculty', 'staff')
 
 
 def _med_personnel_mapping(target, body):
