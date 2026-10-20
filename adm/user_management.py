@@ -209,7 +209,7 @@ def user_management_action(request, user_id):
             profile.save(update_fields=['approval_status'])
             log_event(request, 'user_approved', user=request.user, target=email)
             _notify(target, 'Your Fac-Check staff account was approved',
-                    'Good news! An administrator approved your Fac-Check staff account. You can now log in.')
+                    'Good news! The Head Admin approved your Fac-Check staff account. You can now log in.')
 
         elif action == 'reject':
             log_event(request, 'user_rejected', user=request.user, target=email, reason=reason)

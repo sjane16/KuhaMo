@@ -245,7 +245,7 @@ class UserProfile(models.Model):
     # so a password change logs out every trusted device (see accounts/views.py)
     credentials_version = models.PositiveIntegerField(default=0, db_default=0)
 
-    # Retained for existing pending accounts. New signups need only email verification.
+    # New Staff signups also need Head Admin approval after email verification.
     APPROVAL_PENDING = 'pending'
     APPROVAL_APPROVED = 'approved'
     APPROVAL_CHOICES = [

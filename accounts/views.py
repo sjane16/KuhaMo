@@ -237,7 +237,7 @@ def _approval_block_message(user):
     """Message for a verified account that may not log in yet, or None."""
     profile = getattr(user, 'profile', None)
     if profile and profile.approval_status == UserProfile.APPROVAL_PENDING:
-        return ("Your account is waiting for an administrator's approval. "
+        return ("Your account is waiting for the Head Admin's approval. "
                 "You'll receive an email once it's approved.")
     return None
 
@@ -372,6 +372,13 @@ def verify_login_otp(request):
         messages.error(request, "Invalid login session. Please log in again.")
         return redirect('login')
 
+    blocked = _approval_block_message(user)
+    if blocked:
+        request.session.pop('pending_login_user_id', None)
+        request.session.pop('pending_login_backend', None)
+        messages.error(request, blocked)
+        return redirect('login')
+
     if request.method == 'POST':
 
        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=verify_login_otp):
@@ -427,6 +434,13 @@ def resend_login_otp(request):
         user = User.objects.get(id=user_id, is_active=True)
     except User.DoesNotExist:
         messages.error(request, "Invalid login session. Please log in again.")
+        return redirect('login')
+
+    blocked = _approval_block_message(user)
+    if blocked:
+        request.session.pop('pending_login_user_id', None)
+        request.session.pop('pending_login_backend', None)
+        messages.error(request, blocked)
         return redirect('login')
 
     otp = _generate_otp()
@@ -528,8 +542,10 @@ def signup(request):
                     user=user,
                     defaults={
                         'role': role,
-                        # Staff use personal Gmail, so the Head Admin confirms them before first login
-                        'approval_status': UserProfile.APPROVAL_PENDING if role == 'staff' else UserProfile.APPROVAL_APPROVED,
+                        'approval_status': (
+                            UserProfile.APPROVAL_PENDING if role == 'staff'
+                            else UserProfile.APPROVAL_APPROVED
+                        ),
                         'department': department,
                         'phone': phone,
                         'otp': otp,
@@ -612,8 +628,8 @@ def verify_otp(request):
                 del request.session['pending_verification_user_id']
                 _clear_messages(request)
                 if getattr(user, 'profile', None) and user.profile.approval_status == UserProfile.APPROVAL_PENDING:
-                    messages.success(request, "Your email has been verified! Your account is now waiting for an "
-                                              "administrator's approval. You'll receive an email once it's approved.")
+                    messages.success(request, "Your email has been verified! Your account is now waiting for the "
+                                              "Head Admin's approval. You'll receive an email once it's approved.")
                 else:
                     messages.success(request, "Your account has been verified successfully! You can now log in.")
                 # The device that verified the signup is trusted, so the first login skips MFA
