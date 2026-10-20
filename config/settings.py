@@ -43,8 +43,10 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'cloudinary_storage',
+    # cloudinary_storage must come AFTER staticfiles: it is only used for uploaded media, and its
+    # own collectstatic override reads STATICFILES_STORAGE, which no longer exists in Django 6.
     'django.contrib.staticfiles',
+    'cloudinary_storage',
     'simple_history',
     'tailwind',
     'theme',
@@ -74,7 +76,8 @@ STORAGES = {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        # Serves the collected CSS/JS (gzipped) through WhiteNoise when DEBUG is off
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 
@@ -82,6 +85,9 @@ STORAGES = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Serves /static/ without DEBUG; must come right after SecurityMiddleware.
+    # Run `python manage.py tailwind build` and `collectstatic` first.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'security.middleware.HoneypotProbeMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -116,9 +122,12 @@ LOGIN_URL = 'login'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_AGE = 3600  # 1 hour
 
-# Outside local development, only send the login and form cookies over HTTPS.
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+# Only send the login and form cookies over HTTPS. On by default; set
+# SECURE_COOKIES=False in .env when testing with DEBUG=False over plain http
+# (e.g. http://192.168.100.58), or login will silently fail.
+SECURE_COOKIES = config('SECURE_COOKIES', default=True, cast=bool)
+SESSION_COOKIE_SECURE = SECURE_COOKIES and not DEBUG
+CSRF_COOKIE_SECURE = SECURE_COOKIES and not DEBUG
 
 ROOT_URLCONF = 'config.urls'
 

@@ -133,29 +133,28 @@ This thesis/capstone project was developed in 2026, focusing on real-world usabi
 
 Use a `.env` file for local development. Do not commit secrets to version control.
 
-Example `.env`:
-```env
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
+Copy `.env.example` to `.env` and fill in the values. It lists every variable the project reads.
 
-# Email (if used)
-EMAIL_HOST=smtp.example.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=your-email@example.com
-EMAIL_HOST_PASSWORD=your-email-password
-EMAIL_USE_TLS=True
-EMAIL_TIMEOUT=30
+`DEBUG` is **off unless `.env` sets `DEBUG=True`**. For local development and testing, keep `DEBUG=True`; otherwise the dev server stops serving CSS/JS and the pages look broken.
 
-# Database (if using PostgreSQL in production)
-# DB_NAME=
-# DB_USER=
-# DB_PASSWORD=
-# DB_HOST=
-# DB_PORT=
+### Testing with DEBUG off (before deployment)
+
+To see the site exactly as the live server will serve it:
+
+```bash
+python manage.py tailwind build
+python manage.py collectstatic --noinput
 ```
 
-Adjust the variables to match the actual settings used in the project. If the project already has a `.env.example`, prefer that as the source of truth.
+Then set `DEBUG=False` in `.env` (plus `SECURE_COOKIES=False` if you open it over plain `http://`, or sign-in will silently fail) and run the server. Static files are served by WhiteNoise.
+
+### Deploy checklist
+
+- `DEBUG=False`, and real values for `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` and `SITE_URL`
+- Leave `SECURE_COOKIES` unset (on) — the live site must use HTTPS
+- `python manage.py tailwind build` and `python manage.py collectstatic --noinput` on every deploy (the built Tailwind CSS is not committed)
+- `python manage.py migrate`
+- `python manage.py check --deploy` and fix what it reports
 
 ### Database Setup
 

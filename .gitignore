@@ -264,3 +264,6 @@ graphify-out/
 
 # Local diagram
 docs/data_flow_diagram.html
+
+# Output of `manage.py collectstatic`
+/staticfiles/

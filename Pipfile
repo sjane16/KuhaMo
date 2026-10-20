@@ -21,6 +21,7 @@ django-cloudinary-storage = "*"
 xhtml2pdf = "*"
 webauthn = "*"
 openpyxl = "*"
+whitenoise = "*"
 
 [dev-packages]
 djlint = "*"
