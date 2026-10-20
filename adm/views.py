@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.urls import reverse
 from requests import request
 from django.db import transaction
 from user.models import Report, SurveyResponse, Notification, invalidate_trusted_devices, UserProfile
@@ -1772,13 +1773,20 @@ def get_notifications_ajax_admin(request):
 
 
 def view_notification_admin(request, notification_id):
-    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notification = get_object_or_404(notifications_for_user(request.user), id=notification_id)
 
     if not notification.is_read:
         notification.is_read = True
         notification.save(update_fields=['is_read'])
 
-    return redirect('adm_report_detail', report_id=notification.report.id)
+    if notification.staff_account_id:
+        still_pending = UserProfile.objects.filter(
+            user_id=notification.staff_account_id, user__is_active=True,
+            role='staff', approval_status=UserProfile.APPROVAL_PENDING,
+        ).exists()
+        anchor = f'staff-{notification.staff_account_id}' if still_pending else 'pendingCard'
+        return redirect(reverse('user_management') + '#' + anchor)
+    return redirect('adm_report_detail', report_id=notification.report_id)
 
 
 def mark_all_notifications_read_admin(request):

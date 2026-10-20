@@ -790,7 +790,7 @@ def get_notifications_ajax(request):
 
 @login_required
 def view_notification(request, notification_id):
-    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+    notification = get_object_or_404(notifications_for_user(request.user), id=notification_id)
 
     if not notification.is_read:
         notification.is_read = True

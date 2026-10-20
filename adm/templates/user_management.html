@@ -67,8 +67,8 @@
       </div>
 
       <!-- Staff waiting for approval -->
-      <div id="pendingCard" class="relative bg-white rounded-2xl overflow-hidden p-4 lg:p-6 mb-6 border border-gray-200">
-        <div id="pendingList" class="space-y-3">
+      <div id="pendingCard" class="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-3xl shadow overflow-hidden mb-6">
+        <div id="pendingList">
           {% include 'partials/_users_pending.html' %}
         </div>
       </div>
@@ -122,7 +122,6 @@
                       class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
                 <option value="">All statuses</option>
                 <option value="active">Active</option>
-                <option value="pending">Pending</option>
                 <option value="unverified">Unverified</option>
                 <option value="deactivated">Deactivated</option>
               </select>
@@ -222,6 +221,8 @@
   {% include 'partials/_personnel_management_modal.html' %}
   <style>
     [data-um-switch-panel][hidden] { display: none !important; }
+    #pendingList summary { list-style: none; }
+    #pendingList summary::-webkit-details-marker { display: none; }
     @media (max-width: 1023px) {
       #managementControls[data-mobile-search-open="true"] :is(#managementHeadingRow, #userFilters, #personnelFilters) { display: none !important; }
     }
@@ -393,7 +394,7 @@
       const mobileLoading = mobile.innerHTML;
       const countLoading = userCount.innerHTML;
 
-      let page = 1, searchTimer = null, searchText = "", loadSequence = 0;
+      let page = 1, searchTimer = null, searchText = "", loadSequence = 0, staffTargetFocused = false;
 
       function csrf() {
         const m = document.cookie.match(/csrftoken=([^;]+)/);
@@ -404,11 +405,6 @@
         Object.keys(stats).forEach(function (key) {
           const el = document.querySelector('[data-stat="' + key + '"]');
           if (el) el.textContent = stats[key];
-        });
-        // Keep the sidebar / bottom-nav badge in sync
-        document.querySelectorAll("[data-pending-badge]").forEach(function (b) {
-          b.textContent = stats.pending;
-          b.hidden = !stats.pending;
         });
       }
 
@@ -431,6 +427,15 @@
             body.innerHTML = data.desktop_html;
             mobile.innerHTML = data.mobile_html;
             pendingList.innerHTML = data.pending_html;
+            if (!staffTargetFocused && window.location.hash.startsWith("#staff-")) {
+              const staffCard = document.getElementById(window.location.hash.slice(1));
+              if (staffCard) {
+                staffCard.open = true;
+                staffCard.scrollIntoView({ block: "center" });
+                staffCard.querySelector("summary").focus({ preventScroll: true });
+                staffTargetFocused = true;
+              }
+            }
             setStats(data.stats);
             userCount.textContent = data.total_count + " user" + (data.total_count === 1 ? "" : "s") + " found";
             pageInfo.textContent = "Page " + data.current_page + " of " + data.total_pages;

@@ -12,6 +12,7 @@ from django_ratelimit.core import is_ratelimited
 from security.models import HoneypotHit
 from security.audit import log_event, LOGIN_PASSWORD_OTP, LOGIN_TRUSTED_DEVICE
 from user.models import UserProfile, invalidate_trusted_devices
+from user.notifications import notify_staff_approval
 import secrets
 import string
 from django.utils.crypto import constant_time_compare
@@ -623,8 +624,10 @@ def verify_otp(request):
             if status != 'ok':
                 _otp_error(request, status, attempts_left)
             else:
-                user.is_active = True
-                user.save()
+                with transaction.atomic():
+                    user.is_active = True
+                    user.save()
+                    notify_staff_approval(user)
                 del request.session['pending_verification_user_id']
                 _clear_messages(request)
                 if getattr(user, 'profile', None) and user.profile.approval_status == UserProfile.APPROVAL_PENDING:

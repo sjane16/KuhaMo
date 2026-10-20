@@ -24,7 +24,7 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.core import is_ratelimited
 
 from security.audit import log_event
-from user.models import UserProfile, invalidate_trusted_devices
+from user.models import Notification, UserProfile, invalidate_trusted_devices
 from user.constants import (
     MED_PERSONNEL_BY_SLUG,
     MED_PERSONNEL_CATEGORY_BY_SLUG,
@@ -91,7 +91,9 @@ def _base_queryset():
     return User.objects.select_related('profile')
 
 def _filtered_users(status, role, search):
-    qs = _base_queryset()
+    qs = _base_queryset().exclude(
+        profile__role='staff', profile__approval_status=UserProfile.APPROVAL_PENDING,
+    )
     if status in STATUS_Q:
         qs = qs.filter(STATUS_Q[status])
     if role == 'admin':
@@ -110,10 +112,7 @@ def _stats():
     return {key: base.filter(q).count() for key, q in STATUS_Q.items()}
 
 def pending_staff():
-    return _decorate(list(_base_queryset().filter(STATUS_Q['pending']).order_by('date_joined')))
-
-def pending_staff_count():
-    return _base_queryset().filter(STATUS_Q['pending']).count()
+    return _decorate(list(_base_queryset().filter(STATUS_Q['pending'], profile__role='staff').order_by('date_joined')))
 
 def _notify(user, subject, message):
     send_mail(subject=subject, message=message, from_email=settings.DEFAULT_FROM_EMAIL,
@@ -207,6 +206,7 @@ def user_management_action(request, user_id):
         if action == 'approve':
             profile.approval_status = UserProfile.APPROVAL_APPROVED
             profile.save(update_fields=['approval_status'])
+            Notification.objects.filter(staff_account=target, is_read=False).update(is_read=True)
             log_event(request, 'user_approved', user=request.user, target=email)
             _notify(target, 'Your Fac-Check staff account was approved',
                     'Good news! The Head Admin approved your Fac-Check staff account. You can now log in.')
