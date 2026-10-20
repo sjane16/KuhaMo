@@ -158,6 +158,7 @@
 
             function unlockCategory() {
                 categoryLocked = false;
+                setLocked(categoryField, false);
                 categoryField.classList.remove("bg-gray-100", "cursor-not-allowed", "pointer-events-none", "text-gray-700");
                 categoryField.removeAttribute("data-cdd-locked");
             }
@@ -275,6 +276,7 @@
 
                         document.getElementById("id_category").value = data.category;
                         categoryLocked = true;
+                        setLocked(categoryField, true);
 
                         categoryField.classList.add(
                             "bg-gray-100",
@@ -314,6 +316,8 @@
             const floorField = document.getElementById("floor-field");
             const roomField = document.getElementById("room-field");
             const facilityBuildingIds = window.facilityBuildingIds || [];
+
+            setLocked(categoryField, true);
 
             function loadRooms(floorId, onDone) {
                 roomSelect.innerHTML = '<option value = "">Select a Room</option>';
@@ -562,6 +566,11 @@
                     return;
                 }
 
+                // Disabled controls are omitted from form data; keep the AI result in the POST.
+                if (categoryLocked) {
+                    categoryField.disabled = false;
+                }
+
                 // Gibberish/keymash detection — mirrors validate_no_gibberish() server-side.
                 // Flags 5+ consecutive consonants with no vowel in between (e.g. "dlasdpasdosa").
                 const gibberishPattern = /[bcdfghjklmnpqrstvwxyz]{5,}/i;
@@ -602,7 +611,7 @@
 
             categoryWrapper.addEventListener("click", function() {
 
-                if (categoryLocked) {
+                if (categoryLocked || categoryField.disabled) {
                     flashCategoryInfo();
                 }
 
