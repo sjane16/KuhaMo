@@ -36,6 +36,10 @@ CATEGORY_MAP = {
 }
 
 
+class ImageDecodeError(ValueError):
+    """The uploaded file is not an image the model can read."""
+
+
 def _make_interpreter():
     from ai_edge_litert.interpreter import Interpreter
 
@@ -112,8 +116,13 @@ def predict_image(image_file):
     from PIL import Image
 
     image_file.seek(0)
-    with Image.open(image_file) as source:
-        image = source.convert("RGB").resize((224, 224), Image.Resampling.NEAREST)
+    try:
+        with Image.open(image_file) as source:
+            image = source.convert("RGB").resize((224, 224), Image.Resampling.NEAREST)
+    except (Image.DecompressionBombError, OSError, SyntaxError, ValueError) as exc:  # OSError covers UnidentifiedImageError
+        raise ImageDecodeError("Uploaded photo could not be decoded.") from exc
+    finally:
+        image_file.seek(0)
 
     # This matches the Colab training and validation ImageDataGenerator rescale=1./255.
     image_array = np.asarray(image, dtype=np.float32) / 255.0

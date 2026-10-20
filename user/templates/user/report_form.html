@@ -149,14 +149,34 @@
                 errorMsg.classList.add("hidden");
 
                 // clear the AI result tied to the removed photo
-                categoryLocked = false;
-                categoryField.classList.remove("bg-gray-100", "cursor-not-allowed", "pointer-events-none", "text-gray-700");
+                unlockCategory();
                 categoryField.value = "";
                 document.getElementById("cnn-confidence").classList.add("hidden");
-                ["cnn_raw_prediction", "cnn_confidence", "cnn_margin", "flagged_for_review"].forEach(function(id) {
-                    document.getElementById(id).value = "";
-                });
+                hideCnnError();
                 document.getElementById("custom-category-wrapper").classList.add("hidden");
+            });
+
+            function unlockCategory() {
+                categoryLocked = false;
+                categoryField.classList.remove("bg-gray-100", "cursor-not-allowed", "pointer-events-none", "text-gray-700");
+                categoryField.removeAttribute("data-cdd-locked");
+            }
+
+            function hideCnnError() {
+                document.getElementById("cnn-error").classList.add("hidden");
+            }
+
+            // Prediction failed: let the user retry, or pick the category themselves
+            function showCnnError(message, canRetry) {
+                unlockCategory();
+                document.getElementById("cnn-confidence").classList.add("hidden");
+                document.getElementById("cnn-error-text").textContent = message;
+                document.getElementById("cnn-retry-btn").classList.toggle("hidden", !canRetry);
+                document.getElementById("cnn-error").classList.remove("hidden");
+            }
+
+            document.getElementById("cnn-retry-btn").addEventListener("click", function() {
+                if (input.files[0]) input.dispatchEvent(new Event("change"));
             });
 
             // ---- Drag and drop ----
@@ -219,6 +239,7 @@
 
 
                 const currentPredictionId = ++predictionRequestId;
+                hideCnnError();
                 if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
                 previewObjectUrl = URL.createObjectURL(file);
                 showPreview(previewObjectUrl);
@@ -234,11 +255,21 @@
                         method: "POST",
                         body: formData
                     })
-                    .then(res => res.json())
+                    .then(res => res.json().catch(() => ({ success: false, retry: true })))
                     .then(data => {
                         if (currentPredictionId !== predictionRequestId) return;
                         if (!data.success) {
                             hideCnnLoading();
+                            if (data.retry === false) {
+                                // unreadable image: make the user pick another photo
+                                input.value = "";
+                                resetPreview();
+                                unlockCategory();
+                                errorMsg.textContent = data.error || "Please upload a valid JPG or PNG image.";
+                                errorMsg.classList.remove("hidden");
+                            } else {
+                                showCnnError(data.error || "AI categorization is unavailable right now. Try again or choose a category manually.", true);
+                            }
                             return;
                         }
 
@@ -255,11 +286,6 @@
                         document.getElementById("cnn-confidence").classList.remove("hidden");
                         document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
 
-                        document.getElementById("cnn_raw_prediction").value = data.raw_prediction;
-                        document.getElementById("cnn_confidence").value = data.confidence;
-                        document.getElementById("cnn_margin").value = data.margin;
-                        document.getElementById("flagged_for_review").value = data.flagged_for_review;
-
                         document.getElementById("custom-category-wrapper").classList.toggle("hidden", data.category !== "others");
                         hideCnnLoading();
                     })
@@ -267,6 +293,7 @@
                         if (currentPredictionId !== predictionRequestId) return;
                         console.error(error);
                         hideCnnLoading();
+                        showCnnError("Couldn't reach AI categorization. Try again or choose a category manually.", true);
                     });
             });
 
