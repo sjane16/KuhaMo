@@ -38,7 +38,6 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-from security.utils import is_ip_flagged
 from security.audit import log_event, LOGIN_PASSKEY
 from user.models import Passkey
 
@@ -221,8 +220,6 @@ def login_verify(request):
     # Imported here to avoid a circular import with accounts.views
     from .views import _post_login_redirect
 
-    if is_ip_flagged(request.META.get('REMOTE_ADDR')):
-        return _error("Passkey sign-in failed.", status=403)
     if is_ratelimited(request, key='ip', rate='10/m', method='POST', increment=True, fn=login_verify):
         return _error("Too many sign-in attempts. Please try again later.", status=429)
 

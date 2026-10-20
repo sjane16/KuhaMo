@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import shutil
 from pathlib import Path
-from decouple import config 
+from decouple import config, Csv
 import dj_database_url
 import cloudinary
 
@@ -27,8 +27,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.100.58', '192.168.100.59']
+# Off unless .env says DEBUG=True, so a server without the setting never shows debug pages.
+DEBUG = config('DEBUG', default=False, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,192.168.100.58,192.168.100.59', cast=Csv())
+# Needed for form submissions when the site is served over HTTPS on a real domain,
+# e.g. CSRF_TRUSTED_ORIGINS=https://faccheck.example.com
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
 
 
 # Application definition
@@ -111,6 +115,10 @@ LOGIN_URL = 'login'
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_AGE = 3600  # 1 hour
+
+# Outside local development, only send the login and form cookies over HTTPS.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 ROOT_URLCONF = 'config.urls'
 
