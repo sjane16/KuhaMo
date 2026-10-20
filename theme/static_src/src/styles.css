@@ -626,6 +626,7 @@ html.fc-app.dark select option {
 
 /* Mga size at variant (gagamitin sa Phase 3 at 4) */
 .cdd-lg .cdd-btn { padding: 14px 16px; border-radius: 16px; }
+.profile-department .cdd-btn { padding: 10px 16px; border-radius: 12px; }
 .cdd-transparent .cdd-btn { background: transparent; border-color: transparent; padding-left: 0; padding-right: 0; }
 .cdd-transparent .cdd-btn:focus, .cdd-transparent .cdd-btn.open { box-shadow: none; }
 

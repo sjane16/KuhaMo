@@ -116,3 +116,9 @@
 
 
 @media (prefers-reduced-motion: reduce) { .menu-icon>span, #landing-nav.menu-ready #landing-menu { transition: none; } }
+
+/* Dark mode: the shared palette remaps slate-900 to a light off-white, so the
+   header's shadow-slate-900/10 rendered as a light glow. Keep it a dark shadow. */
+html.dark header:has(> #landing-nav) {
+    --tw-shadow-color: rgb(0 0 0 / 0.45);
+}

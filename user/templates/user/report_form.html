@@ -3,6 +3,21 @@
 {% block content %}
     <style>
         #report-form .cdd-btn { padding: 8px 12px; border-radius: 12px; }
+        #report-form #category-wrapper.has-recommendation .cdd-btn:disabled {
+            background: #edf4ff;
+            border-color: #9dc5ea;
+            color: #0f4c81;
+            font-weight: 600;
+            opacity: 1;
+        }
+        #report-form #category-wrapper.has-recommendation .cdd-btn:disabled .cdd-label { color: #0f4c81; }
+        #report-form #category-wrapper.has-recommendation .cdd-btn:disabled svg { display: none; }
+        html.dark #report-form #category-wrapper.has-recommendation .cdd-btn:disabled {
+            background: #193157;
+            border-color: #527b9e;
+            color: #e4e6eb;
+        }
+        html.dark #report-form #category-wrapper.has-recommendation .cdd-btn:disabled .cdd-label { color: #e4e6eb; }
         @media (min-width: 1024px) {
             #report-form,
             #report-form-skeleton-grid { grid-template-columns: minmax(0, 45fr) minmax(0, 55fr); }
@@ -158,6 +173,7 @@
 
             function unlockCategory() {
                 categoryLocked = false;
+                categoryWrapper.classList.remove("has-recommendation");
                 setLocked(categoryField, false);
                 categoryField.classList.remove("bg-gray-100", "cursor-not-allowed", "pointer-events-none", "text-gray-700");
                 categoryField.removeAttribute("data-cdd-locked");
@@ -240,6 +256,11 @@
 
 
                 const currentPredictionId = ++predictionRequestId;
+                unlockCategory();
+                categoryField.value = "";
+                setLocked(categoryField, true);
+                document.getElementById("cnn-confidence").classList.add("hidden");
+                document.getElementById("custom-category-wrapper").classList.add("hidden");
                 hideCnnError();
                 if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
                 previewObjectUrl = URL.createObjectURL(file);
@@ -277,6 +298,7 @@
                         document.getElementById("id_category").value = data.category;
                         categoryLocked = true;
                         setLocked(categoryField, true);
+                        categoryWrapper.classList.add("has-recommendation");
 
                         categoryField.classList.add(
                             "bg-gray-100",
@@ -286,7 +308,7 @@
                         );
                         categoryField.setAttribute("data-cdd-locked", "");
                         document.getElementById("cnn-confidence").classList.remove("hidden");
-                        document.getElementById("cnn-confidence").innerText = `AI Confidence: ${(data.confidence * 100).toFixed(2)}%`;
+                        document.getElementById("cnn-confidence").innerText = `AI confidence: ${(data.confidence * 100).toFixed(1)}%`;
 
                         document.getElementById("custom-category-wrapper").classList.toggle("hidden", data.category !== "others");
                         hideCnnLoading();

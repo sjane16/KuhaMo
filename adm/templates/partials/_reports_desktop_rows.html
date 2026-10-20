@@ -4,7 +4,7 @@
         <td class="px-4 py-4 text-gray-500 whitespace-normal text-xs text-center font-semibold">{{ report.job_order_id }}</td>
         <td class="px-4 py-4 text-gray-500 max-w-[180px] whitespace-normal">
             {% if report.assigned_personnel_summary %}
-                {{ report.assigned_personnel_summary }}
+                <span title="{{ report.assigned_personnel_summary }}">{{ report.assigned_personnel_preview }}</span>
             {% else %}
                 <span class="text-gray-400 text-xs">Not assigned</span>
             {% endif %}

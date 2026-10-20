@@ -7,13 +7,14 @@ from adm.models import Building, Floor, Room
 from .validators import validate_no_gibberish
 from .validators import validate_no_profanity
 from .validators import validate_name  # name sanitizer
+from .validators import validate_office_name
 from .validators import validate_password_strength
 
 
 class ProfilePasswordChangeForm(forms.Form):
     old_password = forms.CharField(required=False, widget=forms.PasswordInput)
-    new_password1 = forms.CharField(required=False, widget=forms.PasswordInput)
-    new_password2 = forms.CharField(required=False, widget=forms.PasswordInput)
+    new_password1 = forms.CharField(required=False, max_length=16, widget=forms.PasswordInput)
+    new_password2 = forms.CharField(required=False, max_length=16, widget=forms.PasswordInput)
 
     def __init__(self, user, *args, **kwargs):
         self.user = user
@@ -136,9 +137,38 @@ class UserForm(forms.ModelForm):
         return validate_name(self.cleaned_data.get('last_name'), "Last name")
 
 class UserProfileForm(forms.ModelForm):
+    # Only used when "Other Office or Area" is picked; the typed text replaces the department
+    other_office = forms.CharField(required=False, max_length=100)
+
     class Meta:
         model = UserProfile
         fields = ['department', 'phone']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Students and faculty pick a college, staff pick an office or area. A value saved
+        # before this rule existed stays selectable, so editing only the phone number
+        # never forces a department change.
+        profile = self.instance
+        choices = list(UserProfile.department_choices_for(profile.role))
+        if profile.department and profile.department not in dict(choices):
+            choices.append((profile.department, dict(UserProfile.DEPARTMENT_CHOICES + UserProfile.OFFICE_CHOICES).get(profile.department, profile.department)))
+        self.fields['department'].choices = [('', '---------'), *choices]
+
+    def _get_validation_exclusions(self):
+        # The offices are not in the model field's choices (that would need a migration),
+        # so department is checked by this form's own list above instead.
+        return set(super()._get_validation_exclusions()) | {'department'}
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('department') == UserProfile.OTHER_OFFICE_CODE:
+            office, office_errors = validate_office_name(cleaned_data.get('other_office'))
+            for error in office_errors:
+                self.add_error('other_office', error)
+            if not office_errors:
+                cleaned_data['department'] = office
+        return cleaned_data
 
     def clean_phone(self):
         phone = self.cleaned_data.get('phone', '').strip()

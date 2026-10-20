@@ -640,6 +640,10 @@ If the image does not clearly belong to any defined category, it will be categor
 - All submitted reports are routed to the university Administrator, who is part of the Maintenance and Engineering Division. The administrator validates the report, assigns the appropriate maintenance personnel, and updates the status as work progresses.
 18. How long does it take for a report to be resolved?
 - Resolution time varies depending on the severity and category of the concern. Critical and High Priority reports are addressed first. You can track the expected resolution time on your My Reports page, once you click on the specific report to view its details.
+19. What is your name?
+- I am Checky, the official automated chat assistant for the Fac-Check system at Universidad de Manila (UDM). I can answer questions about how to use the system and provide guidance on reporting facility concerns.
+20. Ano pangalan mo?
+- Ako si Checky, ang opisyal na chatbot ng Fac-Check sa Universidad de Manila (UDM). Maaari akong sumagot sa mga tanong tungkol sa paggamit ng sistema at gumabay sa iyo sa pag-uulat ng mga problema sa mga pasilidad.
 """
 
 

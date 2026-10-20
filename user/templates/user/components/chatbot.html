@@ -112,17 +112,13 @@
         const quickReply = document.getElementById("quick-replies");
         const mobileBottomNav = document.getElementById("mobile-bottom-nav");
 
-        // Observe the top of the document instead of running a handler on every scroll.
-        if ('IntersectionObserver' in window) {
-            const scrollMarker = document.createElement('div');
-            scrollMarker.setAttribute('aria-hidden', 'true');
-            scrollMarker.style.cssText = 'position:absolute;top:0;left:0;width:1px;height:80px;pointer-events:none;';
-            document.body.prepend(scrollMarker);
-            const scrollObserver = new IntersectionObserver(function(entries) {
-                chatbotToggle.classList.toggle('is-compact', !entries[0].isIntersecting);
-            });
-            scrollObserver.observe(scrollMarker);
+        // Collapse the label on any downward page scroll, including restored positions.
+        function updateChatbotLabel() {
+            chatbotToggle.classList.toggle('is-compact', window.scrollY > 0);
         }
+        window.addEventListener('scroll', updateChatbotLabel, { passive: true });
+        window.addEventListener('pageshow', updateChatbotLabel);
+        updateChatbotLabel();
 
         let drag = null;
         let wasDragged = false;

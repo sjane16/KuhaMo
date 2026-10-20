@@ -40,7 +40,7 @@ COLUMNS = ['First Name', 'Last Name', 'Email', 'Role', 'Department', 'Phone']
 ROLES = ['student', 'faculty', 'staff', 'med_personnel']
 # Ways people write the MED role in a spreadsheet
 ROLE_ALIASES = {'med personnel': 'med_personnel', 'med': 'med_personnel', 'med-personnel': 'med_personnel'}
-DEPARTMENTS = dict(UserProfile.DEPARTMENT_CHOICES)  # code -> full name
+DEPARTMENTS = dict(UserProfile.DEPARTMENT_CHOICES + UserProfile.OFFICE_CHOICES)  # code -> full name (colleges and offices)
 
 
 def _error(message, status=400):
@@ -83,14 +83,18 @@ def import_template(request):
         ('First Name / Last Name - letters, spaces, hyphens, apostrophes and periods only.', False),
         ('Email - students and faculty must use their @udm.edu.ph email; staff and MED personnel may use any email.', False),
         ('Role - student, faculty, staff or med_personnel (MED Personnel; "MED" also works). Admins are added from the User Management page.', False),
-        ('Department - one of the codes below.', False),
+        ('Department - one of the codes below: a college for students and faculty, an office or area for staff.', False),
         ('Phone - 11 digits, e.g. 09171234567.', False),
         ('', False),
         ('There is no password column: Fac-Check emails each person a temporary password,', False),
         ('and they choose their own password the first time they log in.', False),
         ('', False),
         ('Department codes', True),
-    ] + [(f'{code} - {name}', False) for code, name in DEPARTMENTS.items() if code]
+        ('Colleges (students and faculty)', True),
+    ] + [(f'{code} - {name}', False) for code, name in UserProfile.DEPARTMENT_CHOICES] + [
+        ('', False),
+        ('Offices and areas (staff)', True),
+    ] + [(f'{code} - {name}', False) for code, name in UserProfile.OFFICE_CHOICES]
     for text, bold in lines:
         help_ws.append([text])
         if bold:
@@ -155,6 +159,8 @@ def _check_row(data, seen_emails, existing_emails):
         errors.append("Role must be student, faculty, staff or med_personnel.")
     if data['department'] not in DEPARTMENTS or not data['department']:
         errors.append("Department must be one of the codes on the Instructions sheet.")
+    elif data['role'] in ROLES and data['department'] not in dict(UserProfile.department_choices_for(data['role'])):
+        errors.append("Staff need an office or area code; students and faculty need a college code (see the Instructions sheet).")
     if not (len(data['phone']) == 11 and data['phone'].isdigit()):
         errors.append("Phone number must be exactly 11 digits, numbers only.")
     return errors

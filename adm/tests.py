@@ -365,6 +365,21 @@ class StaffAdminPromotionTests(TestCase):
             self.assertIn('data-um-action="make_admin"', response.json()[key])
             self.assertNotIn('data-um-action="change_role"', response.json()[key])
 
+    def test_pending_staff_layout_supports_mobile_cards_and_desktop_details(self):
+        UserProfile.objects.filter(user=self.account).update(
+            approval_status=UserProfile.APPROVAL_PENDING,
+        )
+
+        response = self.client.get(reverse('user_management'))
+
+        self.assertContains(response, 'sm:grid-cols-2')
+        self.assertContains(response, 'lg:grid-cols-[minmax(0,1fr)_auto]')
+        self.assertContains(response, 'xl:grid-cols-[minmax(0,1.35fr)_minmax(160px,1.2fr)_minmax(115px,0.8fr)_minmax(110px,0.75fr)_auto]')
+        self.assertContains(response, 'lg:bg-gray-100')
+        self.assertContains(response, 'lg:not-sr-only">Office</dt>')
+        self.assertContains(response, 'data-um-action="approve"')
+        self.assertContains(response, 'data-um-action="reject"')
+
     def test_active_user_buttons_match_role_and_deactivation_still_works(self):
         for role in ('student', 'faculty', 'staff'):
             with self.subTest(role=role):

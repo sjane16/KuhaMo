@@ -75,6 +75,21 @@
       }
 
       function initMenuPage() {
+          // Staff who pick "Other Office or Area" get a box to type their own office
+          (function() {
+              const dept = document.getElementById("id_department");
+              const wrap = document.getElementById("other_office_wrap");
+              const input = document.getElementById("other_office_input");
+              if (!dept || !wrap || !input) return;
+              function toggleOther() {
+                  const show = dept.value === "{{ user.profile.OTHER_OFFICE_CODE }}";
+                  wrap.classList.toggle("hidden", !show);
+                  input.required = show;
+                  if (!show) input.value = "";
+              }
+              dept.addEventListener("change", toggleOther);
+              toggleOther();
+          })();
           // Contact Number field: strips non-digit characters and caps input at 11 chars while typing
           const phoneInput = document.getElementById("phone_input");
           if (phoneInput) {
