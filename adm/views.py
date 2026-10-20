@@ -1757,7 +1757,11 @@ def get_notifications_page_ajax_admin(request):
 
 def get_notifications_ajax_admin(request):
     notif_filter = request.GET.get('filter', 'all')
-    notifications = _filter_admin_notifications(request, notif_filter)[:10]
+    queryset = _filter_admin_notifications(request, notif_filter)
+    # Unread staff approvals are always included, even beyond the 10-item limit.
+    pinned = list(queryset.filter(staff_account__isnull=False, is_read=False))
+    others = queryset.exclude(id__in=[n.id for n in pinned])[:10]
+    notifications = pinned + list(others)
 
     data = [
         serialize_notification(n)

@@ -295,18 +295,22 @@
                     notifList.innerHTML =
                         '<div class="px-4 py-6 text-center text-sm text-gray-400">No notifications yet.</div>';
                 } else {
-                    const recent = data.notifications.filter((n) => n.is_recent);
-                    const older = data.notifications.filter((n) => !n.is_recent);
+                    const isStaff = (n) => n.status === "staff_approval";
+                    const staffApprovals = data.notifications.filter((n) => isStaff(n));
+                    const others = data.notifications.filter((n) => !isStaff(n));
+                    const recent = others.filter((n) => n.is_recent);
+                    const older = others.filter((n) => !n.is_recent);
 
-                    if (recent.length > 0) {
-                        notifList.appendChild(buildSectionHeader("New", true));
-                        recent.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
-                    }
+                    // "See all" only on the first divider shown
+                    const addSection = (label, items) => {
+                        if (items.length === 0) return;
+                        notifList.appendChild(buildSectionHeader(label, notifList.children.length === 0));
+                        items.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
+                    };
 
-                    if (older.length > 0) {
-                        notifList.appendChild(buildSectionHeader("Yesterday", recent.length === 0));
-                        older.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
-                    }
+                    addSection("Staff", staffApprovals);
+                    addSection("New", recent);
+                    addSection("Yesterday", older);
                 }
 
                 const badge = document.getElementById("desktop_notif_badge");
