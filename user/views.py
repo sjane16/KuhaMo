@@ -132,6 +132,7 @@ def base(request):
 
 @login_required
 def userDashboard(request):
+    warm_model_async()
     return render(request, 'user/user_dashboard.html', {
         "active_page": "userDashboard",
     })
@@ -251,6 +252,7 @@ def reportForm(request):
 
 @login_required
 def reportFormAjax(request):
+    warm_model_async()
     form = ReportForm()
 
     facility_building_ids = list(

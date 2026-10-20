@@ -56,7 +56,13 @@ def _load_model():
 def _warm_model():
     global _WARMUP_STARTED
     try:
-        _load_model()
+        import numpy as np
+
+        model = _load_model()
+        image_shape = tuple(CONFIG["image_size"]) + (3,)
+        sample = np.zeros((1, *image_shape), dtype=np.float32)
+        with _INFERENCE_LOCK:
+            model.predict(sample, verbose=0)
     except Exception:
         logger.exception("CNN model background warm-up failed")
     finally:
@@ -65,7 +71,7 @@ def _warm_model():
 
 
 def warm_model_async():
-    """Load the model in the background while the user fills out a report."""
+    """Load and trace inference in the background before the first upload."""
     global _WARMUP_STARTED
     if MODEL is not None:
         return

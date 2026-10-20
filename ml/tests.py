@@ -114,3 +114,16 @@ class KerasInferenceTests(SimpleTestCase):
             daemon=True,
         )
         thread.return_value.start.assert_called_once()
+
+    def test_background_warmup_runs_first_inference(self):
+        model = FakeKerasModel([0.1] * len(predictor.CLASS_NAMES))
+        previous_started = predictor._WARMUP_STARTED
+        predictor._WARMUP_STARTED = True
+        self.addCleanup(setattr, predictor, '_WARMUP_STARTED', previous_started)
+
+        with patch.object(predictor, '_load_model', return_value=model):
+            predictor._warm_model()
+
+        self.assertEqual(model.predict_calls, 1)
+        self.assertEqual(model.input_array.shape, (1, 224, 224, 3))
+        self.assertFalse(predictor._WARMUP_STARTED)
