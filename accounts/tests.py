@@ -142,7 +142,7 @@ class SignupMergeTests(TestCase):
             self.assertFalse(form.is_valid())
             self.assertIn('role', form.errors)
 
-    def test_staff_can_log_in_as_regular_user_after_signup_otp(self):
+    def test_staff_signup_waits_for_head_admin_approval(self):
         session = self.client.session
         session['privacy_viewed'] = True
         session.save()
@@ -162,7 +162,7 @@ class SignupMergeTests(TestCase):
         user = User.objects.get(email='staff-applicant@gmail.com')
         profile = UserProfile.objects.get(user=user)
         self.assertEqual(profile.role, 'staff')
-        self.assertEqual(profile.approval_status, UserProfile.APPROVAL_APPROVED)
+        self.assertEqual(profile.approval_status, UserProfile.APPROVAL_PENDING)
         self.assertFalse(user.is_active)
         with patch('accounts.views.is_ratelimited', return_value=False):
             response = self.client.post(reverse('verify_otp'), {'otp': profile.otp})
@@ -171,6 +171,15 @@ class SignupMergeTests(TestCase):
         self.assertTrue(user.is_active)
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
+        # Verified, but blocked until the Head Admin approves the account
+        with patch('accounts.views.is_ip_flagged', return_value=False), \
+             patch('accounts.views.is_ratelimited', return_value=False):
+            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'new-password'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "waiting for an administrator")
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+        UserProfile.objects.filter(user=user).update(approval_status=UserProfile.APPROVAL_APPROVED)
         with patch('accounts.views.is_ip_flagged', return_value=False), \
              patch('accounts.views.is_ratelimited', return_value=False):
             response = self.client.post(reverse('login'), {'email': user.email, 'password': 'new-password'})
@@ -209,7 +218,7 @@ class SignupMergeTests(TestCase):
                     self.assertIsNone(saved)
                 else:
                     self.assertIsNotNone(saved)
-                    self.assertEqual(UserProfile.objects.get(user=saved).approval_status, UserProfile.APPROVAL_APPROVED)
+                    self.assertEqual(UserProfile.objects.get(user=saved).approval_status, UserProfile.APPROVAL_PENDING)
                     if reuse:
                         self.assertEqual(saved.pk, existing.pk)
                     else:

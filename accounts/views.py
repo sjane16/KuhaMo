@@ -483,7 +483,8 @@ def signup(request):
                     user=user,
                     defaults={
                         'role': role,
-                        'approval_status': UserProfile.APPROVAL_APPROVED,
+                        # Staff use personal Gmail, so the Head Admin confirms them before first login
+                        'approval_status': UserProfile.APPROVAL_PENDING if role == 'staff' else UserProfile.APPROVAL_APPROVED,
                         'department': department,
                         'phone': phone,
                         'otp': otp,
