@@ -882,6 +882,32 @@
            class="max-w-[90vw] max-h-[90vh] w-auto h-auto object-contain rounded-2xl shadow-2xl" />
     </div>
   </div>
+  <!-- ═══════════════════════════════════
+     MARK RESOLVED CONFIRMATION MODAL
+════════════════════════════════════ -->
+  <div id="resolve-confirm-modal"
+       class="hidden fixed inset-0 z-[9999] items-center justify-center bg-black/50 backdrop-blur-sm px-4 py-4">
+    <div role="dialog"
+         aria-modal="true"
+         aria-labelledby="resolve-confirm-title"
+         class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 sm:p-8 text-center">
+      <div class="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+      </div>
+      <h2 id="resolve-confirm-title" class="text-base font-bold text-gray-900 mb-2">Mark {{ report.job_order_id }} as Resolved?</h2>
+      <p class="text-sm text-gray-500 mb-6">Please check that the photo and the completion date and time are correct. This will update the report status and notify the reporter.</p>
+      <div class="flex gap-3">
+        <button type="button"
+                id="resolve-confirm-cancel"
+                class="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+        <button type="button"
+                id="resolve-confirm-ok"
+                class="flex-1 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">Mark Resolved</button>
+      </div>
+    </div>
+  </div>
   {{ priority_sla_hours|json_script:"priority-sla-hours" }}
   <script>
       // ── Photo lightbox ──
@@ -1162,6 +1188,10 @@
                   accomplishedAtInput.focus();
               } else {
                   accomplishedAtError.classList.add("hidden");
+                  if (accomplishedAtForm.dataset.confirmed !== "1") {
+                      e.preventDefault();
+                      openResolveConfirm(accomplishedAtForm);
+                  }
               }
           });
       }
@@ -1204,5 +1234,51 @@
           document.documentElement.style.overflow = "";
           document.body.style.overflow = "";
       }
+
+      // ── Mark Resolved confirmation ──
+      let resolveConfirmForm = null;
+
+      function openResolveConfirm(form) {
+          const modal = document.getElementById("resolve-confirm-modal");
+          if (!modal) {
+              form.dataset.confirmed = "1";
+              form.submit();
+              return;
+          }
+          resolveConfirmForm = form;
+          modal.classList.remove("hidden");
+          modal.classList.add("flex");
+          document.body.style.overflow = "hidden";
+          document.getElementById("resolve-confirm-cancel").focus();
+      }
+
+      function closeResolveConfirm() {
+          const modal = document.getElementById("resolve-confirm-modal");
+          if (!modal) return;
+          modal.classList.add("hidden");
+          modal.classList.remove("flex");
+          document.body.style.overflow = "";
+          resolveConfirmForm = null;
+      }
+
+      (function () {
+          const modal = document.getElementById("resolve-confirm-modal");
+          if (!modal) return;
+          const okBtn = document.getElementById("resolve-confirm-ok");
+          document.getElementById("resolve-confirm-cancel").addEventListener("click", closeResolveConfirm);
+          modal.addEventListener("click", function (e) {
+              if (e.target === modal) closeResolveConfirm();
+          });
+          document.addEventListener("keydown", function (e) {
+              if (e.key === "Escape" && !modal.classList.contains("hidden")) closeResolveConfirm();
+          });
+          okBtn.addEventListener("click", function () {
+              if (!resolveConfirmForm) return;
+              okBtn.disabled = true;
+              okBtn.textContent = "Saving...";
+              resolveConfirmForm.dataset.confirmed = "1";
+              resolveConfirmForm.submit();
+          });
+      })();
   </script>
 {% endblock %}
