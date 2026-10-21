@@ -4,8 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-djlint = "*"
 django = "==6.0.7"
+gunicorn = "*"
 pillow = "*"
 google-genai = "*"
 tensorflow-cpu = "*"
