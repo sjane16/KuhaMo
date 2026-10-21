@@ -469,7 +469,15 @@
   {% if show_survey %}
     <div id="resolved-notif"
          class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 flex flex-col items-center text-center">
+      <div class="relative bg-white rounded-3xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 flex flex-col items-center text-center">
+        <button type="button"
+                onclick="closeResolvedNotif()"
+                aria-label="Close"
+                class="absolute top-3 right-3 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
         <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4 shrink-0">
           <svg class="w-7 h-7 text-green-500"
                fill="none"
@@ -696,6 +704,15 @@
                  manualConfirmation.classList.add("hidden");
                  manualConfirmation.classList.remove("flex");
              }
+             if (resolvedNotif) {
+                 resolvedNotif.classList.add("hidden");
+                 resolvedNotif.classList.remove("flex");
+             }
+             unlockPageScroll();
+         }
+
+         function closeResolvedNotif() {
+             const resolvedNotif = document.getElementById("resolved-notif");
              if (resolvedNotif) {
                  resolvedNotif.classList.add("hidden");
                  resolvedNotif.classList.remove("flex");

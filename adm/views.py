@@ -363,7 +363,7 @@ def build_survey_analysis_context(response_page=1, include_responses=True):
 
         total_assigned = stats["total_assigned"]
         completion_pct = (stats["closed_count"] / total_assigned * 100) if total_assigned else 0
-        quantity = quantity_survey or (_percent_to_score(completion_pct) if total_assigned else 0)
+        quantity = quantity_survey or (_percent_to_score(completion_pct) if stats["closed_count"] else 0)
 
         timeliness_scores = stats["timeliness_scores"]
         timeliness_avg = (sum(timeliness_scores) / len(timeliness_scores)) if timeliness_scores else 0
@@ -386,7 +386,7 @@ def build_survey_analysis_context(response_page=1, include_responses=True):
         personnel_rows.append({
             "name": stats["name"],
             "avg_rating": qqt_avg,
-            "total_score": round(personnel_avg_rating, 1),
+            "total_score": round(personnel_avg_rating, 1) if scores else None,
             "total_surveys": max(stats["quality_count"], stats["quantity_count"], stats["timeliness_count"]),
             "complete_task": qqt_reports,
             "quality": qqt_quality,
@@ -911,6 +911,7 @@ def record_manual_survey(request, report_id):
                 report.status = 'closed'
                 report.save(update_fields=['status'])
                 request.session[f'closed_seen_{report.id}'] = True
+                notify_status_change(report, 'closed', f'Your report {report.job_order_id} is now Closed. Thank you for your feedback!')
                 messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
             else:
                 messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
@@ -1454,7 +1455,10 @@ def report_save(request, report_id):
         custom_category = request.POST.get('custom_category', '').strip()
         priority = request.POST.get('priority', '').strip()
 
-        awaiting_personnel = request.POST.get('pending_awaiting_personnel') == '1'
+        awaiting_personnel = (
+            request.POST.get('pending_awaiting_personnel') == '1'
+            and bool(report.assigned_personnel_data)
+        )
         awaiting_materials = request.POST.get('pending_awaiting_materials') == '1'
         awaiting_approval = request.POST.get('pending_awaiting_approval') == '1'
         now = timezone.now()
@@ -1574,6 +1578,12 @@ def report_status(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     if request.method == 'POST':
         new_status = request.POST.get('status')
+        # This endpoint only handles "In Progress -> Resolved". Pending -> In Progress happens in report_save
+        # (once every requirement is filled in) and Closed happens through the survey flow, so any other
+        # value is rejected instead of being saved.
+        if new_status != 'resolved':
+            messages.error(request, "Invalid status update.")
+            return redirect('adm_report_detail', report_id=report_id)
         if new_status == 'resolved':
             # Only work that is in progress can be resolved. Without this, a pending report could skip
             # assignment, and a closed one could be re-resolved (overwriting its completion photo and
@@ -1612,16 +1622,10 @@ def report_status(request, report_id):
             report.status = new_status
             report.accomplished_at = accomplished_at
             report.completion_photo = completion_photo
-        elif new_status == 'closed':
-            return redirect('adm_report_detail', report_id=report_id)
-
-        if new_status == 'in_progress' and not report.in_progress_at:
-            report.in_progress_at = timezone.now()
         report.save()
 
-        if new_status == 'resolved':
-            notify_status_change(report, 'resolved', f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey.")
-            messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
+        notify_status_change(report, 'resolved', f"Your report {report.job_order_id} has been Resolved. Please take the Client Satisfaction Survey.")
+        messages.success(request, f"Report {report.job_order_id} has been marked Resolved.")
     return redirect('adm_report_detail', report_id=report_id)
 
 def ProfileMenu(request):

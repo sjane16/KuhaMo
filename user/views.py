@@ -38,6 +38,7 @@ def _get_gemini_client(api_key):
 
 
 CNN_PREDICTION_SESSION_KEY = 'cnn_prediction'
+CNN_FAILED_SESSION_KEY = 'cnn_prediction_failed'
 
 
 def _photo_digest(photo):
@@ -57,8 +58,14 @@ def _resolve_cnn_prediction(request, photo):
     otherwise runs inference again. Returns None if the model cannot classify it.
     """
     stored = request.session.pop(CNN_PREDICTION_SESSION_KEY, None)
-    if stored and stored.get('photo_sha256') == _photo_digest(photo):
+    failed_digest = request.session.pop(CNN_FAILED_SESSION_KEY, None)
+    digest = _photo_digest(photo)
+    if stored and stored.get('photo_sha256') == digest:
         return stored
+    if failed_digest == digest:
+        # The AI was unavailable when the student picked a category, so their choice stands
+        # instead of being silently replaced by a later prediction.
+        return None
     try:
         return predict_image(photo)
     except Exception:
@@ -502,14 +509,18 @@ def chooseSurveyMethod(request, report_id):
         report.survey_method = method
         report.save(update_fields=['survey_method'])
         if notify_manual_visit:
+            visit_message = (
+                f"{report.reporter_name[:100]} will visit the MED office during office hours "
+                f"to complete the manual CSS for report {report.job_order_id}."
+            )
             for admin_user in get_admin_users().filter(is_active=True):
+                # Switching methods back and forth must not notify the admins again.
+                if Notification.objects.filter(user=admin_user, report=report, message=visit_message).exists():
+                    continue
                 Notification.objects.create(
                     user=admin_user,
                     report=report,
-                    message=(
-                        f"{report.reporter_name[:100]} will visit the MED office during office hours "
-                        f"to complete the manual CSS for report {report.job_order_id}."
-                    ),
+                    message=visit_message,
                     status_snapshot=report.status,
                 )
     return JsonResponse({'success': True, 'method': method})
@@ -724,6 +735,7 @@ def predictCategory(request):
 
     photo = request.FILES['photo']
     request.session.pop(CNN_PREDICTION_SESSION_KEY, None)
+    request.session.pop(CNN_FAILED_SESSION_KEY, None)
     try:
         prediction = predict_image(photo)
     except ImageDecodeError:
@@ -735,6 +747,7 @@ def predictCategory(request):
         }, status=400)
     except Exception:
         logger.exception("CNN prediction failed")
+        request.session[CNN_FAILED_SESSION_KEY] = _photo_digest(photo)
         return JsonResponse({
             'success': False,
             'error': "AI categorization is unavailable right now. Try again or choose a category manually.",
