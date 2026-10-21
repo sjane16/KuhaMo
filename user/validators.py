@@ -45,8 +45,6 @@ def validate_password_strength(password):
     errors = []
     if len(password) < 8:
         errors.append("Password must be at least 8 characters long.")
-    if len(password) > 16:
-        errors.append("Password must not exceed 16 characters.")
     if re.search(r'\s', password):
         errors.append("Password must not contain spaces or other whitespace.")
     if not re.search(r'[A-Z]', password):

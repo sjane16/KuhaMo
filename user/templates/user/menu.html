@@ -62,6 +62,7 @@
     </div>
   </main>
   <script src="{% static 'accounts/js/passkeys.js' %}"></script>
+  <script src="{% static 'user/js/password_change.js' %}"></script>
   <script>
       function setButtonLoading(btnId, spinnerId, textId, loadingText) {
           const btn = document.getElementById(btnId);
@@ -75,6 +76,9 @@
       }
 
       function initMenuPage() {
+          initPasswordChecklistToggle();
+          initPasswordChangeButton();
+          initPasswordModalOverlay();
           // Staff who pick "Other Office or Area" get a box to type their own office
           (function() {
               const dept = document.getElementById("id_department");

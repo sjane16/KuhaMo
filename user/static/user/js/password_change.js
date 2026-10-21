@@ -57,13 +57,13 @@ function setRequirementMet(key, met) {
   text.classList.toggle("text-green-600", met);
 }
 
-// Checks new password meets strength rule (8–16 chars, uppercase, number, symbol)
+// Checks new password meets strength rule (at least 8 chars, uppercase, number, symbol)
 function validatePassword() {
   document.getElementById("password-general-error").classList.add("hidden");
 
   const password = document.getElementById("new_password1").value;
 
-  const hasLength = password.length >= 8 && password.length <= 16 && !/\s/.test(password);
+  const hasLength = password.length >= 8 && !/\s/.test(password);
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /\d/.test(password);
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;']/.test(password);
@@ -96,7 +96,7 @@ function handlePasswordFormSubmit(event) {
   }
 
   const strengthRegex =
-    /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;'])[^\s]{8,16}$/;
+    /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;'])[^\s]{8,}$/;
 
   if (!strengthRegex.test(newPassword1)) {
     event.preventDefault();

@@ -13,8 +13,8 @@ from .validators import validate_password_strength
 
 class ProfilePasswordChangeForm(forms.Form):
     old_password = forms.CharField(required=False, widget=forms.PasswordInput)
-    new_password1 = forms.CharField(required=False, max_length=16, widget=forms.PasswordInput)
-    new_password2 = forms.CharField(required=False, max_length=16, widget=forms.PasswordInput)
+    new_password1 = forms.CharField(required=False, widget=forms.PasswordInput)
+    new_password2 = forms.CharField(required=False, widget=forms.PasswordInput)
 
     def __init__(self, user, *args, **kwargs):
         self.user = user

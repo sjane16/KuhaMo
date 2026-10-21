@@ -2,6 +2,19 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
 from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength, validate_office_name
+
+
+class ContactForm(forms.Form):
+    name = forms.CharField(max_length=120, strip=True)
+    email = forms.EmailField(max_length=254)
+    phone = forms.CharField(max_length=30, required=False, strip=True)
+    message = forms.CharField(max_length=3000, strip=True)
+    website = forms.CharField(required=False)
+
+    def clean_website(self):
+        if self.cleaned_data['website']:
+            raise forms.ValidationError('Unable to send your message.')
+        return ''
 from user.models import UserProfile
 
 
@@ -137,7 +150,6 @@ class SignUpForm(forms.Form):
     )
 
     password = forms.CharField(
-        max_length=16,
         widget=forms.PasswordInput(attrs={
             'id': 'signup_password',
             'aria-describedby': 'req-length-text',
@@ -147,7 +159,6 @@ class SignUpForm(forms.Form):
     )
 
     confirm_password = forms.CharField(
-        max_length=16,
         widget=forms.PasswordInput(attrs={
             'id': 'signup_confirm_password',
             'placeholder': 'Confirm your password',
