@@ -8,7 +8,6 @@ from . import personnel_management
 
 urlpatterns = [
     path('dashboard/', admin_required(views.dashboard), name='dashboard'),
-    path('base/', admin_required(views.base), name='base'),
     path('reports/', admin_required(views.reports), name='reports'),
     path('reports/<int:report_id>/', admin_required(views.report_detail), name='adm_report_detail'),
     path('reports/<int:report_id>/job-order/pdf/', head_admin_required(views.export_job_order_pdf_admin), name='exportJobOrderPDFAdmin'),

@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.apps import apps
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 from .forms import ProfilePasswordChangeForm
 from .models import Report, UserProfile
@@ -34,7 +35,7 @@ class ProfilePasswordTests(TestCase):
             self.assertTrue(self.user.check_password('Original1!'))
 
     def test_both_views_preserve_device_invalidation_audit_and_session_update(self):
-        for view, module in ((ProfileMenu, 'adm.views'),):
+        for view, module in ((ProfileMenu, 'adm.views'), (menu, 'user.views')):
             self.user.set_password('Original1!')
             self.user.save()
             request = RequestFactory().post('/profile/', {
@@ -52,6 +53,19 @@ class ProfilePasswordTests(TestCase):
             invalidate.assert_called_once_with(self.user)
             audit.assert_called_once_with(request, 'password_changed', user=self.user, where='Edit Profile')
             update_session.assert_called_once_with(request, self.user)
+
+    def test_failed_profile_save_preserves_typed_other_office(self):
+        self.user.profile.role = 'staff'
+        self.user.profile.save(update_fields=['role'])
+        self.client.force_login(self.user)
+        response = self.client.post(reverse('menu'), {
+            'save_info': '1', 'first_name': 'Test', 'last_name': 'Student',
+            'department': UserProfile.OTHER_OFFICE_CODE,
+            'other_office': 'Campus Help Office', 'phone': 'invalid',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="Campus Help Office"')
+        self.assertRegex(response.content.decode(), r'<option value="OTH"\s+selected>')
 
 
 class PersonnelMigrationTests(TestCase):

@@ -755,10 +755,6 @@ def adm_dashboard_ajax(request):
     })
 
 
-def base(request):
-    return render(request, 'layouts/base.html', {"active_page": "base"})
-
-
 def _filter_admin_reports(status_filter, search_query):
     reports_qs = Report.objects.all().order_by('-submitted_at')
 

@@ -732,7 +732,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75" />
                                 </svg>
                                 <span class="text-xs text-gray-500"
-                                      id="req-length-text">At least 8 characters, maximum 16; no spaces</span>
+                                      id="req-length-text">At least 8 characters; no spaces</span>
                             </li>
                             <li class="flex items-center gap-1.5" id="req-upper">
                                 <svg class="w-3.5 h-3.5 shrink-0 text-gray-300"
@@ -1079,7 +1079,7 @@
                 if (!password || !confirm || !requirements) return;
 
                 var SYMBOL = /[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;']/;
-                var STRENGTH = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;'])[^\s]{8,16}$/;
+                var STRENGTH = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\]\\/;'])[^\s]{8,}$/;
 
                 function setRequirementMet(key, met) {
                     document.getElementById('req-' + key + '-unmet').classList.toggle('hidden', met);
@@ -1094,7 +1094,7 @@
                     var value = password.value;
                     setRequirementMet(
                         'length',
-                        value.length >= 8 && value.length <= 16 && !/\s/.test(value)
+                        value.length >= 8 && !/\s/.test(value)
                     );
                     setRequirementMet('upper', /[A-Z]/.test(value));
                     setRequirementMet('number', /\d/.test(value));

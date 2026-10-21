@@ -833,7 +833,7 @@
     <body class="min-h-dvh bg-white text-slate-900 antialiased">
         {% include "accounts/components/checky_loader.html" %}
         <a href="#main-content"
-           class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-20 focus:rounded-lg focus:bg-white focus:px-5 focus:py-3 focus:text-blue-700">
+           class="fc-skip-link sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:rounded-lg focus:bg-white focus:px-5 focus:py-3 focus:text-blue-700">
             Skip to main content
         </a>
         <div class="relative overflow-x-clip">
@@ -848,7 +848,7 @@
             {% include "accounts/components/public_header.html" %}
             <main id="main-content"
                   tabindex="-1"
-                  class="mx-auto w-full max-w-[1400px] px-6 pt-24 sm:px-10 sm:pt-17 lg:px-16">
+                  class="mx-auto w-full max-w-[1400px] px-6 pt-24 sm:px-10 lg:px-16">
                 <section aria-labelledby="landing-title"
                          class="relative pb-10 pt-1 md:pb-12 md:pt-8">
                     <!-- Decorative background: soft blue haze behind the photo, a faint navy haze at the lower left, and translucent silk ribbons sweeping across; the ribbons fade out behind the headline so text stays readable. Full-bleed: breaks out of the max-w container to span the full viewport width. -->
@@ -1165,7 +1165,7 @@
                                     <span>
                                         <span class="block text-sm font-semibold text-slate-900">Pending</span>
                                         <span class="mt-1 block text-sm leading-6 text-slate-600">We've received your report.</span>
-                                        <span class="mt-2 block"><span class="fc-who">Maintenance</span></span>
+                                        <span class="mt-2 block"><span class="fc-who">Awaiting review</span></span>
                                     </span>
                                 </li>
                                 <li class="relative flex gap-4 md:block md:px-4 md:pt-16 md:text-center">

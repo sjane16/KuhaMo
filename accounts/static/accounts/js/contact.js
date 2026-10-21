@@ -1,9 +1,8 @@
-// Placeholder interaction only: no requests, storage, or message delivery.
 (() => {
     const form = document.getElementById('contact-form');
     if (!form) return;
     const feedback = document.getElementById('contact-feedback');
-    const fields = [...form.querySelectorAll('input, textarea')];
+    const fields = [...form.querySelectorAll('#contact-name, #contact-email, #contact-phone, #contact-message')];
     const messages = {
         'contact-name': 'Please enter your full name.',
         'contact-email': 'Please enter a valid email address.',
@@ -34,7 +33,7 @@
         });
     });
 
-    form.addEventListener('submit', event => {
+    form.addEventListener('submit', async event => {
         event.preventDefault();
         const invalid = fields.filter(field => !validate(field));
         if (invalid.length) {
@@ -42,8 +41,34 @@
             invalid[0].focus();
             return;
         }
-        feedback.textContent = 'Message delivery is currently unavailable. Your message has not been sent. Please try again later.';
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        feedback.textContent = 'Sending your message…';
         feedback.hidden = false;
-        feedback.focus();
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const result = await response.json();
+            feedback.textContent = result.message;
+            if (result.errors) {
+                Object.entries(result.errors).forEach(([name, message]) => {
+                    const field = form.elements.namedItem(name);
+                    if (!field || !field.id) return;
+                    const error = document.getElementById(`${field.id}-error`);
+                    error.textContent = message;
+                    error.hidden = false;
+                    field.setAttribute('aria-invalid', 'true');
+                });
+            }
+            if (result.ok) form.reset();
+        } catch (_) {
+            feedback.textContent = 'Your message could not be sent. Please try again later.';
+        } finally {
+            button.disabled = false;
+            feedback.focus();
+        }
     });
 })();

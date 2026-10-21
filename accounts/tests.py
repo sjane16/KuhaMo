@@ -7,6 +7,7 @@
 # urlparse separates a redirect URL into its path and query string.
 # parse_qs converts a query string into a dictionary of lists.
 from urllib.parse import parse_qs, urlparse
+import json
 from smtplib import SMTPException
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -23,8 +24,57 @@ from django.urls import resolve, reverse
 
 # Import the real landing view so its template and URL tags are rendered.
 from accounts.forms import SignUpForm
-from accounts.views import splash_screen
+from accounts.views import contact, splash_screen
 from user.models import Passkey, UserProfile
+
+
+class ContactFormTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.data = {
+            'name': 'Test Sender', 'email': 'sender@example.com',
+            'phone': '', 'message': 'Please help with my account.',
+        }
+
+    @override_settings(CONTACT_EMAIL='team@example.com', DEFAULT_FROM_EMAIL='Fac-Check <no-reply@example.com>')
+    @patch('accounts.views.is_ratelimited', return_value=False)
+    @patch('accounts.views.EmailMessage')
+    def test_valid_message_is_sent_with_reply_to(self, email_message, _limited):
+        request = self.factory.post('/auth/contact/', self.data,
+                                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        response = contact(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(json.loads(response.content)['ok'])
+        self.assertEqual(email_message.call_args.kwargs['to'], ['team@example.com'])
+        self.assertEqual(email_message.call_args.kwargs['reply_to'], ['sender@example.com'])
+        email_message.return_value.send.assert_called_once_with(fail_silently=False)
+
+    @patch('accounts.views.is_ratelimited', return_value=False)
+    @patch('accounts.views.EmailMessage.send')
+    def test_invalid_message_is_not_sent(self, send, _limited):
+        request = self.factory.post('/auth/contact/', {**self.data, 'email': 'invalid'},
+                                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        response = contact(request)
+        self.assertEqual(response.status_code, 400)
+        send.assert_not_called()
+
+    @patch('accounts.views.is_ratelimited', return_value=True)
+    @patch('accounts.views.EmailMessage.send')
+    def test_rate_limited_message_is_not_sent(self, send, _limited):
+        request = self.factory.post('/auth/contact/', self.data,
+                                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        response = contact(request)
+        self.assertEqual(response.status_code, 429)
+        send.assert_not_called()
+
+    @patch('accounts.views.is_ratelimited', return_value=False)
+    @patch('accounts.views.EmailMessage.send', side_effect=SMTPException('offline'))
+    def test_delivery_failure_is_reported(self, _send, _limited):
+        request = self.factory.post('/auth/contact/', self.data,
+                                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        response = contact(request)
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(json.loads(response.content)['ok'])
 
 
 # Regression tests protect existing navigation against future route changes.

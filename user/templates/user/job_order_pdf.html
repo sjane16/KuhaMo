@@ -163,7 +163,7 @@
             </tr>
             <tr>
                 <td style="width:60%; padding: 3px 4px 1px 4px;">
-                    <span class="bold">Unit/Division/College:</span> {{ report.user.profile.get_department_display|default:"______________________________________________" }}
+                    <span class="bold">Unit/Division/College:</span> {{ report.user.profile.department_name|default:"______________________________________________" }}
                 </td>
                 <td style="width:40%; padding: 3px 4px 0px 4px;">
                     <span class="bold">No.:</span> {{ report.job_order_id|default:"________________" }}
