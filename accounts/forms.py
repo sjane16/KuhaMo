@@ -1,7 +1,7 @@
 from django import forms 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
-from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength
+from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength, validate_office_name
 from user.models import UserProfile
 
 
@@ -53,7 +53,10 @@ class LoginForm(forms.Form):
 
 class SignUpForm(forms.Form):
 
-    DEPARTMENT_CHOICES = [('', 'Select your department'), *UserProfile.DEPARTMENT_CHOICES]
+    DEPARTMENT_PLACEHOLDER = ('', 'Select your department')
+    OFFICE_PLACEHOLDER = ('', 'Select your office')
+    # Every code, so the field exists; __init__ narrows it to the chosen role.
+    DEPARTMENT_CHOICES = [DEPARTMENT_PLACEHOLDER, *UserProfile.DEPARTMENT_CHOICES, *UserProfile.OFFICE_CHOICES]
 
     role = forms.ChoiceField(
     choices=[
@@ -96,6 +99,19 @@ class SignUpForm(forms.Form):
             'data-cdd-variant': 'transparent',
             'aria-label': 'Department',
         }),
+        error_messages={'invalid_choice': 'Please select an option that matches your role.'},
+    )
+
+    # Only used when a staff member picks "Other Office or Area" (see clean())
+    other_office = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Type your office or area',
+            'maxlength': '100',
+            'autocomplete': 'off',
+            'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
+        }),
     )
 
     email = forms.EmailField(
@@ -121,14 +137,17 @@ class SignUpForm(forms.Form):
     )
 
     password = forms.CharField(
+        max_length=16,
         widget=forms.PasswordInput(attrs={
             'id': 'signup_password',
+            'aria-describedby': 'req-length-text',
             'placeholder': 'Enter your password',
             'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
         })
     )
 
     confirm_password = forms.CharField(
+        max_length=16,
         widget=forms.PasswordInput(attrs={
             'id': 'signup_confirm_password',
             'placeholder': 'Confirm your password',
@@ -156,6 +175,32 @@ class SignUpForm(forms.Form):
             if value:
                 raise forms.ValidationError("Something went wrong. Please try again")
             return value
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Once a role is submitted, only that role's list is accepted, so a tampered
+        # request can't give a student an office or a staff member a college.
+        role = self.data.get('role') if self.is_bound else None
+        if role in ('student', 'faculty', 'staff'):
+            placeholder = self.OFFICE_PLACEHOLDER if role == 'staff' else self.DEPARTMENT_PLACEHOLDER
+            self.fields['department'].choices = [placeholder, *UserProfile.department_choices_for(role)]
+            if role == 'staff':
+                self.fields['department'].widget.attrs['aria-label'] = 'Office'
+
+    @property
+    def department_options(self):
+        """Label, placeholder and choices per role, for the signup page script (json_script)."""
+        def entry(role, label, placeholder):
+            return {
+                'label': label,
+                'placeholder': placeholder,
+                'options': [{'value': code, 'label': name} for code, name in UserProfile.department_choices_for(role)],
+            }
+        return {
+            'student': entry('student', 'Department', 'Select your department'),
+            'faculty': entry('faculty', 'Department', 'Select your department'),
+            'staff': {**entry('staff', 'Office', 'Select your office'), 'other_value': UserProfile.OTHER_OFFICE_CODE},
+        }
 
     def clean_role(self):
          role = self.cleaned_data.get('role')
@@ -193,7 +238,9 @@ class SignUpForm(forms.Form):
     def clean_department(self):
          department = self.cleaned_data.get('department')
          if department == '':
-              raise forms.ValidationError("Please select a department")
+              raise forms.ValidationError(
+                  "Please select an office" if self.cleaned_data.get('role') == 'staff' else "Please select a department"
+              )
          return department
 
     def clean_phone(self):
@@ -241,6 +288,14 @@ class SignUpForm(forms.Form):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
         confirm_password = cleaned_data.get('confirm_password')
+
+        # Staff who pick "Other Office or Area" type their own office; that text is what gets saved
+        if cleaned_data.get('role') == 'staff' and cleaned_data.get('department') == UserProfile.OTHER_OFFICE_CODE:
+            office, office_errors = validate_office_name(cleaned_data.get('other_office'))
+            for error in office_errors:
+                self.add_error('other_office', error)
+            if not office_errors:
+                cleaned_data['department'] = office
 
         if password and confirm_password:
             if password != confirm_password:

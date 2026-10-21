@@ -20,6 +20,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.timesince import timesince
 from django.views.decorators.http import require_POST
 from django_ratelimit.core import is_ratelimited
 
@@ -112,7 +113,16 @@ def _stats():
     return {key: base.filter(q).count() for key, q in STATUS_Q.items()}
 
 def pending_staff():
-    return _decorate(list(_base_queryset().filter(STATUS_Q['pending'], profile__role='staff').order_by('date_joined')))
+    users = _decorate(list(_base_queryset().filter(STATUS_Q['pending'], profile__role='staff').order_by('date_joined')))
+    for user in users:
+        user.um_signup_age = (
+            timesince(user.date_joined)
+            .replace('hours', 'hrs')
+            .replace('hour', 'hr')
+            .replace('minutes', 'mins')
+            .replace('minute', 'min')
+        )
+    return users
 
 def _notify(user, subject, message):
     send_mail(subject=subject, message=message, from_email=settings.DEFAULT_FROM_EMAIL,

@@ -270,6 +270,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{% static 'accounts/css/account_pages.css' %}">
     <link rel="stylesheet" href="{% static 'submission-state.css' %}">
     <script src="{% static 'submission-state.js' %}" defer></script>
   </head>
@@ -291,7 +292,10 @@
             autocomplete="off"
             novalidate>
         {% csrf_token %}
-        <a href="{% url 'forgot_password' %}" class="fc-back-link"><span aria-hidden="true">←</span> Back</a>
+        <a href="{% url 'forgot_password' %}" class="fc-back-link fc-account-return">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true" focusable="false"><path d="m14 7-5 5 5 5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          Back to password recovery
+        </a>
         <div class="fc-signup-heading">
           <div class="fc-signup-logo">
             <svg xmlns="http://www.w3.org/2000/svg"

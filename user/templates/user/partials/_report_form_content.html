@@ -65,9 +65,9 @@
                 <p class="text-xs text-red-500 mt-2">{{ form.photo.errors|join:", " }}</p>
             {% endif %}
         </div>
-        <div class="grid grid-cols-1 gap-4 sm:has-[#custom-category-wrapper:not(.hidden)]:grid-cols-2">
+        <div class="space-y-4">
             <div class="min-w-0">
-                <label for="id_category" class="flex min-h-10 items-center justify-start text-left text-sm font-semibold text-gray-800 mb-2">AI Recommended Category <span class="ml-1 text-red-500" aria-hidden="true">*</span></label>
+                <label for="id_category" class="block text-sm font-semibold text-gray-800 mb-2">AI Recommended Category <span class="ml-1 text-red-500" aria-hidden="true">*</span></label>
                 <div class="relative" id="category-wrapper">
                     {{ form.category }}
                     <div class="pointer-events-none absolute inset-y-0 right-4 flex items-center">
@@ -81,7 +81,7 @@
                         </svg>
                     </div>
                 </div>
-                <p id="cnn-confidence" class="hidden text-xs text-blue-600 mt-2"></p>
+                <p id="cnn-confidence" class="hidden mt-2 text-xs text-gray-500" role="status" aria-live="polite"></p>
                 <div id="cnn-error" class="hidden mt-2 text-xs text-red-600" role="alert">
                     <span id="cnn-error-text"></span>
                     <button type="button"
@@ -92,13 +92,13 @@
                 </div>
             </div>
             <div id="custom-category-wrapper" class="min-w-0 hidden">
-                <label for="id_custom_category" class="flex min-h-10 items-center justify-start text-left text-sm font-semibold text-gray-800 mb-2">Custom Category</label>
+                <label for="id_custom_category" class="block text-sm font-semibold text-gray-800 mb-2">Custom Category</label>
                 <input type="text"
                        name="custom_category"
                        id="id_custom_category"
                        maxlength="30"
                         class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                       placeholder="Specify the category of your concern..." />
+                       placeholder="Specify your concern" />
             </div>
         </div>
         <p id="category-hint"

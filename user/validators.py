@@ -57,6 +57,27 @@ def validate_password_strength(password):
         errors.append("Password must contain at least one symbol.")
     return errors
 
+# Staff who pick "Other Office or Area" type their own office. Same checks everywhere it is typed.
+OFFICE_NAME_MAX_LENGTH = 100
+OFFICE_NAME_PATTERN = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿÑñ0-9.,'&()\- ]+$")
+
+def validate_office_name(value):
+    """Returns (cleaned_value, errors). Empty errors list = OK to save."""
+    value = re.sub(r'\s+', ' ', value or '').strip()
+    errors = []
+    if not value:
+        errors.append("Please type your office or area.")
+    elif len(value) > OFFICE_NAME_MAX_LENGTH:
+        errors.append(f"Office or area must not exceed {OFFICE_NAME_MAX_LENGTH} characters.")
+    elif not re.search(r'[A-Za-zÀ-ÖØ-öø-ÿÑñ]{2}', value):
+        errors.append("Please enter a valid office or area name.")
+    elif not OFFICE_NAME_PATTERN.match(value):
+        errors.append("Office or area can only contain letters, numbers, spaces and . , ' & ( ) -")
+    else:
+        errors.extend(validate_no_gibberish(value))
+        errors.extend(validate_no_profanity(value))
+    return value, errors
+
 phone_validator = RegexValidator (
     regex=r'^\d{11}$',
     message="Phone number must be exactly 11 digits, numbers only"

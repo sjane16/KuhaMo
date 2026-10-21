@@ -162,6 +162,24 @@ class SignupMergeTests(TestCase):
 
     def test_staff_can_only_log_in_after_email_verification_and_head_admin_approval(self):
         user = self.signup_account('staff', 'staff-applicant@gmail.com')
+    def test_staff_signup_waits_for_head_admin_approval(self):
+        session = self.client.session
+        session['privacy_viewed'] = True
+        session.save()
+    def test_staff_can_log_in_as_regular_user_after_signup_otp(self):
+        with patch('accounts.views.SignUpForm') as form_class, \
+             patch('accounts.views.is_ratelimited', return_value=False), \
+             patch('accounts.views.send_mail'), \
+             patch('accounts.views._render_signup', return_value=HttpResponse('signup')):
+            form_class.return_value.is_valid.return_value = True
+            form_class.return_value.cleaned_data = {
+                'first_name': 'Staff', 'last_name': 'Applicant', 'email': 'staff-applicant@gmail.com',
+                'password': 'new-password', 'role': 'staff',
+                'department': '', 'phone': '09123456789',
+            }
+            self.client.post(reverse('signup'))
+
+        user = User.objects.get(email='staff-applicant@gmail.com')
         profile = UserProfile.objects.get(user=user)
         self.assertEqual(profile.role, 'staff')
         self.assertEqual(profile.approval_status, UserProfile.APPROVAL_PENDING)
@@ -336,9 +354,6 @@ class SignupMergeTests(TestCase):
                     )
                     UserProfile.objects.update_or_create(user=existing, defaults={'role': 'staff'})
 
-                session = self.client.session
-                session['privacy_viewed'] = True
-                session.save()
                 with patch('accounts.views.SignUpForm') as form_class, \
                      patch('accounts.views.is_ratelimited', return_value=False), \
                      patch('accounts.views.send_mail', side_effect=SMTPException('offline') if mail_fails else None), \
@@ -361,3 +376,35 @@ class SignupMergeTests(TestCase):
                         self.assertEqual(saved.pk, existing.pk)
                     else:
                         self.assertRedirects(response, reverse('verify_otp'), fetch_redirect_response=False)
+
+
+class SignupConsentTests(TestCase):
+    # The agreement is a normal required checkbox on step 1 of signup (details),
+    # not something locked behind opening the Privacy Policy page.
+
+    def test_agree_to_terms_is_required(self):
+        form = SignUpForm(data={'role': 'student', 'email': 'student@udm.edu.ph'})
+        form.is_valid()
+        self.assertIn('agree_to_terms', form.errors)
+
+    def test_terms_checkbox_is_enabled_and_on_the_details_step(self):
+        import re
+
+        response = self.client.get(reverse('signup'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+
+        details = html.index('id="signup-step-details"')
+        access = html.index('id="signup-step-access"')
+        checkbox = html.index('id="id_agree_to_terms"')
+        self.assertTrue(details < checkbox < access)
+
+        tag = html[html.rindex('<input', 0, checkbox):html.index('>', checkbox)]
+        self.assertIsNone(re.search(r'\sdisabled(\s|=|>|/)', tag))
+
+    def test_privacy_policy_page_is_read_only(self):
+        response = self.client.get(reverse('privacy_policy'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'PART I. TERMS OF SERVICE')
+        self.assertNotContains(response, 'agree_to_terms')
+        self.assertNotIn('privacy_viewed', self.client.session)

@@ -105,6 +105,7 @@ html.dark .fc-login-card a,
 html.dark .fc-signup-card a,
 html.dark .fc-policy-card a,
 html.dark .fc-login-footer a,
+html.dark .fc-signup-home-link,
 html.dark .fc-signup-footer a,
 html.dark .fc-policy-footer a,
 html.dark .fc-back-link,
@@ -172,14 +173,6 @@ html.dark .fc-login-passkey {
 }
 html.dark .fc-login-passkey:hover {
   background: #2c2d2f;
-}
-html.dark .fc-signup-back {
-  background: #242526;
-  color: #7db4ff;
-  border-color: #4e5052;
-}
-html.dark .fc-signup-back:hover {
-  background: #323436;
 }
 html.dark .fc-login-page a:focus-visible,
 html.dark .fc-login-page button:focus-visible,
@@ -364,4 +357,10 @@ html:not(.fc-app) .fc-otp:not(.has-error) .fc-otp-box:not([aria-invalid="true"])
   outline: none;
   border-color: var(--fc-focus-color);
   box-shadow: 0 0 0 2px var(--fc-focus-color);
+}
+
+/* The field wrapper already draws the focus ring, so the dropdown button
+   inside it must not add its own outline on keyboard (Tab) focus. */
+html:not(.fc-app) :is(.fc-login-field, .fc-signup-field) .cdd-btn:focus-visible {
+  outline: none;
 }

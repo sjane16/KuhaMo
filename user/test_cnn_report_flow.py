@@ -25,7 +25,7 @@ def make_photo(seed=0, name='concern.png'):
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 })
 class CnnReportFlowTests(TestCase):
-    """Upload photo -> LiteRT prediction -> category shown -> report saved, using the real model."""
+    """Upload photo -> CNN prediction -> category shown -> report saved, using the real model."""
 
     def setUp(self):
         self.user = User.objects.create_user(username='cnn-reporter', password='test-password')
@@ -50,7 +50,7 @@ class CnnReportFlowTests(TestCase):
         }
         return self.client.post(reverse('reportForm'), data)
 
-    def test_litert_prediction_is_preserved_and_browser_fields_ignored(self):
+    def test_cnn_prediction_is_preserved_and_browser_fields_ignored(self):
         with patch('user.views.predict_image', wraps=predictor.predict_image) as predict:
             response = self.predict(make_photo())
             self.assertEqual(response.status_code, 200)
@@ -71,7 +71,7 @@ class CnnReportFlowTests(TestCase):
         predict.assert_called_once()  # submission reused the stored result
 
         report = Report.objects.get(user=self.user)
-        self.assertEqual(predictor.MODEL_PATH.name, 'faccheck_cnn_model.tflite')
+        self.assertEqual(predictor.MODEL_PATH.name, 'faccheck_cnn_model.keras')
         self.assertEqual(report.category, shown['category'])
         self.assertEqual(report.cnn_raw_prediction, shown['raw_prediction'])
         self.assertAlmostEqual(report.cnn_confidence, shown['confidence'], places=6)

@@ -127,6 +127,19 @@ class Report(models.Model):
         return None
 
     @property
+    def assigned_personnel_preview(self):
+        """First two assigned names for list views; '...' when there are more."""
+        names = [
+            item.get('name')
+            for item in (self.assigned_personnel_data or [])
+            if item.get('name')
+        ]
+        if not names:
+            return None
+        preview = ", ".join(names[:2])
+        return f"{preview}, ..." if len(names) > 2 else preview
+
+    @property
     def expected_resolution_hours(self):
         """
         Expected resolution time based on Maintenance & Engineering Division policy.
@@ -229,6 +242,78 @@ class UserProfile(models.Model):
         ('COL', 'College of Law'),
         ('CAS', 'College of Arts and Sciences'),
     ]
+
+    # Staff who pick this option type their own office; the typed text is what gets saved.
+    OTHER_OFFICE_CODE = 'OTH'
+
+    # Offices and areas for the Staff role, taken from the rooms in adm/management/commands/seed.py
+    # that have staff working in them (no classrooms, labs, comfort rooms, storage or lounges).
+    # Written out the same way as the colleges above and not attached to the model field,
+    # so adding or renaming one needs no migration. Only the code is saved in `department`.
+    # A code that is also in the college list (only NSTP) must keep the same name as there.
+    OFFICE_CHOICES = [
+        # Administrative Building
+        ('UHS', 'University Health Services'),
+        ('MEO', 'Maintenance and Engineering Office'),
+        ('SEO', 'Supply and Equipment Office'),
+        ('REG', 'Registrar'),
+        ('CMD', 'Cash Management Division'),
+        ('ADMIN', 'Administrative Offices'),
+        ('LIB', 'Library'),
+        ('NSTP', 'National Service Training Program'),
+        ('ACED', 'Athletics and Cultural Engagement Division'),
+        ('REC', 'Records Office'),
+        # New Building
+        ('ROTC', 'ROTC'),
+        ('ACCTG', 'Accounting Division'),
+        ('PBD', 'Planning and Budget Division'),
+        ('PAYROLL', 'Payroll'),
+        ('PROC', 'Procurement'),
+        ('HRMDD', 'Human Resources Management and Development Division'),
+        ('VPC', 'Office of the VP for Comptrollership'),
+        ('VPA', 'Office of the VP for Administration'),
+        ('ICTO', 'Information and Communications Technology Office'),
+        # Main Building
+        ('PRES', 'Office of the University President'),
+        ('VPAA', 'Office of the VP for Academic Affairs'),
+        ('VPSSSS', 'Office of the VP for Student Success and Support Services'),
+        ('QAA', 'Quality Assurance and Accreditation'),
+        ('GCPS', 'Guidance Counseling and Psychological Services'),
+        ('URELA', 'University Research Extension Linkages'),
+        ('IGPS', 'Institute of Graduate and Professional Studies'),
+        ('ADMIT', 'Admission Office'),
+        ('SEC', 'Security Office'),
+        ('OSA', 'Office of Student Affairs'),
+        ('OLA', 'Office of Legal Aid'),
+        ('OSIPP', 'Office of Student Internship and Placement'),
+        # Campus areas
+        ('CANT', 'Canteen'),
+        ('CCRT', 'Covered Court'),
+        ('IGDN', 'Inner Garden'),
+        ('PARK', 'Parking Lot'),
+        ('OTH', 'Other Office or Area'),
+    ]
+
+    @classmethod
+    def department_choices_for(cls, role):
+        """Staff pick an office or area; students and faculty pick a college.
+        Other roles (MED personnel, admin) can hold either."""
+        if role == 'staff':
+            return cls.OFFICE_CHOICES
+        if role in ('student', 'faculty'):
+            return cls.DEPARTMENT_CHOICES
+        return cls.DEPARTMENT_CHOICES + cls.OFFICE_CHOICES
+
+    @property
+    def department_name(self):
+        """Full name of the saved department or office code (the code itself if unknown)."""
+        names = dict(self.DEPARTMENT_CHOICES + self.OFFICE_CHOICES)
+        return names.get(self.department, self.department)
+
+    @property
+    def department_field_label(self):
+        """Staff belong to an office, everyone else to a department."""
+        return 'Office' if self.role == 'staff' else 'Department'
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)

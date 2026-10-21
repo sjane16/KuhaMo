@@ -1,5 +1,6 @@
+import sys
+import types
 from io import BytesIO
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -9,87 +10,64 @@ from PIL import Image
 from . import predictor
 
 
-class FakeInterpreter:
+class FakeKerasModel:
     def __init__(self, output):
         self.output = np.asarray([output], dtype=np.float32)
-        self.input_details = [{
-            'index': 0,
-            'shape': np.asarray([1, 224, 224, 3]),
-            'dtype': np.float32,
-            'quantization': (0.0, 0),
-            'quantization_parameters': {'scales': np.asarray([]), 'zero_points': np.asarray([])},
-        }]
-        self.output_details = [{
-            'index': 1,
-            'shape': np.asarray([1, len(output)]),
-            'dtype': np.float32,
-            'quantization': (0.0, 0),
-            'quantization_parameters': {'scales': np.asarray([]), 'zero_points': np.asarray([])},
-        }]
-        self.input_tensor = None
-        self.allocate_tensors = Mock()
-        self.invoke = Mock()
+        self.input_array = None
+        self.predict_calls = 0
 
-    def get_input_details(self):
-        return self.input_details
-
-    def get_output_details(self):
-        return self.output_details
-
-    def set_tensor(self, index, tensor):
-        self.input_tensor = np.array(tensor, copy=True)
-
-    def get_tensor(self, index):
+    def predict(self, image_array, verbose=0):
+        self.predict_calls += 1
+        self.input_array = np.array(image_array, copy=True)
         return self.output
 
 
-class TFLiteInferenceTests(SimpleTestCase):
+def _png(color, size=(8, 8)):
+    buffer = BytesIO()
+    Image.new('RGB', size, color).save(buffer, format='PNG')
+    buffer.seek(0)
+    return buffer
+
+
+class KerasInferenceTests(SimpleTestCase):
     def setUp(self):
         self.previous_model = predictor.MODEL
         predictor.MODEL = None
         self.addCleanup(setattr, predictor, 'MODEL', self.previous_model)
 
-    def test_model_loads_lazily_once_from_tflite_artifact(self):
-        interpreter = FakeInterpreter([0.1] * len(predictor.CLASS_NAMES))
-        with patch.object(predictor, '_make_interpreter', return_value=interpreter) as make_interpreter:
+    def test_model_loads_only_when_requested_and_is_reused(self):
+        model = Mock()
+        tensorflow = types.SimpleNamespace(
+            keras=types.SimpleNamespace(
+                models=types.SimpleNamespace(load_model=Mock(return_value=model))
+            )
+        )
+
+        with patch.dict(sys.modules, {'tensorflow': tensorflow}):
             self.assertIsNone(predictor.MODEL)
-            loaded = predictor._load_model()
-            self.assertIs(loaded[0], interpreter)
-            self.assertIs(predictor._load_model(), loaded)
+            self.assertIs(predictor._load_model(), model)
+            self.assertIs(predictor._load_model(), model)
 
-        self.assertEqual(predictor.MODEL_PATH.name, 'faccheck_cnn_model.tflite')
-        make_interpreter.assert_called_once()
-        interpreter.allocate_tensors.assert_called_once_with()
+        self.assertEqual(predictor.MODEL_PATH.name, 'faccheck_cnn_model.keras')
+        tensorflow.keras.models.load_model.assert_called_once_with(
+            predictor.MODEL_PATH,
+            compile=False,
+        )
 
-    def test_missing_tflite_artifact_fails_without_fallback(self):
-        with patch.object(predictor, 'MODEL_PATH', Path(__file__).with_name('missing.tflite')), \
-             patch.object(predictor, '_make_interpreter') as make_interpreter:
-            with self.assertRaises(FileNotFoundError):
-                predictor._load_model()
+    def test_class_labels_match_config_and_category_map(self):
+        self.assertEqual(predictor.CONFIG['class_names'], predictor.CLASS_NAMES)
+        self.assertEqual(set(predictor.CLASS_NAMES), set(predictor.CATEGORY_MAP))
 
-        make_interpreter.assert_not_called()
-
-    def test_float_tensor_metadata_is_checked(self):
-        interpreter = FakeInterpreter([0.1] * len(predictor.CLASS_NAMES))
-        interpreter.input_details[0]['dtype'] = np.int8
-        with patch.object(predictor, '_make_interpreter', return_value=interpreter):
-            with self.assertRaisesRegex(TypeError, 'Expected float32 TFLite input tensor'):
-                predictor._load_model()
-
-    def test_prediction_uses_rgb_224_rescale_and_existing_result_contract(self):
+    def test_prediction_uses_raw_rgb_224_and_existing_result_contract(self):
         probabilities = [0.02, 0.90, 0.01, 0.02, 0.02, 0.02, 0.01]
-        interpreter = FakeInterpreter(probabilities)
-        image_bytes = BytesIO()
-        Image.new('RGB', (8, 8), (255, 128, 0)).save(image_bytes, format='PNG')
-        image_bytes.seek(0)
+        model = FakeKerasModel(probabilities)
+        image_bytes = _png((255, 128, 0))
 
-        with patch.object(predictor, 'MODEL_PATH', Path(__file__)), \
-             patch.object(predictor, '_make_interpreter', return_value=interpreter):
+        with patch.object(predictor, '_load_model', return_value=model):
             result = predictor.predict_image(image_bytes)
 
-        self.assertEqual(interpreter.input_tensor.shape, (1, 224, 224, 3))
-        np.testing.assert_allclose(interpreter.input_tensor[0, 100, 100], [1.0, 128 / 255.0, 0.0], atol=1e-6)
-        interpreter.invoke.assert_called_once_with()
+        self.assertEqual(model.input_array.shape, (1, 224, 224, 3))
+        np.testing.assert_allclose(model.input_array[0, 100, 100], [255.0, 128.0, 0.0], atol=1e-6)
         self.assertEqual(set(result), {
             'category', 'label', 'raw_label', 'confidence', 'margin', 'flagged_for_review',
         })
@@ -102,14 +80,10 @@ class TFLiteInferenceTests(SimpleTestCase):
         self.assertEqual(image_bytes.tell(), 0)
 
     def test_low_confidence_and_margin_keep_others_fallback(self):
-        interpreter = FakeInterpreter([0.26, 0.25, 0.20, 0.10, 0.08, 0.06, 0.05])
-        image_bytes = BytesIO()
-        Image.new('RGB', (8, 8), 'white').save(image_bytes, format='PNG')
-        image_bytes.seek(0)
+        model = FakeKerasModel([0.26, 0.25, 0.20, 0.10, 0.08, 0.06, 0.05])
 
-        with patch.object(predictor, 'MODEL_PATH', Path(__file__)), \
-             patch.object(predictor, '_make_interpreter', return_value=interpreter):
-            result = predictor.predict_image(image_bytes)
+        with patch.object(predictor, '_load_model', return_value=model):
+            result = predictor.predict_image(_png('white'))
 
         self.assertEqual(result['raw_label'], 'Carpentry Masonry')
         self.assertEqual(result['label'], 'Others')
@@ -140,3 +114,16 @@ class TFLiteInferenceTests(SimpleTestCase):
             daemon=True,
         )
         thread.return_value.start.assert_called_once()
+
+    def test_background_warmup_runs_first_inference(self):
+        model = FakeKerasModel([0.1] * len(predictor.CLASS_NAMES))
+        previous_started = predictor._WARMUP_STARTED
+        predictor._WARMUP_STARTED = True
+        self.addCleanup(setattr, predictor, '_WARMUP_STARTED', previous_started)
+
+        with patch.object(predictor, '_load_model', return_value=model):
+            predictor._warm_model()
+
+        self.assertEqual(model.predict_calls, 1)
+        self.assertEqual(model.input_array.shape, (1, 224, 224, 3))
+        self.assertFalse(predictor._WARMUP_STARTED)

@@ -33,8 +33,7 @@ main a:hover, .site-footer a:hover { text-decoration: underline; }
 .button:hover { background: var(--action-hover); }
 .button:disabled { opacity: .55; cursor: not-allowed; }
 main { position: relative; width: 100%; max-width: 1200px; margin: 0 auto; padding: 100px 40px 44px; }
-.back-link { display: inline-flex; gap: 10px; align-items: center; min-height: 44px; text-decoration: none; font-size: 13px; }
-.contact-layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(40px, 6vw, 80px); margin-top: 20px; align-items: start; }
+.contact-layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(40px, 6vw, 80px); margin-top: 12px; align-items: start; }
 .contact-intro { padding-top: 16px; display: flex; flex-direction: column; align-self: stretch; }
 .eyebrow { margin: 0 0 16px; color: var(--heading); font-size: 12px; font-weight: 600; letter-spacing: .12em; }
 h1 { margin: 0; font-size: clamp(32px, 3.2vw, 44px); font-weight: 600; line-height: 1.2; letter-spacing: -.035em; color: var(--heading); }
@@ -67,7 +66,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
     .nav-links { width: 100%; justify-content: space-between; gap: 4px; }
     .nav-links a { padding: 8px 10px; font-size: 12px; }
     main { padding: 96px 24px 48px; }
-    .contact-layout { grid-template-columns: 1fr; gap: 32px; margin-top: 20px; }
+    .contact-layout { grid-template-columns: 1fr; gap: 32px; }
     .contact-intro { padding-top: 0; }
     .contact-details { margin-top: 24px; padding-top: 0; }
     .form-panel { padding: 24px; }

@@ -10,8 +10,15 @@
   <ol class="fc-signup-progress">
     <li id="progress-details"
         {% if current > 1 %}class="is-complete"{% elif current == 1 %}aria-current="step"{% endif %}>
-      <span class="fc-step-number" aria-hidden="true">1</span>
-      <span>Your details</span>
+      {% if current == 1 %}
+        <button id="signup-back" class="fc-progress-back" type="button" aria-label="Edit your details" disabled>
+          <span class="fc-step-number" aria-hidden="true">1</span>
+          <span>Your details</span>
+        </button>
+      {% else %}
+        <span class="fc-step-number" aria-hidden="true">1</span>
+        <span>Your details</span>
+      {% endif %}
     </li>
     <li id="progress-access"
         {% if current > 2 %}class="is-complete"{% elif current == 2 %}aria-current="step"{% endif %}>

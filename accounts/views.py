@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect 
-from .forms import LoginForm, SignUpForm, OTPVerificationForm, PrivacyAgreementForm, ForgotPasswordForm, ResetPasswordForm, is_unverified_signup
+from .forms import LoginForm, SignUpForm, OTPVerificationForm, ForgotPasswordForm, ResetPasswordForm, is_unverified_signup
 from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.models import User 
 from django.contrib import messages
@@ -469,26 +469,8 @@ def resend_login_otp(request):
     messages.success(request, "A new login code has been sent to your email.")
     return redirect('verify_login_otp')
 
-def _privacy_viewed(request):
-    return bool(request.session.get('privacy_viewed') or request.session.get('privacy_accepted'))
-
-# Accepting the policy pre-ticks the signup checkbox, but only for a short window
-PRIVACY_ACCEPT_WINDOW_SECONDS = 30 * 60
-
-def _privacy_recently_accepted(request):
-    accepted_at = request.session.get('privacy_accepted_at')
-    return bool(
-        request.session.get('privacy_accepted')
-        and accepted_at
-        and timezone.now().timestamp() - accepted_at <= PRIVACY_ACCEPT_WINDOW_SECONDS
-    )
-
 def _render_signup(request, form):
-    viewed = _privacy_viewed(request)
-    # Until the Privacy Policy page has been opened, the checkbox can't be ticked
-    if not viewed:
-        form.fields['agree_to_terms'].widget.attrs['disabled'] = True
-    return render(request, 'accounts/signup.html', {'form': form, 'privacy_viewed': viewed})
+    return render(request, 'accounts/signup.html', {'form': form})
 
 @never_cache
 def signup(request):
@@ -505,13 +487,8 @@ def signup(request):
            return _render_signup(request, SignUpForm())
 
        form = SignUpForm(request.POST)
-       is_valid = form.is_valid()
-       if not _privacy_viewed(request):
-           # The checkbox is locked on the page, but enforce it here too
-           form.add_error('agree_to_terms', "Please open and read the Privacy Policy and Terms of Service before agreeing.")
-           is_valid = False
 
-       if is_valid:
+       if form.is_valid():
             first_name = form.cleaned_data['first_name']
             last_name = form.cleaned_data['last_name']
             email = form.cleaned_data['email']
@@ -571,20 +548,13 @@ def signup(request):
                 return _render_signup(request, form)
 
             request.session['pending_verification_user_id'] = user.id
-            # Consent flags apply to this signup only; clear them so the next signup on this browser starts fresh
-            request.session.pop('privacy_accepted', None)
-            request.session.pop('privacy_accepted_at', None)
-            request.session.pop('privacy_viewed', None)
             _clear_messages(request)
             messages.success(request, "Account created successfully! Please check your email for the verification code to verify your account.")
             return redirect('verify_otp')
        else:
            _clear_messages(request)
     else:
-        initial = {}
-        if _privacy_recently_accepted(request):
-            initial['agree_to_terms'] = True
-        form = SignUpForm(initial=initial)
+        form = SignUpForm()
 
     return _render_signup(request, form)
 
@@ -931,28 +901,9 @@ def reset_password(request):
 
     return render(request, 'accounts/reset_password.html', {'form': form})
 
-@never_cache
 def privacy_policy(request):
-    # Opening this page unlocks the "I agree" checkbox on the signup form
-    request.session['privacy_viewed'] = True
-
-    if request.method == 'POST':
-        if request.POST.get('website'):
-            _log_honeypot(request)
-            messages.error(request, "Unable to process your request. Please contact system administrator")
-            return redirect('signup')
-
-        form = PrivacyAgreementForm(request.POST)
-        if form.is_valid():
-            request.session['privacy_accepted'] = True
-            request.session['privacy_accepted_at'] = timezone.now().timestamp()
-            return redirect('signup')
-        else:
-            messages.error(request, "You must agree to the Privacy Policy and Terms of Service to continue")
-            return render(request, 'accounts/privacypolicy.html', {'form': form})
-
-    form = PrivacyAgreementForm()
-    return render(request, 'accounts/privacypolicy.html', {'form': form})
+    # Read-only reference page. The agreement itself is the checkbox on the signup form.
+    return render(request, 'accounts/privacypolicy.html')
 
 
 
