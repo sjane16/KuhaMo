@@ -209,7 +209,7 @@
                     <tr>
                         <td class="name-cell">{{ row.name }}</td>
                         <td class="center">{{ row.complete_task }}</td>
-                        <td class="center">{{ row.total_score }}</td>
+                        <td class="center">{% if row.total_score is not None %}{{ row.total_score }}{% else %}-{% endif %}</td>
                         <td class="center">{% if row.quality is not None %}{{ row.quality|floatformat:1 }}{% else %}-{% endif %}</td>
                         <td class="center">{% if row.quantity is not None %}{{ row.quantity|floatformat:1 }}{% else %}-{% endif %}</td>
                         <td class="center">{% if row.timeliness is not None %}{{ row.timeliness|floatformat:1 }}{% else %}-{% endif %}</td>

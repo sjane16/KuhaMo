@@ -16,6 +16,22 @@
     let savedOthers = JSON.parse(document.getElementById("saved-other-personnel").textContent).map(item => item.name);
     let busy = false;
 
+    const personnelFlag = document.getElementById("pending-awaiting-personnel");
+    const LOCKED_TITLE = 'Check "With Assigned Personnel" first';
+
+    function syncPersonnelButtons() {
+        if (!personnelFlag) return;
+        const locked = !personnelFlag.checked;
+        document.querySelectorAll("[data-open-personnel]").forEach(button => {
+            if (button.dataset.originalTitle === undefined) button.dataset.originalTitle = button.title;
+            button.disabled = locked;
+            button.title = locked ? LOCKED_TITLE : button.dataset.originalTitle;
+        });
+    }
+
+    if (personnelFlag) personnelFlag.addEventListener("change", syncPersonnelButtons);
+    syncPersonnelButtons();
+
     function addOtherRow(name = "") {
         const row = document.createElement("div");
         row.className = "flex items-center gap-2";
@@ -42,7 +58,8 @@
     }
 
     document.addEventListener("click", function (event) {
-        if (!event.target.closest("[data-open-personnel]")) return;
+        const trigger = event.target.closest("[data-open-personnel]");
+        if (!trigger || trigger.disabled) return;
         choices.forEach(input => { input.checked = savedSlugs.includes(input.value); });
         others.checked = savedOthers.length > 0;
         otherWrapper.hidden = !others.checked;
@@ -85,6 +102,7 @@
             savedSlugs = data.selected_slugs;
             savedOthers = data.other_names;
             summary.innerHTML = data.html;
+            syncPersonnelButtons();
             dialog.close();
             summary.querySelector("[data-open-personnel]").focus();
         } catch (exception) {

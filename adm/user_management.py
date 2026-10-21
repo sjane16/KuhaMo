@@ -92,8 +92,10 @@ def _base_queryset():
     return User.objects.select_related('profile')
 
 def _filtered_users(status, role, search):
+    # Only ACTIVE pending staff are hidden here (they have their own "Pending Approval" card).
+    # Unverified staff are still pending in the database, but must stay in the list so they can be deleted.
     qs = _base_queryset().exclude(
-        profile__role='staff', profile__approval_status=UserProfile.APPROVAL_PENDING,
+        is_active=True, profile__role='staff', profile__approval_status=UserProfile.APPROVAL_PENDING,
     )
     if status in STATUS_Q:
         qs = qs.filter(STATUS_Q[status])

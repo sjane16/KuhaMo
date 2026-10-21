@@ -113,6 +113,20 @@ class CnnReportFlowTests(TestCase):
         self.assertIsNone(report.cnn_margin)
         self.assertTrue(report.flagged_for_review)
 
+    def test_manual_category_is_kept_when_inference_recovers_before_submit(self):
+        with patch('user.views.predict_image', side_effect=RuntimeError('interpreter crashed')):
+            self.assertEqual(self.predict(make_photo()).status_code, 503)
+
+        with patch('user.views.predict_image', wraps=predictor.predict_image) as predict:
+            response = self.submit(make_photo(), category='plumbing')
+        self.assertRedirects(response, reverse('userReports'), fetch_redirect_response=False)
+        predict.assert_not_called()
+        report = Report.objects.get(user=self.user)
+        self.assertEqual(report.category, 'plumbing')
+        self.assertIsNone(report.cnn_raw_prediction)
+        self.assertTrue(report.flagged_for_review)
+        self.assertNotIn('cnn_prediction_failed', self.client.session)
+
     def test_report_form_exposes_retry_path_and_no_cnn_hidden_fields(self):
         html = self.client.get(reverse('reportFormAjax')).json()['html']
         self.assertIn('id="cnn-retry-btn"', html)

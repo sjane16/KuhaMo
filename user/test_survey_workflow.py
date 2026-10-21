@@ -82,7 +82,7 @@ class SurveyMethodWorkflowTests(TestCase):
         self.assertEqual(self.choose_method('system').status_code, 200)
         self.assertEqual(alerts.count(), 2)
         self.assertEqual(self.choose_method('manual').status_code, 200)
-        self.assertEqual(alerts.count(), 4)
+        self.assertEqual(alerts.count(), 2)
 
     def test_rejected_manual_choice_does_not_notify_admins(self):
         User.objects.create_user(username='visit-admin', is_staff=True)
@@ -147,6 +147,8 @@ class SurveyMethodWorkflowTests(TestCase):
         self.assertEqual(self.report.survey_method, 'manual')
         self.assertEqual((survey.quality, survey.quantity, survey.timeliness), (4, 5, 3))
         self.assertTrue(survey.scan_file.name)
+        closed_alert = Notification.objects.get(user=self.user, report=self.report, status_snapshot='closed')
+        self.assertIn('is now Closed', closed_alert.message)
 
         details = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
         self.assertContains(details, 'View Scanned Job Order')
