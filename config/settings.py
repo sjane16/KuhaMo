@@ -34,6 +34,19 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,192.168.100
 # e.g. CSRF_TRUSTED_ORIGINS=https://faccheck.example.com
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
 
+# On Render, the service's own address (e.g. fac-check.onrender.com) is allowed automatically
+RENDER_EXTERNAL_HOSTNAME = config('RENDER_EXTERNAL_HOSTNAME', default='')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+
+# Set BEHIND_PROXY=True on Render (or any host with an HTTPS proxy in front). Django then
+# knows requests came in over HTTPS, and uses the visitor's real IP (security/middleware.py).
+# Never set it when the app is reached directly, since the headers could then be faked.
+BEHIND_PROXY = config('BEHIND_PROXY', default=False, cast=bool)
+if BEHIND_PROXY:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # Application definition
 
@@ -84,6 +97,8 @@ STORAGES = {
 
 
 MIDDLEWARE = [
+    # First, so everything below sees the visitor's real IP (no-op unless BEHIND_PROXY)
+    'security.middleware.ClientIPFromProxyMiddleware',
     'django.middleware.security.SecurityMiddleware',
     # Serves /static/ without DEBUG; must come right after SecurityMiddleware.
     # Run `python manage.py tailwind build` and `collectstatic` first.
@@ -116,6 +131,7 @@ AXES_LOCKOUT_TEMPLATE = None
 AXES_RAISE_PERMISSION_DENIED = True
 AXES_RESET_ON_SUCCESS = True 
 AXES_LOCKOUT_CALLABLE = 'accounts.views.custom_lockout'
+AXES_CLIENT_IP_CALLABLE = 'security.middleware.client_ip'
 
 LOGIN_URL = 'login'
 
@@ -193,7 +209,10 @@ EMAIL_TIMEOUT = 10
 EMAIL_HOST_USER = 'facchecknoreply@gmail.com'
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')   # Gmail App Password, stored in .env
 DEFAULT_FROM_EMAIL = 'Fac-Check <facchecknoreply@gmail.com>'
-SITE_URL = config('SITE_URL', default='http://127.0.0.1:8000')
+# Base of the links in notification emails. On Render it falls back to the service's own
+# https address; set SITE_URL when using a custom domain.
+SITE_URL = (config('SITE_URL', default='') or config('RENDER_EXTERNAL_URL', default='')
+            or 'http://127.0.0.1:8000')
 
 TAILWIND_APP_NAME = 'theme'
 
@@ -221,23 +240,37 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CACHES = {
+    # Rate-limit counters. In memory, so they reset on restart; gunicorn.conf.py runs a single
+    # process so every request is counted in the same place.
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'kuhamo-local-cache',
     },
-    # Logins live in their own file-based store so they survive server restarts
-    # and aren't evicted when the default cache (rate limits) fills up.
-    'sessions': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': BASE_DIR / '.django_cache' / 'sessions',
-        'OPTIONS': {'MAX_ENTRIES': 10000},
+}
+
+# Logins are stored in the database, so they survive restarts and redeploys (on Render the
+# server's disk is wiped on every deploy, which used to log everyone out).
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+# Restart the 1-hour timer on every request, so it's 1 hour of inactivity, not 1 hour after login
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Errors and warnings go to the console, which Render shows under Logs.
+# Without this, crashes on the live site (DEBUG off) would leave no trace.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '{asctime} {levelname} {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+    },
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+    'loggers': {
+        'django': {'handlers': ['console'], 'level': config('DJANGO_LOG_LEVEL', default='INFO'), 'propagate': False},
     },
 }
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'sessions'
-# Restart the 1-hour timer on every request, so it's 1 hour of inactivity, not 1 hour after login
-SESSION_SAVE_EVERY_REQUEST = True
 # Media files (user uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
