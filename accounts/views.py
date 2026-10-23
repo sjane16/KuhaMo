@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect 
+from django.http import JsonResponse
 from .forms import LoginForm, SignUpForm, OTPVerificationForm, ForgotPasswordForm, ResetPasswordForm, is_unverified_signup
 from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.models import User 
@@ -101,6 +102,10 @@ def _is_trusted_device(request, user):
     return data.get('u') == user.pk and data.get('v') == _credentials_version(user)
 
 def _post_login_redirect(request, user):
+    profile = getattr(user, 'profile', None)
+    if profile is not None and profile.must_change_password:
+        return redirect('dashboard' if _is_admin(user) else 'userDashboard')
+
     next_url = request.session.pop('pending_login_next', '')
     if url_has_allowed_host_and_scheme(
         next_url,
@@ -918,9 +923,13 @@ def force_password_change(request):
         return _post_login_redirect(request, user)
 
     if request.method == 'POST':
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         if request.POST.get('website'):
             _log_honeypot(request)
-            messages.error(request, "Unable to process your request. Please contact system administrator")
+            message = "Unable to process your request. Please contact system administrator"
+            if is_ajax:
+                return JsonResponse({'ok': False, 'message': message}, status=400)
+            messages.error(request, message)
             return render(request, 'accounts/force_password_change.html', {'form': ResetPasswordForm()})
 
         form = ResetPasswordForm(request.POST)
@@ -937,8 +946,13 @@ def force_password_change(request):
             log_event(request, 'password_changed', user=user, where='first login (temporary password)')
             _clear_messages(request)
             messages.success(request, "Your password has been set. Welcome to Fac-Check!")
-            return _post_login_redirect(request, user)
+            response = _post_login_redirect(request, user)
+            if is_ajax:
+                return JsonResponse({'ok': True, 'redirect_url': response['Location']})
+            return response
         _clear_messages(request)
+        if is_ajax:
+            return JsonResponse({'ok': False, 'errors': form.errors.get_json_data()}, status=400)
     else:
         form = ResetPasswordForm()
 

@@ -23,6 +23,7 @@ from .models import Report, SurveyResponse, UserProfile, Notification, invalidat
 from adm.models import Floor, Room, Building 
 from .notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
 from .context_processors import get_unread_notifications_count
+from .realtime import schedule_notification_update
 from ml.predictor import ImageDecodeError, predict_image, warm_model_async
 import logging
 
@@ -837,7 +838,9 @@ def mark_all_notifications_read(request):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request.'}, status=400)
 
-    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    updated = Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    if updated:
+        schedule_notification_update(request.user.pk)
 
     return JsonResponse({'success': True})
 

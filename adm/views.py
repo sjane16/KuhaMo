@@ -25,6 +25,7 @@ from xhtml2pdf import pisa
 from user.views import link_callback
 from user.notifications import notify_status_change, notifications_for_user, serialize_notification, NOTIFICATIONS_PAGE_SIZE
 from user.context_processors import get_unread_notifications_count
+from user.realtime import schedule_notification_update
 from user.constants import PRIORITY_SLA_HOURS
 from user.decorators import is_head_admin
 from .models import Building 
@@ -1811,6 +1812,8 @@ def mark_all_notifications_read_admin(request):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request.'}, status=400)
 
-    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    updated = Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    if updated:
+        schedule_notification_update(request.user.pk)
 
     return JsonResponse({'success': True})

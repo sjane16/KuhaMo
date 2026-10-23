@@ -17,6 +17,10 @@ class ForcePasswordChangeMiddleware:
             profile = getattr(user, 'profile', None)
             if profile is not None and profile.must_change_password:
                 change_url = reverse('force_password_change')
-                if request.path != change_url and not request.path.startswith(self.ALLOWED_PREFIXES):
-                    return redirect(change_url)
+                is_admin = user.is_staff or user.is_superuser
+                dashboard_url = reverse('dashboard' if is_admin else 'userDashboard')
+                dashboard_data_url = reverse('adm_dashboard_ajax' if is_admin else 'dashboardStatsAjax')
+                allowed_paths = {change_url, dashboard_url, dashboard_data_url}
+                if request.path not in allowed_paths and not request.path.startswith(self.ALLOWED_PREFIXES):
+                    return redirect(dashboard_url)
         return self.get_response(request)
