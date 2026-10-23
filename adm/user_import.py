@@ -37,9 +37,7 @@ SESSION_KEY = 'um_import'
 SESSION_MAX_AGE = 30 * 60
 
 COLUMNS = ['First Name', 'Last Name', 'Email', 'Role', 'Department', 'Phone']
-ROLES = ['student', 'faculty', 'staff', 'med_personnel']
-# Ways people write the MED role in a spreadsheet
-ROLE_ALIASES = {'med personnel': 'med_personnel', 'med': 'med_personnel', 'med-personnel': 'med_personnel'}
+ROLES = ['student', 'faculty', 'staff']
 DEPARTMENTS = dict(UserProfile.DEPARTMENT_CHOICES + UserProfile.OFFICE_CHOICES)  # code -> full name (colleges and offices)
 
 
@@ -65,8 +63,8 @@ def import_template(request):
     for row in range(2, MAX_IMPORT_ROWS + 2):
         ws[f'F{row}'].number_format = '@'
 
-    role_dv = DataValidation(type='list', formula1='"student,faculty,staff,med_personnel"', allow_blank=False)
-    role_dv.error, role_dv.errorTitle = 'Choose student, faculty, staff or med_personnel.', 'Invalid role'
+    role_dv = DataValidation(type='list', formula1='"student,faculty,staff"', allow_blank=False)
+    role_dv.error, role_dv.errorTitle = 'Choose student, faculty or staff.', 'Invalid role'
     dept_dv = DataValidation(type='list', formula1='"' + ','.join(DEPARTMENTS) + '"', allow_blank=False)
     dept_dv.error, dept_dv.errorTitle = 'Choose a department code from the list.', 'Invalid department'
     ws.add_data_validation(role_dv)
@@ -81,8 +79,8 @@ def import_template(request):
         (f'Up to {MAX_IMPORT_ROWS} people per file.', False),
         ('', False),
         ('First Name / Last Name - letters, spaces, hyphens, apostrophes and periods only.', False),
-        ('Email - students and faculty must use their @udm.edu.ph email; staff and MED personnel may use any email.', False),
-        ('Role - student, faculty, staff or med_personnel (MED Personnel; "MED" also works). Admins are added from the User Management page.', False),
+        ('Email - students and faculty must use their @udm.edu.ph email; staff may use any email.', False),
+        ('Role - student, faculty or staff. Admins are added from the User Management page.', False),
         ('Department - one of the codes below: a college for students and faculty, an office or area for staff.', False),
         ('Phone - 11 digits, e.g. 09171234567.', False),
         ('', False),
@@ -156,7 +154,7 @@ def _check_row(data, seen_emails, existing_emails):
     seen_emails.add(email)
 
     if data['role'] not in ROLES:
-        errors.append("Role must be student, faculty, staff or med_personnel.")
+        errors.append("Role must be student, faculty or staff.")
     if data['department'] not in DEPARTMENTS or not data['department']:
         errors.append("Department must be one of the codes on the Instructions sheet.")
     elif data['role'] in ROLES and data['department'] not in dict(UserProfile.department_choices_for(data['role'])):
@@ -208,7 +206,7 @@ def import_preview(request):
             'first_name': _text(values['first name']),
             'last_name': _text(values['last name']),
             'email': _text(values['email']),
-            'role': ROLE_ALIASES.get(_text(values['role']).lower(), _text(values['role']).lower()),
+            'role': _text(values['role']).lower(),
             'department': _clean_department(values['department']),
             'phone': _clean_phone(values['phone']),
         }

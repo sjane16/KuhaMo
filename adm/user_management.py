@@ -27,12 +27,7 @@ from django_ratelimit.core import is_ratelimited
 from security.audit import log_event
 from user.models import Notification, UserProfile, invalidate_trusted_devices
 from user.realtime import schedule_notification_update
-from user.constants import (
-    MED_PERSONNEL_BY_SLUG,
-    MED_PERSONNEL_CATEGORY_BY_SLUG,
-    MED_PERSONNEL_CATEGORY_CHOICES,
-    MED_PERSONNEL_OPTIONS,
-)
+from user.constants import MED_PERSONNEL_CATEGORY_CHOICES
 from .personnel import clear_personnel_cache
 
 USERS_PAGE_SIZE = 10
@@ -84,8 +79,6 @@ def _decorate(users):
         u.um_is_superuser = u.is_superuser
         u.um_is_head = bool(getattr(getattr(u, 'profile', None), 'is_head_admin', False))
         u.um_base_role = getattr(getattr(u, 'profile', None), 'role', '') or ''
-        u.um_med_personnel_slug = getattr(getattr(u, 'profile', None), 'med_personnel_slug', '') or ''
-        u.um_med_personnel_category = getattr(getattr(u, 'profile', None), 'med_personnel_category', '') or ''
         u.um_initials = _initials(u)
     return users
 
@@ -139,7 +132,6 @@ def user_management(request):
         'active_page': 'user_management',
         'stats': _stats(),
         'pending_users': pending_staff(),
-        'med_personnel_options': MED_PERSONNEL_OPTIONS,
         'med_personnel_categories': MED_PERSONNEL_CATEGORY_CHOICES,
     })
 
@@ -332,27 +324,16 @@ def _change_admin_access(request, user_id, action, body):
     if target.is_active and active_admin_count() <= 1:
         return _error("You can't remove the last admin. Make someone else an admin first.", status=409)
     new_role = body.get('role') or ''
-    personnel_slug = profile.med_personnel_slug
-    personnel_category = profile.med_personnel_category
     if profile.role in ('', 'admin'):
         # Accounts that were created as admins have no normal role to go back to
         if new_role not in CHANGEABLE_ROLES:
             return _error("Choose which role this account should have.", status=400)
-        if new_role == 'med_personnel':
-            mapping = _med_personnel_mapping(target, body)
-            if isinstance(mapping, JsonResponse):
-                return mapping
-            personnel_slug, personnel_category = mapping
-        else:
-            personnel_slug = personnel_category = ''
     with transaction.atomic():
         target.is_staff = False
         target.save(update_fields=['is_staff'])
         if profile.role in ('', 'admin'):
             profile.role = new_role
-            profile.med_personnel_slug = personnel_slug
-            profile.med_personnel_category = personnel_category
-            profile.save(update_fields=['role', 'med_personnel_slug', 'med_personnel_category'])
+            profile.save(update_fields=['role'])
         invalidate_trusted_devices(target)
         log_event(request, 'user_demoted', user=request.user, target=target.email, new_role=profile.role)
         actor_name = request.user.get_full_name() or request.user.email or request.user.username
@@ -373,26 +354,3 @@ def _change_admin_access(request, user_id, action, body):
 # Legacy admin accounts can still choose a fallback role when access is removed.
 
 CHANGEABLE_ROLES = ('student', 'faculty', 'staff')
-
-
-def _med_personnel_mapping(target, body):
-    slug = (body.get('med_personnel_slug') or '').strip()
-    category = (body.get('med_personnel_category') or '').strip()
-    if slug == '__new__':
-        if category not in MED_PERSONNEL_CATEGORY_BY_SLUG:
-            return _error('Choose the MED section for this new personnel.')
-        name = (target.get_full_name() or target.email or target.username).strip().casefold()
-        if any(name == option['name'].casefold() for option in MED_PERSONNEL_BY_SLUG.values()):
-            return _error('This name is already in the hardcoded roster; select that roster entry instead.')
-        existing_names = (
-            (profile.user.get_full_name() or profile.user.email or profile.user.username).strip().casefold()
-            for profile in UserProfile.objects.filter(role='med_personnel').exclude(user=target).select_related('user')
-        )
-        if name in existing_names:
-            return _error('A MED personnel account with this name is already linked.')
-        return f'account-{target.pk}', category
-    if slug not in MED_PERSONNEL_BY_SLUG:
-        return _error('Choose an existing roster name or add this account as a new personnel.')
-    if UserProfile.objects.filter(med_personnel_slug=slug).exclude(user=target).exists():
-        return _error('That MED personnel name is already linked to another account.', status=409)
-    return slug, ''

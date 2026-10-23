@@ -356,15 +356,7 @@
             </div>
           {% endif %}
           {% if report.status == 'resolved' %}
-            {% if is_med_personnel_report and not report.survey %}
-              {% if not has_med_assignees %}
-                <p class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">Assign at least one MED personnel before recording the group QQT rating.</p>
-              {% elif can_rate_med_personnel %}
-                <p class="sr-only">The Head Admin CSS rating modal is open.</p>
-              {% else %}
-                <p class="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">Waiting for the Head Admin to submit the group QQT rating.</p>
-              {% endif %}
-            {% elif report.survey_method == 'manual' and not report.survey %}
+            {% if report.survey_method == 'manual' and not report.survey %}
               <form method="POST" enctype="multipart/form-data" action="{% url 'adm_manual_survey' report.id %}" class="space-y-6">
                 {% csrf_token %}
                 <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Record Manual Survey</h2>
@@ -740,8 +732,14 @@
     {% include 'partials/_personnel_assignment_modal.html' %}
     <script src="{% static 'adm/js/personnel_assignment.js' %}" defer></script>
   {% endif %}
-  {% if can_rate_med_personnel %}
-    <div id="head-rating-modal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">
+      document.getElementById('personnel-rating-success-close').addEventListener('click', function () {
+        document.getElementById('personnel-rating-success-modal').remove();
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+      });
+    </script>
+  {% endif %}
+  <style>
       <form id="head-rating-form" method="POST" action="{% url 'adm_personnel_rating' report.id %}" aria-labelledby="head-rating-title" class="bg-white rounded-3xl shadow-xl w-full max-w-3xl max-h-[94vh] overflow-y-auto p-6 sm:p-8">
         {% csrf_token %}
         <h2 id="head-rating-title" class="text-xl font-bold text-gray-900 mb-1 text-center">Customer Satisfaction Survey</h2>

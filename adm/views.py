@@ -29,7 +29,7 @@ from user.realtime import schedule_notification_update
 from user.constants import PRIORITY_SLA_HOURS
 from user.decorators import is_head_admin
 from .models import Building 
-from .forms import HeadAdminPersonnelRatingForm, ManualSurveySubmissionForm
+from .forms import ManualSurveySubmissionForm
 
 
 REPORTS_PAGE_SIZE = 5
@@ -119,11 +119,6 @@ def save_report_personnel(request, report_id):
         'selected_slugs': [item['slug'] for group in context['selected_personnel_groups'] for item in group['personnel']],
         'other_names': [item['name'] for item in context['other_personnel']],
     })
-
-
-def is_med_personnel_report(report):
-    profile = getattr(report.user, 'profile', None) if report.user_id else None
-    return bool(profile and profile.role == 'med_personnel')
 
 
 def format_hours(hours):
@@ -853,9 +848,6 @@ def report_detail(request, report_id):
         id=report_id,
     )
     personnel_context = personnel_assignment_context(report)
-    med_report = is_med_personnel_report(report)
-    has_med_assignees = bool(_known_personnel_names(report.assigned_personnel_data or []))
-    rating_success_personnel = request.session.pop(f'med_personnel_rating_success_{report.id}', '')
     is_locked = report.status in ('resolved', 'closed')
 
     if report.status == 'closed':
@@ -870,22 +862,6 @@ def report_detail(request, report_id):
         **personnel_context,
         'can_edit_personnel': report.status == 'pending',
         'is_locked': is_locked,
-        'is_med_personnel_report': med_report,
-        'has_med_assignees': has_med_assignees,
-        'can_rate_med_personnel': med_report and has_med_assignees and report.status == 'resolved' and is_head_admin(request.user) and not hasattr(report, 'survey'),
-        'qqt_emojis': [
-            ('😤', 'Unsatisfactory', 1),
-            ('😞', 'Fair', 2),
-            ('😐', 'Satisfactory', 3),
-            ('😊', 'Very Satisfactory', 4),
-            ('😄', 'Outstanding', 5),
-        ],
-        'qqt_questions': (
-            ('quality', 'Quality of Work'),
-            ('quantity', 'Quantity of Work'),
-            ('timeliness', 'Timeliness of Service'),
-        ),
-        'rating_success_personnel': rating_success_personnel,
         'priority_sla_hours': PRIORITY_SLA_HOURS,
     })
 
@@ -899,9 +875,7 @@ def record_manual_survey(request, report_id):
         # (the loser used to hit an IntegrityError and a 500 page).
         with transaction.atomic():
             report = Report.objects.select_for_update().get(id=report_id)
-            if is_med_personnel_report(report):
-                messages.error(request, 'MED personnel reports must be rated by the Head Admin.')
-            elif report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
+            if report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
                 messages.error(request, 'A manual survey can only be recorded once for a resolved report selected for manual submission.')
             elif form.is_valid():
                 SurveyResponse.objects.create(report=report, **form.cleaned_data)
@@ -912,38 +886,6 @@ def record_manual_survey(request, report_id):
                 messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
             else:
                 messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
-    return redirect('adm_report_detail', report_id=report_id)
-
-
-def record_med_personnel_rating(request, report_id):
-    if request.method == 'POST':
-        form = HeadAdminPersonnelRatingForm(request.POST)
-        with transaction.atomic():
-            report = get_object_or_404(
-                Report.objects.select_for_update(of=('self',)).select_related('user__profile'),
-                id=report_id,
-            )
-            assigned_names = _known_personnel_names(report.assigned_personnel_data or [])
-            if not is_med_personnel_report(report):
-                messages.error(request, 'Only reports submitted by MED personnel use Head Admin ratings.')
-            elif report.status != 'resolved' or SurveyResponse.objects.filter(report=report).exists():
-                messages.error(request, 'A Head Admin rating can only be recorded once for a resolved MED personnel report.')
-            elif not assigned_names:
-                messages.error(request, 'Assign at least one MED personnel before recording the group rating.')
-            elif form.is_valid():
-                SurveyResponse.objects.create(
-                    report=report,
-                    rated_by=request.user,
-                    rating_source='head_admin',
-                    **form.cleaned_data,
-                )
-                report.status = 'closed'
-                report.save(update_fields=['status'])
-                request.session[f'closed_seen_{report.id}'] = True
-                request.session[f'med_personnel_rating_success_{report.id}'] = report.assigned_personnel_summary or ''
-                notify_status_change(report, 'closed', f'Report {report.job_order_id} is now Closed after Head Admin QQT evaluation.')
-            else:
-                messages.error(request, 'Please select a valid 1–5 score for all three QQT ratings.')
     return redirect('adm_report_detail', report_id=report_id)
 
 
@@ -972,7 +914,6 @@ def export_job_order_pdf_admin(request, report_id):
     html = render_to_string('user/job_order_pdf.html', {
         "report": report,
         "category_checks": category_checks,
-        "is_med_personnel_report": is_med_personnel_report(report),
     })
 
     response = HttpResponse(content_type='application/pdf')

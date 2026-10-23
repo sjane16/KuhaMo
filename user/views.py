@@ -356,13 +356,9 @@ def reportedIssue(request, report_id):
         report=report
     ).exists()
 
-    is_med_personnel_report = bool(
-        getattr(getattr(request.user, 'profile', None), 'role', None) == 'med_personnel'
-    )
     show_survey = (
         report.status == 'resolved'
         and not already_surveyed
-        and not is_med_personnel_report
     )
 
     emojis = [
@@ -378,7 +374,6 @@ def reportedIssue(request, report_id):
         "report": report,
         "already_surveyed": already_surveyed,
         "show_survey": show_survey,
-        "is_med_personnel_report": is_med_personnel_report,
         "emojis": emojis,
         "survey_questions": (
             ('quality', 'Quality of Work'),
@@ -444,7 +439,6 @@ def exportJobOrderPDF(request, report_id):
     html = render_to_string('user/job_order_pdf.html', {
         "report": report,
         "category_checks": category_checks,
-        "is_med_personnel_report": getattr(getattr(request.user, 'profile', None), 'role', None) == 'med_personnel',
     })
 
     response = HttpResponse(content_type='application/pdf')
@@ -511,11 +505,6 @@ def chooseSurveyMethod(request, report_id):
                 'success': False,
                 'error': 'Survey method can only be selected for a resolved report without a submitted survey.',
             }, status=400)
-        if getattr(getattr(request.user, 'profile', None), 'role', None) == 'med_personnel':
-            return JsonResponse({
-                'success': False,
-                'error': 'The Head Admin will provide the QQT rating for MED personnel reports.',
-            }, status=403)
         notify_manual_visit = method == 'manual' and report.survey_method != 'manual'
         report.survey_method = method
         report.save(update_fields=['survey_method'])
@@ -567,11 +556,6 @@ def submitSurvey(request, report_id):
             id=report_id,
             user=request.user,
         )
-        if getattr(getattr(request.user, 'profile', None), 'role', None) == 'med_personnel':
-            return JsonResponse({
-                'success': False,
-                'error': 'The Head Admin provides ratings for MED personnel reports.',
-            }, status=403)
         if SurveyResponse.objects.filter(report=report).exists():
             return JsonResponse({
                 'success': False,

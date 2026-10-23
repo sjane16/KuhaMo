@@ -15,7 +15,6 @@ urlpatterns = [
     path('reports/<int:report_id>/personnel/', admin_required(views.save_report_personnel), name='adm_report_personnel'),
     path('reports/<int:report_id>/status/', admin_required(views.report_status), name='adm_report_status'),
     path('reports/<int:report_id>/manual-survey/', admin_required(views.record_manual_survey), name='adm_manual_survey'),
-    path('reports/<int:report_id>/personnel-rating/', head_admin_required(views.record_med_personnel_rating), name='adm_personnel_rating'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logoutadmin'),
     path('menu/', admin_required(views.ProfileMenu), name='ProfileMenu'),
     path('ajax/menu/', admin_required(views.adm_menu_ajax), name='adm_menu_ajax'),
