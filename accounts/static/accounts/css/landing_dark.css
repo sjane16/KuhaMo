@@ -82,12 +82,6 @@ html.dark .ring-white {
 html.dark #landing-nav > a > span {
   color: #e4e6eb;
 }
-html.dark #landing-nav > a img {
-  box-sizing: border-box;
-  padding: 3px;
-  border-radius: 8px;
-  /* background: #fff; logo is blue on transparent; same white tile as the footer */
-}
 html.dark #landing-menu-toggle {
   color: #7db4ff;
 }
@@ -182,19 +176,17 @@ html.dark .fc-footer {
   background: #242526;
   border-top: 1px solid #3e4042;
 }
+/* The inline footer style puts the logo on a white tile (needed on the light navy band). On the dark footer, use the plain logo. */
 html.dark .fc-footer-brand img {
-  background: transparent;
   padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 /* ---- Dark polish: neutral "Where your report goes" card, brighter logo, footer hierarchy ---- */
 html.dark #about > div.rounded-3xl {
   background: #242526;
   border-color: #3e4042;
-}
-html.dark #landing-nav > a img,
-html.dark .fc-footer-brand img {
-  filter: brightness(1.5);
 }
 html.dark .fc-footer-brand p,
 html.dark .fc-footer-grid .fc-footer-copy {

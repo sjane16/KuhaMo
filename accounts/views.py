@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect 
 from django.http import JsonResponse
-from .forms import LoginForm, SignUpForm, OTPVerificationForm, ForgotPasswordForm, ResetPasswordForm, is_unverified_signup
+from .forms import ContactForm, LoginForm, SignUpForm, OTPVerificationForm, ForgotPasswordForm, ResetPasswordForm, is_unverified_signup
 from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib.auth.models import User 
 from django.contrib import messages
@@ -20,12 +20,69 @@ from django.utils.crypto import constant_time_compare
 from django.db.models import F
 from django.core import signing
 from datetime import timedelta
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage, send_mail
+from email.utils import formataddr
 from django.conf import settings 
 from django.utils import timezone
 from django.db import transaction
 from smtplib import SMTPException
 from django.utils.http import url_has_allowed_host_and_scheme #helps with redirecting users together with the next parameter.
+
+
+def contact(request):
+    context = {'contact_email': settings.CONTACT_EMAIL}
+    if request.method != 'POST':
+        return render(request, 'accounts/contact.html', context)
+
+    if is_ratelimited(request, group='contact-form', key='ip', rate='5/h',
+                      method='POST', increment=True):
+        result = {'ok': False, 'message': 'Too many messages. Please try again later.'}
+        status = 429
+    else:
+        form = ContactForm(request.POST)
+        if not form.is_valid():
+            result = {'ok': False, 'message': 'Please check the form and try again.',
+                      'errors': {key: errors[0] for key, errors in form.errors.items()}}
+            status = 400
+        else:
+            data = form.cleaned_data
+            # Collapse whitespace/newlines so the name is safe to use in email headers.
+            sender_name = ' '.join(data['name'].split())[:60]
+            sent_at = timezone.localtime().strftime('%b %d, %Y at %I:%M %p')
+            # Details first, then the message at the end.
+            body = (f"New message from the Fac-Check contact form\n"
+                    f"--------------------------------\n"
+                    f"Name:  {sender_name}\n"
+                    f"Email: {data['email']}\n"
+                    f"Phone: {data['phone'] or 'Not provided'}\n"
+                    f"Sent:  {sent_at}\n"
+                    f"--------------------------------\n\n"
+                    f"Message:\n{data['message']}\n\n"
+                    f"Hit Reply to answer {sender_name} directly.")
+            try:
+                # Gmail always sends as the logged-in account (noreply), so the visitor's name goes
+                # in the display name; Reply-To sends your answer straight to them.
+                EmailMessage(
+                    subject=f"Fac-Check Contact: New message from {sender_name}", body=body,
+                    from_email=formataddr((f"{sender_name} via Fac-Check", settings.EMAIL_HOST_USER)),
+                    to=[settings.CONTACT_EMAIL], reply_to=[formataddr((sender_name, data['email']))],
+                ).send(fail_silently=False)
+            except (OSError, SMTPException):
+                result = {'ok': False, 'message': 'Your message could not be sent. Please try again later.'}
+                status = 503
+            else:
+                result = {'ok': True, 'message': 'Your message was sent successfully.'}
+                status = 200
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse(result, status=status)
+    if result['ok']:
+        messages.success(request, result['message'])
+        return redirect('contact')
+    context['form_errors'] = result.get('errors', {})
+    context['form_error'] = result['message']
+    context['submitted'] = request.POST
+    return render(request, 'accounts/contact.html', context, status=status)
 
 def _clear_messages(request):
     storage = get_messages(request)
@@ -667,17 +724,17 @@ def resend_otp(request):
 @never_cache
 def forgot_password(request):
     if request.method == 'POST':
+        form = ForgotPasswordForm(request.POST)
         if request.POST.get('website'):
             _log_honeypot(request)
             _clear_messages(request)
             messages.error(request, "Unable to process your request. Please contact system administrator")
-            return render(request, 'accounts/forgot_password.html', {'form': ForgotPasswordForm()})
+            return render(request, 'accounts/forgot_password.html', {'form': form})
 
         if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True, fn=forgot_password):
             messages.error(request, "Too many requests. Please try again later")
-            return render(request, 'accounts/forgot_password.html', {'form': ForgotPasswordForm()})
+            return render(request, 'accounts/forgot_password.html', {'form': form})
 
-        form = ForgotPasswordForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data.get('email', '').strip().lower()
 
@@ -712,7 +769,7 @@ def forgot_password(request):
             except (SMTPException, OSError):
                 _clear_messages(request)
                 messages.error(request, "We couldn't send your reset code right now. Please try again in a moment.")
-                return render(request, 'accounts/forgot_password.html', {'form': ForgotPasswordForm()})
+                return render(request, 'accounts/forgot_password.html', {'form': form})
 
             _clear_reset_session(request)
             request.session['pending_reset_user_id'] = user.id

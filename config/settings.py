@@ -235,6 +235,8 @@ DEFAULT_FROM_EMAIL = 'Fac-Check <facchecknoreply@gmail.com>'
 # https address; set SITE_URL when using a custom domain.
 SITE_URL = (config('SITE_URL', default='') or config('RENDER_EXTERNAL_URL', default='')
             or 'http://127.0.0.1:8000')
+# Inbox that receives contact-form messages (separate from the sender account above)
+CONTACT_EMAIL = 'faccheck.help@gmail.com'
 
 TAILWIND_APP_NAME = 'theme'
 

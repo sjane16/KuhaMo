@@ -1,11 +1,12 @@
 import logging
 from html import escape
 from smtplib import SMTPException
+from threading import Thread
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import EmailMultiAlternatives
-from django.db import transaction
+from django.db import connections, transaction
 from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 
@@ -133,6 +134,19 @@ def _send_status_email(email, report, status, message):
         logger.exception("Failed to send status email for report %s", job_order)
 
 
+def _send_status_email_in_background(email, report, status, message):
+    """Send the email without making the admin or student wait for Gmail."""
+    def run():
+        try:
+            _send_status_email(email, report, status, message)
+        except Exception:
+            logger.exception("Status email thread failed for report %s", report.id)
+        finally:
+            connections.close_all()
+
+    Thread(target=run, name="status-email", daemon=True).start()
+
+
 def notify_status_change(report, status, message):
     notification = Notification.objects.create(
         user=report.user,
@@ -142,5 +156,5 @@ def notify_status_change(report, status, message):
     )
     email = (report.user.email or '').strip()
     if email:
-        transaction.on_commit(lambda: _send_status_email(email, report, status, message))
+        transaction.on_commit(lambda: _send_status_email_in_background(email, report, status, message))
     return notification

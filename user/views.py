@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from .forms import ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
+from .forms import ProfilePasswordChangeForm, ReportForm, UserForm, UserProfileForm, ProfilePhotoForm
 from .forms import form_error_text
 import hashlib
 import os
@@ -115,6 +116,18 @@ def menu(request):
             messages.success(request, "Profile Photo Removed Successfully")
             return redirect('menu')
 
+        elif 'change_password' in request.POST:
+            password_form = ProfilePasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                invalidate_trusted_devices(request.user)
+                log_event(request, 'password_changed', user=request.user, where='Edit Profile')
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "Password changed successfully.")
+                return redirect('menu')
+            for error in password_form.non_field_errors():
+                messages.error(request, error)
+
     return render(request, 'user/menu.html', {
         "active_page": "menu",
         "user_form": user_form,
@@ -129,14 +142,11 @@ def menuAjax(request):
     profile_form = UserProfileForm(instance=profile)
 
     html = render_to_string('user/partials/_menu_content.html', {
+        "user_form": UserForm(instance=request.user),
         "profile_form": profile_form,
     }, request=request)
 
     return JsonResponse({"html":html})
-
-def base(request):
-    return render(request, 'user/layouts/base.html', {"active_page": "base"})
-
 
 @login_required
 def userDashboard(request):
@@ -604,10 +614,6 @@ def submitSurvey(request, report_id):
         'success': True
     })
 
-def chatbot(request):
-    return render(request, 'user/components/chatbot.html')
-
-
 UDM_FAQ_DATA = """
 OFFICIAL FAQ KNOWLEDGE BASE FOR FAC-CHECK SYSTEM (UDM):
 1. What is Fac-Check?
@@ -616,7 +622,7 @@ using AI-powered image classification to streamline university maintenance.
 2. Who can use this system?
 - All official UDM stakeholders, including active students, professors, and university administrative staff can log in and submit facility reports.
 3. How do I report a broken facility or equipment?
-- First, create an account and log in to Fac-Check then go to the report submission page. After that, upload a clear photo of the defect and let Fac-Check categorize your report. Then, select the location. Lastly, submit the report.
+- Go to the report submission page, upload a clear photo of the defect, and let Fac-Check suggest a category. Select the location, describe the concern, then submit the report.
 4. Why did my report get rejected?
 - The system requires a clear image of the actual defect for the CNN Classification Engine to analyze it properly. Ensure your photo is not blurry, dark,
 or unrelated to a facility concern. The file size must also be within the allowed system limit.
@@ -708,8 +714,8 @@ def chatbot_response(request):
                 }
             )
             return JsonResponse({'reply': response.text})
-        except Exception as e:
-            print(f"Error encountered: {e}")
+        except Exception:
+            logger.exception("Chatbot response generation failed")
             return JsonResponse({'reply': "Sorry, I'm having trouble processing your request right now."})
     return JsonResponse({'error': 'Invalid request'}, status=400)
 

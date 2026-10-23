@@ -291,48 +291,103 @@
         return header;
     }
 
-    function loadNotifications() {
-        notifTabsSkeleton.classList.remove('hidden');
-        notifListSkeleton.classList.remove('hidden');
-        notifTabsReal.classList.add('hidden');
-        notifList.classList.add('hidden');
+    // Last response per filter. Reopening the dropdown shows it right away and
+    // refreshes quietly, so the skeleton only appears on the very first load.
+    const notifCache = {};
+    let notifRequestId = 0;
 
-        fetch(`{% url 'get_notifications_ajax_admin' %}?filter=${currentNotifFilter}`)
+    function renderNotifications(data) {
+        notifList.innerHTML = "";
+
+        if (data.notifications.length === 0) {
+            notifList.innerHTML =
+                '<div class="px-4 py-6 text-center text-sm text-gray-400">No notifications yet.</div>';
+        } else {
+            const isStaff = (n) => n.status === "staff_approval";
+            const staffApprovals = data.notifications.filter((n) => isStaff(n));
+            const others = data.notifications.filter((n) => !isStaff(n));
+            const recent = others.filter((n) => n.is_recent);
+            const older = others.filter((n) => !n.is_recent);
+
+            // "See all" only on the first divider shown
+            const addSection = (label, items) => {
+                if (items.length === 0) return;
+                notifList.appendChild(buildSectionHeader(label, notifList.children.length === 0));
+                items.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
+            };
+
+            addSection("Staff", staffApprovals);
+            addSection("New", recent);
+            addSection("Yesterday", older);
+        }
+
+        notifTabsSkeleton.classList.add('hidden');
+        notifListSkeleton.classList.add('hidden');
+        notifTabsReal.classList.remove('hidden');
+        notifList.classList.remove('hidden');
+
+        adjustNotifListHeight();
+    }
+
+    function updateNotifBadge(data) {
+        if (window.fcUpdateNotificationBadges) {
+            window.fcUpdateNotificationBadges(data.unread_count);
+            return;
+        }
+        const badge = document.getElementById("desktop_notif_badge");
+        if (badge) {
+            badge.textContent = data.unread_count;
+            badge.classList.toggle("hidden", data.unread_count === 0);
+        }
+    }
+
+    function loadNotifications() {
+        const filter = currentNotifFilter;
+        const requestId = ++notifRequestId;
+        const previous = notifCache[filter];
+
+        if (previous) {
+            renderNotifications(previous);
+            updateNotifBadge(previous);
+        } else {
+            notifTabsSkeleton.classList.remove('hidden');
+            notifListSkeleton.classList.remove('hidden');
+            notifTabsReal.classList.add('hidden');
+            notifList.classList.add('hidden');
+        }
+
+        fetch(`{% url 'get_notifications_ajax_admin' %}?filter=${filter}`)
             .then((res) => res.json())
             .then((data) => {
-                notifList.innerHTML = "";
-
-                if (data.notifications.length === 0) {
-                    notifList.innerHTML =
-                        '<div class="px-4 py-6 text-center text-sm text-gray-400">No notifications yet.</div>';
-                } else {
-                    const isStaff = (n) => n.status === "staff_approval";
-                    const staffApprovals = data.notifications.filter((n) => isStaff(n));
-                    const others = data.notifications.filter((n) => !isStaff(n));
-                    const recent = others.filter((n) => n.is_recent);
-                    const older = others.filter((n) => !n.is_recent);
-
-                    // "See all" only on the first divider shown
-                    const addSection = (label, items) => {
-                        if (items.length === 0) return;
-                        notifList.appendChild(buildSectionHeader(label, notifList.children.length === 0));
-                        items.forEach((notif) => notifList.appendChild(buildNotifItem(notif)));
-                    };
-
-                    addSection("Staff", staffApprovals);
-                    addSection("New", recent);
-                    addSection("Yesterday", older);
-                }
-
-                window.fcUpdateNotificationBadges?.(data.unread_count);
-
-                notifTabsSkeleton.classList.add('hidden');
-                notifListSkeleton.classList.add('hidden');
-                notifTabsReal.classList.remove('hidden');
-                notifList.classList.remove('hidden');
-
-                adjustNotifListHeight();
+                const changed = !previous ||
+                    JSON.stringify(previous.notifications) !== JSON.stringify(data.notifications);
+                notifCache[filter] = data;
+                if (requestId !== notifRequestId) return;
+                updateNotifBadge(data);
+                // Skip the redraw if nothing changed.
+                if (changed) renderNotifications(data);
             });
+    }
+
+    // Optional: warm the "All" list quietly after the page loads (desktop only), so even the
+    // first click on the bell is instant after navigating to another page. Delete this block
+    // if you don't want the extra background request.
+    function prefetchNotifications() {
+        if (notifCache.all) return;
+        fetch(`{% url 'get_notifications_ajax_admin' %}?filter=all`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (!notifCache.all) notifCache.all = data;
+            })
+            .catch(() => {});
+    }
+
+    if (notifBellIcon && window.matchMedia("(min-width: 1024px)").matches) {
+        if ("requestIdleCallback" in window) {
+            requestIdleCallback(prefetchNotifications);
+        } else {
+            setTimeout(prefetchNotifications, 1500);
+        }
     }
 
     function setNotifTab(filterValue) {
