@@ -51,6 +51,8 @@ if BEHIND_PROXY:
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -166,6 +168,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 
 # Database
@@ -179,6 +182,25 @@ DATABASES = {
     )
 }
 DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+
+REDIS_URL = config('REDIS_URL', default='')
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': [REDIS_URL]},
+        },
+    }
+elif DEBUG:
+    # Local runserver/tests can exercise WebSockets without installing Redis.
+    # Production must set REDIS_URL so separate workers share notification events.
+    CHANNEL_LAYERS = {
+        'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
+    }
+else:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured('REDIS_URL is required when DEBUG is False.')
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

@@ -10,7 +10,7 @@ services:
     region: singapore
     branch: main
     buildCommand: bash build.sh
-    startCommand: gunicorn config.wsgi:application
+    startCommand: gunicorn -k uvicorn_worker.UvicornWorker config.asgi:application
     healthCheckPath: /auth/index/
     autoDeploy: true
     envVars:
@@ -33,6 +33,8 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
         sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false

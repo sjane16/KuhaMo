@@ -11,6 +11,9 @@
     <script src="{% static 'cdd/custom-dropdown.js' %}?v=2" defer></script>
     <link rel="stylesheet" href="{% static 'submission-state.css' %}">
     <script src="{% static 'submission-state.js' %}" defer></script>
+    {% if not user.profile.must_change_password %}
+      <script src="{% static 'user/js/notifications-realtime.js' %}" defer></script>
+    {% endif %}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload"
@@ -67,6 +70,9 @@
       <!-- MOBILE BOTTOM NAV -->
       {% include "user/components/mobile_nav.html" %}
     </div>
+    {% if user.is_authenticated and user.profile.must_change_password %}
+      {% include "accounts/forced_password_modal.html" %}
+    {% endif %}
     <!-- Logout Confirmation Modal -->
     <div id="logout_modal"
          class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 backdrop-blur-sm">

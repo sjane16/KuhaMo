@@ -26,6 +26,7 @@ from django_ratelimit.core import is_ratelimited
 
 from security.audit import log_event
 from user.models import Notification, UserProfile, invalidate_trusted_devices
+from user.realtime import schedule_notification_update
 from user.constants import (
     MED_PERSONNEL_BY_SLUG,
     MED_PERSONNEL_CATEGORY_BY_SLUG,
@@ -218,10 +219,17 @@ def user_management_action(request, user_id):
         if action == 'approve':
             profile.approval_status = UserProfile.APPROVAL_APPROVED
             profile.save(update_fields=['approval_status'])
+            pending_notification_users = list(
+                Notification.objects.filter(staff_account=target, is_read=False)
+                .values_list('user_id', flat=True)
+                .distinct()
+            )
             Notification.objects.filter(staff_account=target, is_read=False).update(is_read=True)
+            for user_id in pending_notification_users:
+                schedule_notification_update(user_id)
             log_event(request, 'user_approved', user=request.user, target=email)
             _notify(target, 'Your Fac-Check staff account was approved',
-                    'Good news! The Head Admin approved your Fac-Check staff account. You can now log in.')
+                    'The Head Admin approved your Fac-Check staff account. You can now log in.')
 
         elif action == 'reject':
             log_event(request, 'user_rejected', user=request.user, target=email, reason=reason)

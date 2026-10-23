@@ -12,6 +12,9 @@
                  viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
             </svg>
+            <span data-notification-badge class="{% if not unread_notifications_count %}hidden {% endif %}absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+                {{ unread_notifications_count }}
+            </span>
         </span>
     {% else %}
         <button type="button" onclick="toggleNotifDropdown()" class="relative">
@@ -23,8 +26,8 @@
                  viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
             </svg>
-                <span id="desktop_notif_badge"
-                      class="{% if not unread_notifications_count %}hidden {% endif %}absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                <span id="desktop_notif_badge" data-notification-badge
+                      class="{% if not unread_notifications_count %}hidden {% endif %}absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
                     {{ unread_notifications_count }}
                 </span>
         </button>
@@ -327,6 +330,10 @@
     }
 
     function updateNotifBadge(data) {
+        if (window.fcUpdateNotificationBadges) {
+            window.fcUpdateNotificationBadges(data.unread_count);
+            return;
+        }
         const badge = document.getElementById("desktop_notif_badge");
         if (badge) {
             badge.textContent = data.unread_count;
@@ -341,6 +348,7 @@
 
         if (previous) {
             renderNotifications(previous);
+            updateNotifBadge(previous);
         } else {
             notifTabsSkeleton.classList.remove('hidden');
             notifListSkeleton.classList.remove('hidden');
@@ -354,9 +362,10 @@
                 const changed = !previous ||
                     JSON.stringify(previous.notifications) !== JSON.stringify(data.notifications);
                 notifCache[filter] = data;
+                if (requestId !== notifRequestId) return;
                 updateNotifBadge(data);
-                // Skip the redraw if nothing changed, or if the user already switched tab / reopened.
-                if (requestId === notifRequestId && changed) renderNotifications(data);
+                // Skip the redraw if nothing changed.
+                if (changed) renderNotifications(data);
             });
     }
 
@@ -409,6 +418,8 @@
             setNotifTab("unread");
         });
     }
+
+    window.addEventListener("fc:notifications-changed", loadNotifications);
 
     document.addEventListener("click", function(e) {
         if (notifMenu && !notifMenu.classList.contains("hidden") && !e.target.closest("#notif_menu") && !e.target.closest("#notif_menu_btn")) {

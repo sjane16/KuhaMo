@@ -126,4 +126,3 @@ html.dark header:has(> #landing-nav) {
 .fc-skip-link:focus {
     z-index: 50;
 }
-

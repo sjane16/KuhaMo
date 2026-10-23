@@ -114,6 +114,11 @@
                     });
             }
 
+            window.addEventListener("fc:notifications-changed", function() {
+                currentPage = 1;
+                fetchNotifications(currentFilter, currentPage);
+            });
+
             let currentFilter = "{{ notif_filter|default:'all' }}";
 
             function handleTabClick(filterValue) {

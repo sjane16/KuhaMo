@@ -5,7 +5,11 @@ name = "pypi"
 
 [packages]
 django = "==6.0.7"
+channels = "*"
+channels-redis = "*"
+daphne = "*"
 gunicorn = "*"
+uvicorn-worker = "*"
 pillow = "*"
 google-genai = "*"
 tensorflow-cpu = "*"
