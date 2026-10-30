@@ -414,6 +414,11 @@
                 flex: 1;
             }
 
+            .fc-dialog-actions button:disabled {
+                opacity: .55;
+                cursor: not-allowed;
+            }
+
             /* Policy text: as wide as the signup card, only the text scrolls */
             .fc-dialog-policy {
                 max-width: 560px;
@@ -853,10 +858,36 @@
                 class="fc-dialog fc-dialog-policy"
                 aria-labelledby="policy-dialog-title">
             <h2 id="policy-dialog-title">Privacy Policy and Terms of Service</h2>
+            <div id="policy-reading-progress" class="mb-3">
+                <p class="mb-2 text-[11px] text-gray-500">Read the Terms of Service and Privacy Policy to the end to enable the agreement checkbox.</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <div id="terms-progress-card" class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-semibold text-gray-700">Terms of Service</span>
+                            <span id="terms-read-time" class="text-[10px] text-gray-500">~3 min</span>
+                        </div>
+                        <span id="terms-read-state" class="mt-1 inline-block text-[10px] text-gray-400">Not read</span>
+                    </div>
+                    <div id="privacy-progress-card" class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-semibold text-gray-700">Privacy Policy</span>
+                            <span id="privacy-read-time" class="text-[10px] text-gray-500">~5 min</span>
+                        </div>
+                        <span id="privacy-read-state" class="mt-1 inline-block text-[10px] text-gray-400">Not read</span>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-center justify-between gap-3">
+                    <span id="policy-progress-count" class="text-[10px] text-gray-500" aria-live="polite">0 of 2 sections read</span>
+                    <div class="h-1.5 w-24 overflow-hidden rounded-full bg-gray-100" aria-hidden="true">
+                        <div id="policy-progress-bar" class="h-full w-0 rounded-full bg-blue-600 transition-all"></div>
+                    </div>
+                </div>
+            </div>
             <div class="fc-policy-box" tabindex="0">{% include "accounts/components/policy_text.html" %}</div>
             <div class="fc-dialog-actions">
                 <button type="button"
                         id="policy-dialog-close"
+                        disabled
                         class="fc-signup-primary"
                         autofocus>Close</button>
             </div>
@@ -909,44 +940,97 @@
                 var closeBtn = document.getElementById('policy-dialog-close');
                 if (!link || !dialog || !closeBtn || typeof dialog.showModal !== 'function') return;
 
-                link.addEventListener('click', function(event) {
-                    if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
-                    event.preventDefault();
-                    dialog.showModal();
-                    dialog.querySelector('.fc-policy-box').scrollTop = 0;
-                });
-                // The agreement checkbox stays disabled until the policy text is scrolled to the end
                 var box = dialog.querySelector('.fc-policy-box');
                 var terms = document.getElementById('id_agree_to_terms');
-                var hint = document.getElementById('terms-hint');
+                var progressCount = document.getElementById('policy-progress-count');
+                var progressBar = document.getElementById('policy-progress-bar');
+                var policySections = box ? [{
+                    id: 'terms',
+                    element: box.querySelector('#terms-policy-section'),
+                    card: document.getElementById('terms-progress-card'),
+                    state: document.getElementById('terms-read-state'),
+                    estimate: document.getElementById('terms-read-time')
+                }, {
+                    id: 'privacy',
+                    element: box.querySelector('#privacy-policy-section'),
+                    card: document.getElementById('privacy-progress-card'),
+                    state: document.getElementById('privacy-read-state'),
+                    estimate: document.getElementById('privacy-read-time')
+                }].filter(function(section) {
+                    return section.element && section.card && section.state && section.estimate;
+                }) : [];
+                var readSections = new Set();
 
-                function setRead() {
-                    terms.disabled = false;
-                    box.removeEventListener('scroll', onScroll);
+                function markSectionRead(section) {
+                    if (readSections.has(section.id)) return;
+                    readSections.add(section.id);
+                    section.state.textContent = 'Read';
+                    section.state.classList.remove('text-gray-400');
+                    section.state.classList.add('text-green-700');
+                    section.card.classList.remove('border-gray-200', 'bg-gray-50');
+                    section.card.classList.add('border-green-200', 'bg-green-50');
                 }
 
-                function onScroll() {
-                    if (box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setRead();
+                function updateProgress() {
+                    if (!box || !terms || !policySections.length) return;
+                    var boxBottom = box.getBoundingClientRect().bottom;
+                    policySections.forEach(function(section) {
+                        if (section.element.getBoundingClientRect().bottom <= boxBottom + 4) {
+                            markSectionRead(section);
+                        }
+                    });
+
+                    var readCount = readSections.size;
+                    var progressText = readCount + ' of ' + policySections.length + ' sections read';
+                    if (progressCount && progressCount.textContent !== progressText) {
+                        progressCount.textContent = progressText;
+                    }
+                    if (progressBar) progressBar.style.width = (readCount / policySections.length * 100) + '%';
+                    terms.disabled = !terms.checked && readCount < policySections.length;
+                    closeBtn.disabled = readCount < policySections.length;
                 }
-                if (terms && hint && box) {
-                    // Stays enabled when the form comes back with the box already checked (server error)
-                    if (!terms.checked) terms.disabled = true;
-                    else setRead();
-                    box.addEventListener('scroll', onScroll);
-                    // Short screens or short text: nothing to scroll, so opening it counts as reading
-                    link.addEventListener('click', function() {
-                        setTimeout(function() {
-                            if (box.scrollHeight <= box.clientHeight + 4) setRead();
-                        }, 0);
+
+                if (box && terms && policySections.length === 2) {
+                    policySections.forEach(function(section) {
+                        var words = (section.element.textContent.match(/\S+/g) || []).length;
+                        section.estimate.textContent = '~' + Math.max(1, Math.round(words / 200)) + ' min read';
+                    });
+
+                    // Keep the consent gate unlocked when a checked form returns with other validation errors.
+                    if (terms.checked) {
+                        policySections.forEach(markSectionRead);
+                        updateProgress();
+                    } else {
+                        terms.disabled = true;
+                    }
+
+                    box.addEventListener('scroll', updateProgress, { passive: true });
+                    link.addEventListener('click', function(event) {
+                        if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
+                        event.preventDefault();
+                        dialog.showModal();
+                        box.scrollTop = 0;
+                        box.focus();
+                        requestAnimationFrame(updateProgress);
+                    });
+                } else {
+                    closeBtn.disabled = false;
+                    link.addEventListener('click', function(event) {
+                        if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
+                        event.preventDefault();
+                        dialog.showModal();
                     });
                 }
 
                 closeBtn.addEventListener('click', function() {
-                    dialog.close();
+                    if (!closeBtn.disabled) dialog.close();
                 });
                 // Clicking the dimmed backdrop closes it too
                 dialog.addEventListener('click', function(event) {
-                    if (event.target === dialog) dialog.close();
+                    if (event.target === dialog && !closeBtn.disabled) dialog.close();
+                });
+                dialog.addEventListener('cancel', function(event) {
+                    if (closeBtn.disabled) event.preventDefault();
                 });
                 // Put focus back on the link so keyboard users continue where they were
                 dialog.addEventListener('close', function() {
@@ -1140,7 +1224,6 @@
                             terms.checked ? '' : 'Please agree to the Privacy Policy and Terms of Service to continue.'
                         );
                     }
-
 
                     const fields = details.querySelectorAll('input, select, textarea');
 
