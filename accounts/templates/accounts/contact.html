@@ -86,9 +86,8 @@
        placeholder="Your full name"
        maxlength="120">
                         </div>
-                        <div class="field-row">
-                            <div class="field">
-                                <label for="contact-email">Email address</label><input required
+                        <div class="field">
+                            <label for="contact-email">Email address</label><input required
        id="contact-email"
        name="email"
        value="{{ submitted.email|default:'' }}"
@@ -96,16 +95,6 @@
        autocomplete="email"
        placeholder="you@example.com"
        maxlength="254">
-                            </div>
-                            <div class="field">
-                                <label for="contact-phone">Phone number <span class="optional">(optional)</span></label><input id="contact-phone"
-       name="phone"
-       value="{{ submitted.phone|default:'' }}"
-       type="tel"
-       autocomplete="tel"
-       placeholder="Your phone number"
-       maxlength="30">
-                            </div>
                         </div>
                         <div class="field">
                             <label for="contact-message">Message</label><textarea required

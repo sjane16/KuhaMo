@@ -94,31 +94,6 @@
               dept.addEventListener("change", toggleOther);
               toggleOther();
           })();
-          // Contact Number field: strips non-digit characters and caps input at 11 chars while typing
-          const phoneInput = document.getElementById("phone_input");
-          if (phoneInput) {
-              //Remove non-digit characters
-              phoneInput.addEventListener("input", function() {
-                  this.value = this.value.replace(/\D/g, "").slice(0, 11);
-                  validatePhone();
-              });
-          }
-
-          // Checks phone is exactly 11 digits; toggles the red error text below the field
-          window.validatePhone = function() {
-              const phone = document.getElementById("phone_input");
-              const validation = document.getElementById("phone-validation");
-              if (!phone) return true;
-
-              if (phone.value.length === 0) {
-                  validation.classList.add("hidden");
-                  return true;
-              }
-              const isValid = /^\d{11}$/.test(phone.value);
-              validation.classList.toggle("hidden", isValid);
-              return isValid;
-          };
-
           // Enables the "Save Changes" button as soon as user edits any profile info field (starts disabled)
           (function() {
               const editForm = document.getElementById("edit_info_form");

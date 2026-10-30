@@ -54,7 +54,6 @@ def contact(request):
                     f"--------------------------------\n"
                     f"Name:  {sender_name}\n"
                     f"Email: {data['email']}\n"
-                    f"Phone: {data['phone'] or 'Not provided'}\n"
                     f"Sent:  {sent_at}\n"
                     f"--------------------------------\n\n"
                     f"Message:\n{data['message']}\n\n"
@@ -557,7 +556,6 @@ def signup(request):
             password = form.cleaned_data['password']
             role = form.cleaned_data['role']
             department = form.cleaned_data['department']
-            phone = form.cleaned_data['phone']
 
             with transaction.atomic():
                 user = User.objects.filter(email__iexact=email).select_related('profile').first()
@@ -587,7 +585,6 @@ def signup(request):
                             else UserProfile.APPROVAL_APPROVED
                         ),
                         'department': department,
-                        'phone': phone,
                         'otp': otp,
                         'otp_created_at': timezone.now(),
                         'otp_attempts': 0

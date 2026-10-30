@@ -2,7 +2,7 @@
     const form = document.getElementById('contact-form');
     if (!form) return;
     const feedback = document.getElementById('contact-feedback');
-    const fields = [...form.querySelectorAll('#contact-name, #contact-email, #contact-phone, #contact-message')];
+    const fields = [...form.querySelectorAll('#contact-name, #contact-email, #contact-message')];
     const messages = {
         'contact-name': 'Please enter your full name.',
         'contact-email': 'Please enter a valid email address.',

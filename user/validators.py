@@ -1,5 +1,4 @@
 import re
-from django.core.validators import RegexValidator 
 from django.core.exceptions import ValidationError
 
 def validate_no_gibberish(value):
@@ -75,11 +74,6 @@ def validate_office_name(value):
         errors.extend(validate_no_gibberish(value))
         errors.extend(validate_no_profanity(value))
     return value, errors
-
-phone_validator = RegexValidator (
-    regex=r'^\d{11}$',
-    message="Phone number must be exactly 11 digits, numbers only"
-)
 
 # Sanitizes first/last name input
 NAME_MAX_LENGTH = 50

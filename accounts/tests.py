@@ -33,7 +33,7 @@ class ContactFormTests(SimpleTestCase):
         self.factory = RequestFactory()
         self.data = {
             'name': 'Test Sender', 'email': 'sender@example.com',
-            'phone': '', 'message': 'Please help with my account.',
+            'message': 'Please help with my account.',
         }
 
     @override_settings(CONTACT_EMAIL='team@example.com', DEFAULT_FROM_EMAIL='Fac-Check <no-reply@example.com>')
@@ -194,7 +194,7 @@ class SignupMergeTests(TestCase):
             response = self.client.post(reverse('signup'), {
                 'first_name': 'Anna', 'last_name': 'Santos', 'email': email,
                 'password': 'Campus!Secure2048', 'confirm_password': 'Campus!Secure2048',
-                'role': role, 'department': 'CCS', 'phone': '09123456789',
+                'role': role, 'department': 'CCS',
                 'agree_to_terms': 'on',
             })
         self.assertRedirects(response, reverse('verify_otp'), fetch_redirect_response=False)
@@ -240,7 +240,7 @@ class SignupMergeTests(TestCase):
             form_class.return_value.cleaned_data = {
                 'first_name': 'Staff', 'last_name': 'Applicant', 'email': 'staff-applicant@gmail.com',
                 'password': 'new-password', 'role': 'staff',
-                'department': '', 'phone': '09123456789',
+                'department': '',
             }
             self.client.post(reverse('signup'))
 
@@ -427,7 +427,7 @@ class SignupMergeTests(TestCase):
                     form_class.return_value.cleaned_data = {
                         'first_name': 'Test', 'last_name': 'Staff', 'email': email,
                         'password': 'new-password', 'role': 'staff',
-                        'department': 'Facilities', 'phone': '09123456789',
+                        'department': 'Facilities',
                     }
                     response = self.client.post(reverse('signup'))
 

@@ -1,13 +1,12 @@
 from django import forms 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
-from user.validators import phone_validator, validate_name, validate_no_gibberish, validate_password_strength, validate_office_name
+from user.validators import validate_name, validate_no_gibberish, validate_password_strength, validate_office_name
 
 
 class ContactForm(forms.Form):
     name = forms.CharField(max_length=120, strip=True)
     email = forms.EmailField(max_length=254)
-    phone = forms.CharField(max_length=30, required=False, strip=True)
     message = forms.CharField(max_length=3000, strip=True)
     website = forms.CharField(required=False)
 
@@ -134,21 +133,6 @@ class SignUpForm(forms.Form):
         })
     )
 
-    phone = forms.CharField(
-        max_length=11,
-        # Same behavior as Edit Profile > Contact Number: digits only, 11 max, number keypad on phones
-        widget=forms.TextInput(attrs={
-            'type': 'tel',
-            'inputmode': 'numeric',
-            'maxlength': '11',
-            'pattern': r'\d{11}',
-            'title': 'Phone number must be exactly 11 digits, numbers only',
-            'placeholder': '09XXXXXXXXX',
-            'autocomplete': 'tel',
-            'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
-        })
-    )
-
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={
             'id': 'signup_password',
@@ -254,15 +238,6 @@ class SignUpForm(forms.Form):
                   "Please select an office" if self.cleaned_data.get('role') == 'staff' else "Please select a department"
               )
          return department
-
-    def clean_phone(self):
-     phone = self.cleaned_data.get('phone')
-     if phone:
-         try:
-             phone_validator(phone)
-         except DjangoValidationError as e:
-             raise forms.ValidationError(e.messages)
-     return phone
 
     def clean_email(self):
         email = self.cleaned_data.get('email', '').strip().lower()

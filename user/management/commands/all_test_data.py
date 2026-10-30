@@ -3,9 +3,9 @@ from django.contrib.auth.models import User
 from user.models import UserProfile 
 
 TEST_ACCOUNTS = [
-    {"username": "23-22-022", "first_name": "Juan", "last_name": "Dela Cruz", "password": "testpass123", "is_staff": False, "department": "College of Computing Studies", "email": "jdlc@gmail.com", "phone": "09123456789"},
-    {"username": "23-22-055", "first_name": "Marie", "last_name": "Bella", "password": "testpass123", "is_staff": False, "department": "College of Education", "email": "mbl@gmail.com", "phone": "09123456789"},
-    {"username": "19-02-001", "first_name": "Head", "last_name": "Admin", "password": "admin001", "is_staff": True, "department": "Maintenance and Engineering Division", "email": "admin@gmail.com", "phone": "09123456789"},
+    {"username": "23-22-022", "first_name": "Juan", "last_name": "Dela Cruz", "password": "testpass123", "is_staff": False, "department": "College of Computing Studies", "email": "jdlc@gmail.com"},
+    {"username": "23-22-055", "first_name": "Marie", "last_name": "Bella", "password": "testpass123", "is_staff": False, "department": "College of Education", "email": "mbl@gmail.com"},
+    {"username": "19-02-001", "first_name": "Head", "last_name": "Admin", "password": "admin001", "is_staff": True, "department": "Maintenance and Engineering Division", "email": "admin@gmail.com"},
 ]
 
 class Command(BaseCommand):
@@ -31,7 +31,6 @@ class Command(BaseCommand):
                     defaults={
                         'role': 'admin' if account['is_staff'] else 'student',
                         'department': next((code for code, label in UserProfile.DEPARTMENT_CHOICES if label == account['department']), ''),
-                        'phone': account['phone'],
                     },
                 )
                 self.stdout.write(self.style.SUCCESS(f"Created {account['username']} ({account['first_name']} {account['last_name']})"))

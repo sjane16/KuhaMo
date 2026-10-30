@@ -36,7 +36,7 @@ MAX_FILE_BYTES = 2 * 1024 * 1024
 SESSION_KEY = 'um_import'
 SESSION_MAX_AGE = 30 * 60
 
-COLUMNS = ['First Name', 'Last Name', 'Email', 'Role', 'Department', 'Phone']
+COLUMNS = ['First Name', 'Last Name', 'Email', 'Role', 'Department']
 ROLES = ['student', 'faculty', 'staff']
 DEPARTMENTS = dict(UserProfile.DEPARTMENT_CHOICES + UserProfile.OFFICE_CHOICES)  # code -> full name (colleges and offices)
 
@@ -56,12 +56,9 @@ def import_template(request):
     for cell in ws[1]:
         cell.font = Font(bold=True, color='FFFFFF')
         cell.fill = header_fill
-    for col, width in zip('ABCDEF', (18, 18, 32, 12, 16, 16)):
+    for col, width in zip('ABCDE', (18, 18, 32, 12, 16)):
         ws.column_dimensions[col].width = width
     ws.freeze_panes = 'A2'
-    # Phone as text so Excel keeps the leading 0
-    for row in range(2, MAX_IMPORT_ROWS + 2):
-        ws[f'F{row}'].number_format = '@'
 
     role_dv = DataValidation(type='list', formula1='"student,faculty,staff"', allow_blank=False)
     role_dv.error, role_dv.errorTitle = 'Choose student, faculty or staff.', 'Invalid role'
@@ -82,7 +79,6 @@ def import_template(request):
         ('Email - students and faculty must use their @udm.edu.ph email; staff may use any email.', False),
         ('Role - student, faculty or staff. Admins are added from the User Management page.', False),
         ('Department - one of the codes below: a college for students and faculty, an office or area for staff.', False),
-        ('Phone - 11 digits, e.g. 09171234567.', False),
         ('', False),
         ('There is no password column: Fac-Check emails each person a temporary password,', False),
         ('and they choose their own password the first time they log in.', False),
@@ -115,13 +111,6 @@ def _text(value):
     if isinstance(value, float) and value.is_integer():
         value = int(value)
     return str(value).strip()
-
-def _clean_phone(value):
-    phone = ''.join(ch for ch in _text(value) if ch.isdigit())
-    # Excel often turns 09171234567 into the number 9171234567
-    if len(phone) == 10 and phone.startswith('9'):
-        phone = '0' + phone
-    return phone
 
 def _clean_department(value):
     raw = _text(value)
@@ -159,8 +148,6 @@ def _check_row(data, seen_emails, existing_emails):
         errors.append("Department must be one of the codes on the Instructions sheet.")
     elif data['role'] in ROLES and data['department'] not in dict(UserProfile.department_choices_for(data['role'])):
         errors.append("Staff need an office or area code; students and faculty need a college code (see the Instructions sheet).")
-    if not (len(data['phone']) == 11 and data['phone'].isdigit()):
-        errors.append("Phone number must be exactly 11 digits, numbers only.")
     return errors
 
 
@@ -208,7 +195,6 @@ def import_preview(request):
             'email': _text(values['email']),
             'role': _text(values['role']).lower(),
             'department': _clean_department(values['department']),
-            'phone': _clean_phone(values['phone']),
         }
         errors = _check_row(data, seen, existing)
         results.append({'row': line_no, **data, 'department_name': DEPARTMENTS.get(data['department'], ''), 'errors': errors})
@@ -221,7 +207,7 @@ def import_preview(request):
     token = secrets.token_urlsafe(16)
     request.session[SESSION_KEY] = {
         'token': token, 'at': time.time(),
-        'rows': [{k: r[k] for k in ('row', 'first_name', 'last_name', 'email', 'role', 'department', 'phone')} for r in valid],
+        'rows': [{k: r[k] for k in ('row', 'first_name', 'last_name', 'email', 'role', 'department')} for r in valid],
     }
     return JsonResponse({'ok': True, 'token': token, 'rows': results,
                          'valid_count': len(valid), 'error_count': len(results) - len(valid)})
@@ -289,7 +275,7 @@ def import_confirm(request):
                         first_name=row['first_name'], last_name=row['last_name'], is_active=True,
                     )
                     UserProfile.objects.update_or_create(user=user, defaults={
-                        'role': row['role'], 'department': row['department'], 'phone': row['phone'],
+                        'role': row['role'], 'department': row['department'],
                         'approval_status': UserProfile.APPROVAL_APPROVED,
                         'must_change_password': True,
                     })

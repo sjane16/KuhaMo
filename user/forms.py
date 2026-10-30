@@ -142,13 +142,13 @@ class UserProfileForm(forms.ModelForm):
 
     class Meta:
         model = UserProfile
-        fields = ['department', 'phone']
+        fields = ['department']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Students and faculty pick a college, staff pick an office or area. A value saved
-        # before this rule existed stays selectable, so editing only the phone number
-        # never forces a department change.
+        # before this rule existed stays selectable, so editing the profile never
+        # forces a department change.
         profile = self.instance
         choices = list(UserProfile.department_choices_for(profile.role))
         if profile.department and profile.department not in dict(choices):
@@ -169,15 +169,6 @@ class UserProfileForm(forms.ModelForm):
             if not office_errors:
                 cleaned_data['department'] = office
         return cleaned_data
-
-    def clean_phone(self):
-        phone = self.cleaned_data.get('phone', '').strip()
-        if phone:
-            if not phone.isdigit():
-                raise forms.ValidationError("Phone number must contain numbers only.")
-            if len(phone) !=11:
-                raise forms.ValidationError("Phone number must be exactly 11 digits.")
-        return phone
 
 class ProfilePhotoForm(forms.ModelForm):
     ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png']
