@@ -32,6 +32,18 @@ logger = logging.getLogger(__name__)
 
 REPORTS_PAGE_SIZE = 5
 SURVEY_HISTORY_PAGE_SIZE = 25
+QQT_FIELDS = (
+    ('quality', 'Quality', 'Quality of Work'),
+    ('quantity', 'Quantity', 'Quantity of Work'),
+    ('timeliness', 'Timeliness', 'Timeliness of Service'),
+)
+QQT_RATING_SCALE = {
+    1: ('😤', 'Unsatisfactory'),
+    2: ('😞', 'Fair'),
+    3: ('😐', 'Satisfactory'),
+    4: ('😊', 'Very Satisfactory'),
+    5: ('😄', 'Outstanding'),
+}
 
 
 @lru_cache(maxsize=1)
@@ -361,24 +373,17 @@ def reportedIssue(request, report_id):
         and not already_surveyed
     )
 
-    emojis = [
-        ('😤', 'Unsatisfactory', 1),
-        ('😞', 'Fair', 2),
-        ('😐', 'Satisfactory', 3),
-        ('😊', 'Very Satisfactory', 4),
-        ('😄', 'Outstanding', 5),
-    ]
-
     return render(request, 'user/reported_issue.html', {
         "active_page": "reportedIssue",
         "report": report,
         "already_surveyed": already_surveyed,
         "show_survey": show_survey,
-        "emojis": emojis,
-        "survey_questions": (
-            ('quality', 'Quality of Work'),
-            ('quantity', 'Quantity of Work'),
-            ('timeliness', 'Timeliness of Service'),
+        "emojis": [
+            (emoji, label, score)
+            for score, (emoji, label) in QQT_RATING_SCALE.items()
+        ],
+        "survey_questions": tuple(
+            (field, question) for field, _, question in QQT_FIELDS
         ),
     })
 
@@ -475,6 +480,17 @@ def userSurveyAjax(request):
     page_obj = Paginator(submitted_surveys, SURVEY_HISTORY_PAGE_SIZE).get_page(
         request.GET.get('page', 1)
     )
+    for survey in page_obj:
+        survey.qqt_ratings = []
+        for field, title, _ in QQT_FIELDS:
+            score = getattr(survey, field)
+            emoji, label = QQT_RATING_SCALE.get(score, ('—', 'Not rated'))
+            survey.qqt_ratings.append({
+                'title': title,
+                'score': score,
+                'emoji': emoji,
+                'label': label,
+            })
 
     html = render_to_string('user/partials/_survey_content.html', {
         "submitted_surveys": page_obj,

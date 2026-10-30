@@ -32,10 +32,15 @@
                         </div>
                         {% if survey.rated_by %}<p class="mt-1 text-sm text-gray-600"><span class="text-gray-400">Rated by:</span> {{ survey.rated_by.get_full_name|default:survey.rated_by.username }}</p>{% endif %}
                     </div>
-                    <div class="grid grid-cols-3 gap-2 mb-3">
-                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Quality</p><p class="text-sm font-semibold text-gray-700">{{ survey.quality|default:"-" }}</p></div>
-                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Quantity</p><p class="text-sm font-semibold text-gray-700">{{ survey.quantity|default:"-" }}</p></div>
-                        <div class="rounded-xl bg-gray-50 px-3 py-2 text-center"><p class="text-[10px] uppercase text-gray-400">Timeliness</p><p class="text-sm font-semibold text-gray-700">{{ survey.timeliness|default:"-" }}</p></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+                        {% for rating in survey.qqt_ratings %}
+                            <div class="rounded-xl border px-3 py-3 text-center {% if rating.score == 4 or rating.score == 5 %}border-green-100 bg-green-50{% elif rating.score == 3 %}border-amber-100 bg-amber-50{% elif rating.score == 1 or rating.score == 2 %}border-red-100 bg-red-50{% else %}border-gray-100 bg-gray-50{% endif %}">
+                                <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{{ rating.title }}</p>
+                                <p class="mt-1 text-3xl leading-none">{{ rating.emoji }}</p>
+                                <p class="mt-1 text-xl font-bold {% if rating.score == 4 or rating.score == 5 %}text-green-700{% elif rating.score == 3 %}text-amber-700{% elif rating.score == 1 or rating.score == 2 %}text-red-700{% else %}text-gray-700{% endif %}">{{ rating.score|default:"-" }}</p>
+                                <p class="mt-0.5 text-xs font-medium {% if rating.score == 4 or rating.score == 5 %}text-green-700{% elif rating.score == 3 %}text-amber-700{% elif rating.score == 1 or rating.score == 2 %}text-red-700{% else %}text-gray-600{% endif %}">{{ rating.label }}</p>
+                            </div>
+                        {% endfor %}
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div class="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
