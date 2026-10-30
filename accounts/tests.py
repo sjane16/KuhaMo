@@ -77,6 +77,21 @@ class ContactFormTests(SimpleTestCase):
         self.assertFalse(json.loads(response.content)['ok'])
 
 
+class SignupPasswordPolicyTests(SimpleTestCase):
+    def test_signup_requires_at_least_16_characters(self):
+        for password, accepted in [
+            ('Campus!Secure12', False),
+            ('Campus!Secure123', True),
+        ]:
+            with self.subTest(password=password):
+                form = SignUpForm(data={
+                    'password': password,
+                    'confirm_password': password,
+                })
+                form.is_valid()
+                self.assertEqual(not form.has_error('password'), accepted)
+
+
 # Regression tests protect existing navigation against future route changes.
 # Django discovers methods whose names start with test_.
 class LandingNavigationTests(SimpleTestCase):
@@ -178,7 +193,7 @@ class SignupMergeTests(TestCase):
              patch('accounts.views.send_mail'):
             response = self.client.post(reverse('signup'), {
                 'first_name': 'Anna', 'last_name': 'Santos', 'email': email,
-                'password': 'Campus!Safe2048', 'confirm_password': 'Campus!Safe2048',
+                'password': 'Campus!Secure2048', 'confirm_password': 'Campus!Secure2048',
                 'role': role, 'department': 'CCS', 'phone': '09123456789',
                 'agree_to_terms': 'on',
             })
@@ -249,7 +264,7 @@ class SignupMergeTests(TestCase):
              patch('accounts.views.is_ratelimited', return_value=False), \
              patch('accounts.views.send_mail') as send_mail:
             response = self.client.post(reverse('login'), {
-                'email': user.email, 'password': 'Campus!Safe2048',
+                'email': user.email, 'password': 'Campus!Secure2048',
             })
         self.assertContains(response, 'Head Admin')
         self.assertNotIn('_auth_user_id', self.client.session)
@@ -281,7 +296,7 @@ class SignupMergeTests(TestCase):
         self.assertEqual(profile.approval_status, UserProfile.APPROVAL_APPROVED)
         with patch('accounts.views.is_ip_flagged', return_value=False), \
              patch('accounts.views.is_ratelimited', return_value=False):
-            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'Campus!Safe2048'})
+            response = self.client.post(reverse('login'), {'email': user.email, 'password': 'Campus!Secure2048'})
         self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
         self.assertEqual(self.client.get(reverse('userDashboard')).status_code, 200)
@@ -298,7 +313,7 @@ class SignupMergeTests(TestCase):
                 with patch('accounts.views.is_ip_flagged', return_value=False), \
                      patch('accounts.views.is_ratelimited', return_value=False):
                     response = self.client.post(reverse('login'), {
-                        'email': user.email, 'password': 'Campus!Safe2048',
+                        'email': user.email, 'password': 'Campus!Secure2048',
                     })
                 self.assertRedirects(response, reverse('userDashboard'), fetch_redirect_response=False)
                 self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)

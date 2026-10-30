@@ -152,6 +152,7 @@ class SignUpForm(forms.Form):
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={
             'id': 'signup_password',
+            'minlength': '16',
             'aria-describedby': 'req-length-text',
             'placeholder': 'Enter your password',
             'class': 'w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400'
@@ -288,9 +289,9 @@ class SignUpForm(forms.Form):
         return email 
 
     def clean_password(self):
-        # Same rules and messages as Edit Profile > Change Password (user/views.py)
+        # Keep the other password flows at their shared default minimum.
         password = self.cleaned_data.get('password')
-        errors = validate_password_strength(password)
+        errors = validate_password_strength(password, min_length=16)
         if errors:
             raise forms.ValidationError(errors)
         return password

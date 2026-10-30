@@ -40,11 +40,11 @@ def validate_no_profanity(value):
     return errors
 
 
-def validate_password_strength(password):
+def validate_password_strength(password, min_length=8):
     """Returns a list of error messages. Empty list = valid password."""
     errors = []
-    if len(password) < 8:
-        errors.append("Password must be at least 8 characters long.")
+    if len(password) < min_length:
+        errors.append(f"Password must be at least {min_length} characters long.")
     if re.search(r'\s', password):
         errors.append("Password must not contain spaces or other whitespace.")
     if not re.search(r'[A-Z]', password):
