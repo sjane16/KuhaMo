@@ -55,6 +55,8 @@
                         <label for="reportMonthPicker" class="text-sm text-gray-500">Month</label>
                         <input type="month"
                                id="reportMonthPicker"
+                               value="{{ report_month_max }}"
+                               max="{{ report_month_max }}"
                                class="h-10 min-w-[11rem] px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm font-medium"
                                aria-label="Select report month" />
                     </div>
@@ -457,10 +459,35 @@
             let dashboardReportBlobUrl = null;
             let dashboardReportSystemSummary = "";
             let dashboardReportCharts = null;
+            let reportMonthUnlockTimer = null;
 
             function getSelectedReportMonth() {
                 const monthPicker = document.getElementById("reportMonthPicker");
                 return monthPicker && monthPicker.value ? monthPicker.value : "";
+            }
+
+            function scheduleReportMonthAvailabilityRefresh(delayMs) {
+                if (reportMonthUnlockTimer) window.clearTimeout(reportMonthUnlockTimer);
+
+                const maxTimeout = 2147483647;
+                const delay = Number.isFinite(Number(delayMs)) ? Number(delayMs) : 60000;
+                reportMonthUnlockTimer = window.setTimeout(function() {
+                    fetchDashboardData("30").catch(function(error) {
+                        console.error("Failed to refresh report month availability:", error);
+                        scheduleReportMonthAvailabilityRefresh(60000);
+                    });
+                }, Math.min(maxTimeout, Math.max(1000, delay)));
+            }
+
+            function updateReportMonthPickerAvailability(data) {
+                const monthPicker = document.getElementById("reportMonthPicker");
+                if (!monthPicker || !data.report_month_max) return;
+
+                monthPicker.max = data.report_month_max;
+                if (!monthPicker.value || monthPicker.value > data.report_month_max) {
+                    monthPicker.value = data.report_month_max;
+                }
+                scheduleReportMonthAvailabilityRefresh(data.report_month_unlock_after_ms);
             }
 
             function fetchDashboardData(period, reportMonth) {
@@ -472,12 +499,10 @@
                 return fetch(url).then(function(response) {
                     if (!response.ok) throw new Error(`Dashboard request failed (${response.status})`);
                     return response.json();
+                }).then(function(data) {
+                    updateReportMonthPickerAvailability(data);
+                    return data;
                 });
-            }
-
-            function currentMonthValue() {
-                const d = new Date();
-                return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
             }
 
             function buildDashboardReportCharts(charts) {
@@ -537,8 +562,6 @@
             function generateDashboardReport(btn) {
                 const label = document.getElementById("generateReportLabel");
                 const defaultText = "Generate Monthly Report";
-                const monthPicker = document.getElementById("reportMonthPicker");
-                if (monthPicker) monthPicker.value = currentMonthValue();
                 const selectedMonth = getSelectedReportMonth();
 
                 btn.disabled = true;
@@ -687,7 +710,6 @@
                 // Initialize month picker behavior for report generation
                 var monthPickerEl = document.getElementById('reportMonthPicker');
                 if (monthPickerEl) {
-                    if (!monthPickerEl.value) monthPickerEl.value = currentMonthValue();
                     let monthChangeSeq = 0;
                     monthPickerEl.addEventListener('change', function() {
                         const selectedMonth = getSelectedReportMonth();
@@ -718,6 +740,14 @@
                                     errorEl.textContent = "Unable to load this month. Please choose the month again.";
                                     errorEl.classList.remove("hidden");
                                 });
+                        }
+                    });
+
+                    document.addEventListener("visibilitychange", function() {
+                        if (!document.hidden) {
+                            fetchDashboardData("30").catch(function(error) {
+                                console.error("Failed to refresh report month availability:", error);
+                            });
                         }
                     });
                 }

@@ -11,7 +11,6 @@ from datetime import timedelta, datetime
 import calendar
 import json
 import re
-from django.conf import settings
 from collections import defaultdict
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
@@ -420,9 +419,11 @@ def build_rating_analytics_context(response_page=1, include_responses=True):
 
 def dashboard(request):
     period = request.GET.get('period', '30')
+    report_month_availability = _report_month_availability()
 
     return render(request, 'dashboard.html', {
         'period': period,
+        **report_month_availability,
     })
 
 
@@ -722,8 +723,8 @@ def adm_dashboard_ajax(request):
     if report_month:
         try:
             start_dt, end_dt = _parse_report_month(report_month)
-        except ValueError:
-            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+        except ValueError as exc:
+            return JsonResponse({'error': str(exc)}, status=400)
         data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
     else:
         data = _cached_dashboard_data(period)
@@ -740,13 +741,15 @@ def adm_dashboard_ajax(request):
         request=request,
     )
 
-    today = timezone.localtime(timezone.now()).date()
+    today = timezone.localtime(timezone.now(), timezone.get_default_timezone()).date()
     last_day = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    report_month_availability = _report_month_availability()
 
     return JsonResponse({
         'html': html,
         'can_generate_report': is_head_admin(request.user),
         'report_available_on': last_day.strftime('%b %d, %Y'),
+        **report_month_availability,
         **data,
     })
 
@@ -966,10 +969,6 @@ DASHBOARD_CHART_MAX_LEN = 1_500_000
 DASHBOARD_SUMMARY_MAX_LEN = 3000
 
 
-def _is_last_day_of_month(day):
-    return day.day == calendar.monthrange(day.year, day.month)[1]
-
-
 def _clean_chart_image(value):
     """Accept only a small PNG data URI, so pisa never fetches arbitrary paths/URLs."""
     if not value or len(value) > DASHBOARD_CHART_MAX_LEN:
@@ -1087,11 +1086,62 @@ def _build_report_summary(data, period_start, period_end, priority_tables=None):
 
 
 def _parse_report_month(report_month):
-    parsed = datetime.strptime(report_month, '%Y-%m')
+    try:
+        parsed = datetime.strptime(report_month, '%Y-%m')
+    except ValueError:
+        raise ValueError('Invalid report_month format. Expected YYYY-MM.') from None
+
+    if parsed.strftime('%Y-%m') != report_month:
+        raise ValueError('Invalid report_month format. Expected YYYY-MM.')
+
+    latest_month = _report_month_availability()['report_month_max']
+    if report_month > latest_month:
+        raise ValueError(
+            f'Reports are available through {latest_month}; the current month unlocks '
+            'at 10:00 PM Manila time on its last day.'
+        )
+
     first_day = datetime(parsed.year, parsed.month, 1)
     last_day = calendar.monthrange(parsed.year, parsed.month)[1]
     last_dt = datetime(parsed.year, parsed.month, last_day, 23, 59, 59)
-    return timezone.make_aware(first_day), timezone.make_aware(last_dt)
+    report_timezone = timezone.get_default_timezone()
+    return (
+        timezone.make_aware(first_day, report_timezone),
+        timezone.make_aware(last_dt, report_timezone),
+    )
+
+
+def _report_month_availability(now=None):
+    report_timezone = timezone.get_default_timezone()
+    now = timezone.localtime(now or timezone.now(), report_timezone)
+    current_last_day = calendar.monthrange(now.year, now.month)[1]
+    current_month_cutoff = timezone.make_aware(
+        datetime(now.year, now.month, current_last_day, 22),
+        report_timezone,
+    )
+
+    if now >= current_month_cutoff:
+        latest_year, latest_month = now.year, now.month
+        if now.month == 12:
+            unlock_year, unlock_month = now.year + 1, 1
+        else:
+            unlock_year, unlock_month = now.year, now.month + 1
+    else:
+        previous_month = now.date().replace(day=1) - timedelta(days=1)
+        latest_year, latest_month = previous_month.year, previous_month.month
+        unlock_year, unlock_month = now.year, now.month
+
+    unlock_last_day = calendar.monthrange(unlock_year, unlock_month)[1]
+    unlock_at = timezone.make_aware(
+        datetime(unlock_year, unlock_month, unlock_last_day, 22),
+        report_timezone,
+    )
+    return {
+        'report_month_max': f'{latest_year:04d}-{latest_month:02d}',
+        'report_month_unlock_after_ms': max(
+            0, int((unlock_at - now).total_seconds() * 1000)
+        ),
+    }
 
 
 def _fmt_period_label(start, end):
@@ -1202,35 +1252,18 @@ def export_dashboard_report_pdf(request):
     if request.method != 'POST':
         return HttpResponse("Invalid request.", status=405)
 
-    now = timezone.localtime(timezone.now())
-    today = now.date()
-
-    # Allow admins to explicitly request any month via the "report_month" POST field (format: YYYY-MM).
-    # If no month is specified, keep the original restriction: only allow generation on the last day
-    # of the current month (unless DEBUG).
+    now = timezone.localtime(timezone.now(), timezone.get_default_timezone())
     report_month = (request.POST.get('report_month') or '').strip()
-    start_dt = None
-    end_dt = None
-    if report_month:
-        try:
-            start_dt, end_dt = _parse_report_month(report_month)
-        except ValueError:
-            return HttpResponse("Invalid report_month format. Expected YYYY-MM.", status=400)
+    if not report_month:
+        report_month = _report_month_availability()['report_month_max']
+    try:
+        start_dt, end_dt = _parse_report_month(report_month)
+    except ValueError as exc:
+        return HttpResponse(str(exc), status=400)
 
-    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
-        return HttpResponse(
-            "The monthly report can only be generated on the last day of the month.",
-            status=403,
-        )
-
-    if report_month:
-        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
-        period_start = start_dt.date()
-        period_end = end_dt.date()
-    else:
-        data = _cached_dashboard_data('30')
-        period_end = today
-        period_start = today - timedelta(days=30)
+    data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+    period_start = start_dt.date()
+    period_end = end_dt.date()
 
     priority_tables = _cached_pdf_priority_tables(period_start, period_end)
 
@@ -1356,32 +1389,17 @@ def dashboard_report_summary(request):
     if request.method != 'GET':
         return JsonResponse({'error': 'Invalid request.'}, status=405)
 
-    now = timezone.localtime(timezone.now())
-    today = now.date()
-
     report_month = (request.GET.get('report_month') or '').strip()
-    start_dt = None
-    end_dt = None
-    if report_month:
-        try:
-            start_dt, end_dt = _parse_report_month(report_month)
-        except ValueError:
-            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+    if not report_month:
+        report_month = _report_month_availability()['report_month_max']
+    try:
+        start_dt, end_dt = _parse_report_month(report_month)
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
 
-    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
-        return JsonResponse(
-            {'error': 'The monthly report can only be generated on the last day of the month.'},
-            status=403,
-        )
-
-    if report_month:
-        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
-        period_start = start_dt.date()
-        period_end = end_dt.date()
-    else:
-        data = _cached_dashboard_data('30')
-        period_end = today
-        period_start = today - timedelta(days=30)
+    data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+    period_start = start_dt.date()
+    period_end = end_dt.date()
 
     return JsonResponse({'summary': _build_report_summary(data, period_start, period_end)})
 
