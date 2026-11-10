@@ -99,7 +99,11 @@ class StaffAdminAndPersonnelTests(TestCase):
                         self.assertEqual(response.status_code, 403)
                         pdf.assert_not_called()
                     else:
-                        self.assertContains(details, 'onclick="exportJobOrder()"')
+                        if status == 'closed':
+                            self.assertNotContains(details, 'onclick="exportJobOrder()"')
+                            self.assertNotContains(details, 'View Scanned Job Order')
+                        else:
+                            self.assertContains(details, 'onclick="exportJobOrder()"')
                         self.assertEqual(response.status_code, 200)
                         self.assertEqual(response['Content-Type'], 'application/pdf')
                         pdf.assert_called_once()
@@ -109,7 +113,7 @@ class StaffAdminAndPersonnelTests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get(url).status_code, 302)
 
-    def test_closed_manual_survey_keeps_both_scan_and_job_order_print_actions(self):
+    def test_closed_manual_survey_shows_only_scanned_job_order_action(self):
         Report.objects.filter(pk=self.report.pk).update(status='closed', survey_method='manual')
         SurveyResponse.objects.create(
             report=self.report, quality=5, quantity=4, timeliness=3,
@@ -119,7 +123,24 @@ class StaffAdminAndPersonnelTests(TestCase):
             with self.subTest(actor=actor.pk):
                 self.client.force_login(actor)
                 response = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
-                self.assertContains(response, 'View Scanned Job Order')
+                self.assertNotContains(response, 'Customer Satisfaction Ratings')
+                self.assertContains(response, 'View Scanned Job Order', count=1)
+                self.assertNotContains(response, 'onclick="exportJobOrder()"')
+
+    def test_resolved_report_displays_submitted_survey_ratings(self):
+        Report.objects.filter(pk=self.report.pk).update(status='resolved', survey_method='system')
+        SurveyResponse.objects.create(
+            report=self.report, quality=5, quantity=4, timeliness=3,
+        )
+
+        for actor in (self.admin, self.head):
+            with self.subTest(actor=actor.pk):
+                self.client.force_login(actor)
+                response = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
+                self.assertContains(response, 'Customer Satisfaction Ratings')
+                self.assertContains(response, '5 / 5')
+                self.assertContains(response, '4 / 5')
+                self.assertContains(response, '3 / 5')
                 self.assertContains(response, 'onclick="exportJobOrder()"')
 
     def test_modal_is_separate_from_overall_form_and_starts_with_add_button(self):
