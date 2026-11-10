@@ -1331,7 +1331,7 @@
                                                 const h = ctx.parsed.y;
                                                 const name = ctx.dataset.label.replace(' Time (hours)', '');
                                                 if (h === null || h === undefined) return name + ': N/A';
-                                                const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
+                                                const txt = h + ' h';
                                                 if (ctx.datasetIndex === 1) {
                                                     const n = (series.counts || [])[ctx.dataIndex] || 0;
                                                     return [name + ': ' + txt, 'Reports: ' + n];
@@ -1406,7 +1406,7 @@
                                     label: function(ctx) {
                                         const h = ctx.parsed.y;
                                         if (h === null || h === undefined) return ctx.dataset.label + ': N/A';
-                                        const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
+                                        const txt = h + ' h';
                                         return ctx.dataset.label.replace(' (hours)', '') + ': ' + txt;
                                     }
                                 }
