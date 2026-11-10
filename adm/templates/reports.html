@@ -66,6 +66,7 @@
             <input id="mobileSearchInput"
                    type="text"
                    placeholder="Search reports..."
+                   value="{{ search_query }}"
                    class="w-full text-xs text-gray-600 bg-transparent focus:outline-none placeholder-gray-300" />
             <button id="closeMobileSearch" type="button" class="text-gray-400">
               <svg xmlns="http://www.w3.org/2000/svg"
@@ -153,6 +154,7 @@
           <input id="searchInput"
                  type="text"
                  placeholder="Search reports..."
+                 value="{{ search_query }}"
                  class="text-sm text-gray-600 bg-transparent focus:outline-none w-full placeholder-gray-300" />
         </div>
       </div>
@@ -282,7 +284,12 @@
           const MOBILE_SKELETON_HTML = MOBILE_SKELETON_CARD.repeat(4);
 
           let currentStatus = statusFilter ? statusFilter.value : "";
-          let currentSearch = "";
+          let currentSearch = searchInput ? searchInput.value.trim() : "";
+          if (mobileSearchInput) mobileSearchInput.value = currentSearch;
+          if (currentSearch && mobileSearchField && mobileFilterRow) {
+              mobileFilterRow.classList.add("hidden");
+              mobileSearchField.classList.remove("hidden");
+          }
           let currentPage = 1;
           let searchDebounceTimer = null;
           let isInitialLoad = true;

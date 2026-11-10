@@ -411,7 +411,7 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="2" class="bold" style=" padding:3px 2px 1px 2px">{% if report.survey and report.survey.rating_source == 'head_admin' %}Head Admin Group QQT Rating{% else %}Customer Service Survey (to be filled in by customer upon completion){% endif %}</td>
+                <td colspan="2" class="bold" style=" padding:3px 2px 1px 2px">Customer Service Survey (to be filled in by customer upon completion)</td>
             </tr>
             <tr>
                 <td colspan="2">
@@ -442,7 +442,7 @@
         <table class="no-border" style="width:100%; margin-top:6px;">
             <tr class="no-border">
                 <td class="no-border small-italic" style="width:50%; vertical-align:bottom;">F-MED-001 Rev.0 (08-01-25)</td>
-                {% if report.survey_method == 'system' or is_med_personnel_report %}
+                {% if report.survey_method == 'system' %}
                     <td class="no-border small-italic" style="width:50%; vertical-align:bottom; text-align:right;">This is a system generated document. Signature is not required</td>
                 {% endif %}
             </tr>

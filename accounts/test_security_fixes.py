@@ -30,7 +30,7 @@ class SecurityFixTestCase(TestCase):
         user = User.objects.create_user(username=email, email=email, password=password, is_staff=is_staff)
         # A profile is created automatically with the user (user/signals.py); fill it in
         UserProfile.objects.update_or_create(
-            user=user, defaults={'role': role, 'department': 'CCS', 'phone': '09123456789'},
+            user=user, defaults={'role': role, 'department': 'CCS'},
         )
         return user
 
@@ -113,7 +113,7 @@ class ProfileEmailIsReadOnlyTests(SecurityFixTestCase):
         self.client.force_login(user)
         self.client.post(reverse('menu'), {
             'save_info': '1', 'first_name': 'Maria', 'last_name': 'Santos',
-            'email': 'attacker@example.com', 'department': 'CCS', 'phone': '09123456789',
+            'email': 'attacker@example.com', 'department': 'CCS',
         })
         user.refresh_from_db()
         self.assertEqual(user.email, 'profile-client@udm.edu.ph')

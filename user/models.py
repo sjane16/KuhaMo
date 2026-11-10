@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
 from cloudinary.models import CloudinaryField
-from .validators import phone_validator
 from simple_history.models import HistoricalRecords
 from .constants import MED_PERSONNEL_CATEGORY_CHOICES, PRIORITY_SLA_HOURS
 
@@ -320,7 +319,6 @@ class UserProfile(models.Model):
     med_personnel_slug = models.CharField(max_length=64, blank=True, default='')
     med_personnel_category = models.CharField(max_length=40, blank=True, default='', choices=MED_PERSONNEL_CATEGORY_CHOICES)
     department = models.CharField(max_length=100, choices=DEPARTMENT_CHOICES, blank=True)
-    phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
 
     otp = models.CharField(max_length=6, blank=True, default='')

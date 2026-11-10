@@ -61,10 +61,10 @@ class ProfilePasswordTests(TestCase):
         response = self.client.post(reverse('menu'), {
             'save_info': '1', 'first_name': 'Test', 'last_name': 'Student',
             'department': UserProfile.OTHER_OFFICE_CODE,
-            'other_office': 'Campus Help Office', 'phone': 'invalid',
+            'other_office': 'X',
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'value="Campus Help Office"')
+        self.assertContains(response, 'value="X"')
         self.assertRegex(response.content.decode(), r'<option value="OTH"\s+selected>')
 
 

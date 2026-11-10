@@ -1,5 +1,4 @@
 import re
-from django.core.validators import RegexValidator 
 from django.core.exceptions import ValidationError
 
 def validate_no_gibberish(value):
@@ -40,11 +39,11 @@ def validate_no_profanity(value):
     return errors
 
 
-def validate_password_strength(password):
+def validate_password_strength(password, min_length=8):
     """Returns a list of error messages. Empty list = valid password."""
     errors = []
-    if len(password) < 8:
-        errors.append("Password must be at least 8 characters long.")
+    if len(password) < min_length:
+        errors.append(f"Password must be at least {min_length} characters long.")
     if re.search(r'\s', password):
         errors.append("Password must not contain spaces or other whitespace.")
     if not re.search(r'[A-Z]', password):
@@ -75,11 +74,6 @@ def validate_office_name(value):
         errors.extend(validate_no_gibberish(value))
         errors.extend(validate_no_profanity(value))
     return value, errors
-
-phone_validator = RegexValidator (
-    regex=r'^\d{11}$',
-    message="Phone number must be exactly 11 digits, numbers only"
-)
 
 # Sanitizes first/last name input
 NAME_MAX_LENGTH = 50

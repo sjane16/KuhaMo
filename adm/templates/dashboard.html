@@ -55,6 +55,8 @@
                         <label for="reportMonthPicker" class="text-sm text-gray-500">Month</label>
                         <input type="month"
                                id="reportMonthPicker"
+                               value="{{ report_month_max }}"
+                               max="{{ report_month_max }}"
                                class="h-10 min-w-[11rem] px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm font-medium"
                                aria-label="Select report month" />
                     </div>
@@ -213,8 +215,45 @@
             }
 
             .report-status-content {
+                position: relative;
                 gap: 24px;
                 padding-top: 16px;
+            }
+
+            .dashboard-chart-tooltip {
+                position: absolute;
+                z-index: 3;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                max-width: 220px;
+                border-style: solid;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, .14);
+                font-size: 12px;
+                line-height: 1.35;
+                pointer-events: none;
+            }
+
+            .dashboard-chart-tooltip[hidden] {
+                display: none;
+            }
+
+            .dashboard-chart-tooltip-title {
+                font-weight: 700;
+            }
+
+            .dashboard-chart-tooltip-body {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .dashboard-chart-tooltip-swatch {
+                width: 10px;
+                height: 10px;
+                flex: 0 0 10px;
+                border-radius: 2px;
             }
 
             .status-chart-frame {
@@ -228,6 +267,7 @@
             .status-chart-frame>canvas {
                 position: absolute;
                 inset: 0;
+                z-index: 0;
                 width: 100%;
                 height: 100%;
             }
@@ -251,7 +291,7 @@
             .status-chart-total {
                 position: absolute;
                 inset: 0;
-                z-index: 1;
+                z-index: 2;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -419,10 +459,35 @@
             let dashboardReportBlobUrl = null;
             let dashboardReportSystemSummary = "";
             let dashboardReportCharts = null;
+            let reportMonthUnlockTimer = null;
 
             function getSelectedReportMonth() {
                 const monthPicker = document.getElementById("reportMonthPicker");
                 return monthPicker && monthPicker.value ? monthPicker.value : "";
+            }
+
+            function scheduleReportMonthAvailabilityRefresh(delayMs) {
+                if (reportMonthUnlockTimer) window.clearTimeout(reportMonthUnlockTimer);
+
+                const maxTimeout = 2147483647;
+                const delay = Number.isFinite(Number(delayMs)) ? Number(delayMs) : 60000;
+                reportMonthUnlockTimer = window.setTimeout(function() {
+                    fetchDashboardData("30").catch(function(error) {
+                        console.error("Failed to refresh report month availability:", error);
+                        scheduleReportMonthAvailabilityRefresh(60000);
+                    });
+                }, Math.min(maxTimeout, Math.max(1000, delay)));
+            }
+
+            function updateReportMonthPickerAvailability(data) {
+                const monthPicker = document.getElementById("reportMonthPicker");
+                if (!monthPicker || !data.report_month_max) return;
+
+                monthPicker.max = data.report_month_max;
+                if (!monthPicker.value || monthPicker.value > data.report_month_max) {
+                    monthPicker.value = data.report_month_max;
+                }
+                scheduleReportMonthAvailabilityRefresh(data.report_month_unlock_after_ms);
             }
 
             function fetchDashboardData(period, reportMonth) {
@@ -434,12 +499,10 @@
                 return fetch(url).then(function(response) {
                     if (!response.ok) throw new Error(`Dashboard request failed (${response.status})`);
                     return response.json();
+                }).then(function(data) {
+                    updateReportMonthPickerAvailability(data);
+                    return data;
                 });
-            }
-
-            function currentMonthValue() {
-                const d = new Date();
-                return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
             }
 
             function buildDashboardReportCharts(charts) {
@@ -499,8 +562,6 @@
             function generateDashboardReport(btn) {
                 const label = document.getElementById("generateReportLabel");
                 const defaultText = "Generate Monthly Report";
-                const monthPicker = document.getElementById("reportMonthPicker");
-                if (monthPicker) monthPicker.value = currentMonthValue();
                 const selectedMonth = getSelectedReportMonth();
 
                 btn.disabled = true;
@@ -649,7 +710,6 @@
                 // Initialize month picker behavior for report generation
                 var monthPickerEl = document.getElementById('reportMonthPicker');
                 if (monthPickerEl) {
-                    if (!monthPickerEl.value) monthPickerEl.value = currentMonthValue();
                     let monthChangeSeq = 0;
                     monthPickerEl.addEventListener('change', function() {
                         const selectedMonth = getSelectedReportMonth();
@@ -680,6 +740,14 @@
                                     errorEl.textContent = "Unable to load this month. Please choose the month again.";
                                     errorEl.classList.remove("hidden");
                                 });
+                        }
+                    });
+
+                    document.addEventListener("visibilitychange", function() {
+                        if (!document.hidden) {
+                            fetchDashboardData("30").catch(function(error) {
+                                console.error("Failed to refresh report month availability:", error);
+                            });
                         }
                     });
                 }
@@ -772,12 +840,14 @@
                     text: '#bfcacd',
                     muted: '#9faeb3',
                     grid: '#3c4a4e',
-                    surface: '#263033'
+                    surface: '#263033',
+                    tooltipBorder: '#526168'
                 } : {
                     text: '#666666',
                     muted: '#6b7280',
                     grid: '#f3f4f6',
-                    surface: '#ffffff'
+                    surface: '#ffffff',
+                    tooltipBorder: '#e5e7eb'
                 };
             }
 
@@ -791,6 +861,80 @@
                 const pal = chartPalette(!!(opts && opts.report));
                 // reportMode = para sa PDF: sa hidden canvases lang, hindi ginagalaw ang dashboard
                 const reportMode = !!(opts && opts.report);
+                const tooltipTheme = {
+                    backgroundColor: pal.surface,
+                    titleColor: pal.text,
+                    bodyColor: pal.text,
+                    borderColor: pal.tooltipBorder,
+                    borderWidth: 1,
+                    position: 'nearest',
+                    caretPadding: 12,
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    boxPadding: 4,
+                };
+                const externalDoughnutTooltip = function(context) {
+                    if (reportMode) return;
+                    const { chart, tooltip } = context;
+                    const legendId = chart.canvas.id === 'statusChart' ? 'statusLegend' : 'categoriesLegend';
+                    const tooltipEl = document.getElementById(
+                        chart.canvas.id === 'statusChart' ? 'statusChartTooltip' : 'categoriesChartTooltip'
+                    );
+                    const content = chart.canvas.closest('.report-status-content');
+                    const legend = document.getElementById(legendId);
+                    if (!tooltipEl || !content || !legend) return;
+
+                    if (!tooltip || tooltip.opacity === 0) {
+                        tooltipEl.hidden = true;
+                        return;
+                    }
+
+                    tooltipEl.replaceChildren();
+                    const options = tooltip.options || {};
+                    const title = (tooltip.title || []).join(' ');
+                    if (title) {
+                        const titleEl = document.createElement('div');
+                        titleEl.className = 'dashboard-chart-tooltip-title';
+                        titleEl.textContent = title;
+                        titleEl.style.color = options.titleColor || pal.text;
+                        tooltipEl.append(titleEl);
+                    }
+                    (tooltip.body || []).forEach(function(item, index) {
+                        (item.lines || []).forEach(function(line) {
+                            const row = document.createElement('div');
+                            row.className = 'dashboard-chart-tooltip-body';
+                            const swatch = document.createElement('span');
+                            swatch.className = 'dashboard-chart-tooltip-swatch';
+                            const labelColor = (tooltip.labelColors || [])[index];
+                            if (labelColor) swatch.style.backgroundColor = labelColor.backgroundColor;
+                            const text = document.createElement('span');
+                            text.textContent = line;
+                            row.append(swatch, text);
+                            tooltipEl.append(row);
+                        });
+                    });
+
+                    const contentRect = content.getBoundingClientRect();
+                    const legendRect = legend.getBoundingClientRect();
+                    const canvasRect = chart.canvas.getBoundingClientRect();
+                    tooltipEl.style.width = Math.min(220, legendRect.width) + 'px';
+                    tooltipEl.style.backgroundColor = options.backgroundColor || pal.surface;
+                    tooltipEl.style.color = options.bodyColor || pal.text;
+                    tooltipEl.style.borderColor = options.borderColor || pal.tooltipBorder;
+                    tooltipEl.style.borderWidth = (options.borderWidth || 1) + 'px';
+                    tooltipEl.style.borderRadius = (options.cornerRadius || 8) + 'px';
+                    tooltipEl.style.padding = (options.padding || 10) + 'px';
+                    tooltipEl.hidden = false;
+
+                    const stacked = window.getComputedStyle(content).flexDirection === 'column';
+                    const desiredTop = stacked
+                        ? legendRect.top - contentRect.top
+                        : canvasRect.top - contentRect.top + tooltip.caretY - tooltipEl.offsetHeight / 2;
+                    const maxTop = Math.max(0, contentRect.height - tooltipEl.offsetHeight);
+                    tooltipEl.style.left = (legendRect.left - contentRect.left) + 'px';
+                    tooltipEl.style.top = Math.max(0, Math.min(desiredTop, maxTop)) + 'px';
+                };
                 const dom = function(id) {
                     return reportMode ? document.createElement('div') : document.getElementById(id);
                 };
@@ -809,6 +953,7 @@
                 }
 
                 const statusTotal = data.status_data.reduce((sum, count) => sum + count, 0);
+                const statusCodes = ['pending', 'in_progress', 'resolved', 'closed'];
                 dom('statusChartWrap').dataset.empty = String(statusTotal === 0);
                 charts.status = new Chart(canvasOf('statusChart'), {
                     type: 'doughnut',
@@ -830,16 +975,32 @@
                         },
                         responsive: true,
                         maintainAspectRatio: false,
+                        onHover: function(_event, activeElements, chart) {
+                            if (!reportMode) {
+                                chart.canvas.style.cursor = activeElements.length ? 'pointer' : 'default';
+                            }
+                        },
+                        onClick: function(_event, activeElements) {
+                            if (reportMode || !activeElements.length) return;
+                            const status = statusCodes[activeElements[0].index];
+                            if (!status) return;
+                            const url = new URL("{% url 'reports' %}", window.location.origin);
+                            url.searchParams.set('status', status);
+                            window.location.assign(url.toString());
+                        },
                         plugins: {
                             legend: {
                                 display: false
                             },
                             tooltip: {
+                                ...tooltipTheme,
+                                enabled: reportMode,
+                                external: reportMode ? undefined : externalDoughnutTooltip,
                                 callbacks: {
                                     label: function(ctx) {
                                         const total = ctx.dataset.data.reduce((sum, count) => sum + count, 0);
                                         const pct = total ? ((ctx.raw / total) * 100).toFixed(1) : '0.0';
-                                        return `${ctx.label}: ${ctx.raw} (${pct}%)`;
+                                        return `${ctx.raw} reports (${pct}%)`;
                                     }
                                 }
                             }
@@ -896,6 +1057,19 @@
                             cutout: '65%',
                             responsive: true,
                             maintainAspectRatio: false,
+                            onHover: function(_event, activeElements, chart) {
+                                if (!reportMode) {
+                                    chart.canvas.style.cursor = activeElements.length ? 'pointer' : 'default';
+                                }
+                            },
+                            onClick: function(_event, activeElements) {
+                                if (reportMode || !activeElements.length) return;
+                                const category = categoryLabels[activeElements[0].index];
+                                if (!category) return;
+                                const url = new URL("{% url 'reports' %}", window.location.origin);
+                                url.searchParams.set('search', category);
+                                window.location.assign(url.toString());
+                            },
                             layout: {
                                 padding: 5
                             },
@@ -904,12 +1078,15 @@
                                     display: false
                                 },
                                 tooltip: {
+                                    ...tooltipTheme,
+                                    enabled: reportMode,
+                                    external: reportMode ? undefined : externalDoughnutTooltip,
                                     callbacks: {
                                         label: function(ctx) {
                                             const percentage = categoryTotal ?
                                                 ((ctx.raw / categoryTotal) * 100).toFixed(1) : '0.0';
 
-                                            return `${ctx.label}: ${ctx.raw} (${percentage}%)`;
+                                            return `${ctx.raw} reports (${percentage}%)`;
                                         }
                                     }
                                 }
@@ -1018,6 +1195,22 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        onHover: function(_event, activeElements, chart) {
+                            if (!reportMode) {
+                                chart.canvas.style.cursor = activeElements.length ? 'pointer' : 'default';
+                            }
+                        },
+                        onClick: function(_event, activeElements) {
+                            if (reportMode || !activeElements.length) return;
+                            const point = activeElements[0];
+                            const status = statusCodes[point.datasetIndex];
+                            const building = data.building_labels[point.index];
+                            if (!status || !building) return;
+                            const url = new URL("{% url 'reports' %}", window.location.origin);
+                            url.searchParams.set('status', status);
+                            url.searchParams.set('search', building);
+                            window.location.assign(url.toString());
+                        },
                         datasets: {
                             bar: {
                                 grouped: true,
@@ -1039,6 +1232,9 @@
                                         size: 11
                                     }
                                 }
+                            },
+                            tooltip: {
+                                ...tooltipTheme
                             }
                         },
                         scales: {
@@ -1086,6 +1282,12 @@
                         };
                     };
 
+                    const resolutionLegendLabels = function(chart) {
+                        return Chart.defaults.plugins.legend.labels.generateLabels(chart).map(function(item) {
+                            const color = chart.data.datasets[item.datasetIndex].borderColor;
+                            return { ...item, fillStyle: color, strokeStyle: color, lineWidth: 0 };
+                        });
+                    };
                     const priorityChartDefs = [{
                         code: 'critical',
                         canvasId: 'resolutionChartCritical',
@@ -1143,6 +1345,7 @@
                                 },
                                 plugins: {
                                     tooltip: {
+                                        ...tooltipTheme,
                                         position: 'onActual',
                                         caretPadding: 10,
                                         callbacks: {
@@ -1150,7 +1353,7 @@
                                                 const h = ctx.parsed.y;
                                                 const name = ctx.dataset.label.replace(' Time (hours)', '');
                                                 if (h === null || h === undefined) return name + ': N/A';
-                                                const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
+                                                const txt = h + ' h';
                                                 if (ctx.datasetIndex === 1) {
                                                     const n = (series.counts || [])[ctx.dataIndex] || 0;
                                                     return [name + ': ' + txt, 'Reports: ' + n];
@@ -1162,6 +1365,7 @@
                                     legend: {
                                         position: 'bottom',
                                         labels: {
+                                            generateLabels: resolutionLegendLabels,
                                             font: {
                                                 size: 11
                                             }
@@ -1220,11 +1424,12 @@
                         maintainAspectRatio: false,
                         plugins: {
                             tooltip: {
+                                ...tooltipTheme,
                                 callbacks: {
                                     label: function(ctx) {
                                         const h = ctx.parsed.y;
                                         if (h === null || h === undefined) return ctx.dataset.label + ': N/A';
-                                        const txt = h > 48 ? (h / 24).toFixed(1) + ' days' : h + ' h';
+                                        const txt = h + ' h';
                                         return ctx.dataset.label.replace(' (hours)', '') + ': ' + txt;
                                     }
                                 }
@@ -1233,6 +1438,7 @@
                                 position: 'bottom',
                                 labels: {
                                     color: pal.text,
+                                    generateLabels: resolutionLegendLabels,
                                     font: {
                                         size: 11
                                     }

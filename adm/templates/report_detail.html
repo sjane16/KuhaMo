@@ -53,7 +53,7 @@
             View Scanned Job Order
           </a>
         {% endif %}
-        {% if report.status == 'in_progress' or report.status == 'resolved' or report.status == 'closed' %}
+        {% if report.status == 'in_progress' or report.status == 'resolved' %}
           <button type="button"
                   onclick="exportJobOrder()"
                   class="w-full lg:w-auto lg:ml-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 lg:py-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-600 hover:bg-blue-100 transition-colors">
@@ -355,16 +355,40 @@
               </div>
             </div>
           {% endif %}
-          {% if report.status == 'resolved' %}
-            {% if is_med_personnel_report and not report.survey %}
-              {% if not has_med_assignees %}
-                <p class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">Assign at least one MED personnel before recording the group QQT rating.</p>
-              {% elif can_rate_med_personnel %}
-                <p class="sr-only">The Head Admin CSS rating modal is open.</p>
-              {% else %}
-                <p class="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">Waiting for the Head Admin to submit the group QQT rating.</p>
+          {% if report.survey and report.status != 'closed' %}
+            <section class="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+              <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
+                <div>
+                  <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Customer Satisfaction Ratings</p>
+                  <p class="text-xs text-gray-500 mt-1">Submitted {{ report.survey.submitted_at|date:"M d, Y · h:i A" }}</p>
+                </div>
+                <span class="inline-flex px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold border border-blue-100">
+                  {{ report.survey.get_rating_source_display }}
+                </span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="rounded-xl border px-4 py-3 text-center {% if report.survey.quality == 4 or report.survey.quality == 5 %}border-green-100 bg-green-50{% elif report.survey.quality == 3 %}border-amber-100 bg-amber-50{% elif report.survey.quality == 1 or report.survey.quality == 2 %}border-red-100 bg-red-50{% else %}border-gray-100 bg-gray-50{% endif %}">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Quality</p>
+                  <p class="mt-1 text-2xl font-bold text-gray-800">{{ report.survey.quality|default_if_none:"—" }} / 5</p>
+                </div>
+                <div class="rounded-xl border px-4 py-3 text-center {% if report.survey.quantity == 4 or report.survey.quantity == 5 %}border-green-100 bg-green-50{% elif report.survey.quantity == 3 %}border-amber-100 bg-amber-50{% elif report.survey.quantity == 1 or report.survey.quantity == 2 %}border-red-100 bg-red-50{% else %}border-gray-100 bg-gray-50{% endif %}">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Quantity</p>
+                  <p class="mt-1 text-2xl font-bold text-gray-800">{{ report.survey.quantity|default_if_none:"—" }} / 5</p>
+                </div>
+                <div class="rounded-xl border px-4 py-3 text-center {% if report.survey.timeliness == 4 or report.survey.timeliness == 5 %}border-green-100 bg-green-50{% elif report.survey.timeliness == 3 %}border-amber-100 bg-amber-50{% elif report.survey.timeliness == 1 or report.survey.timeliness == 2 %}border-red-100 bg-red-50{% else %}border-gray-100 bg-gray-50{% endif %}">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Timeliness</p>
+                  <p class="mt-1 text-2xl font-bold text-gray-800">{{ report.survey.timeliness|default_if_none:"—" }} / 5</p>
+                </div>
+              </div>
+              {% if report.survey.rated_by %}
+                <p class="text-xs text-gray-500 mt-3">Rated by: {{ report.survey.rated_by.get_full_name|default:report.survey.rated_by.username }}</p>
               {% endif %}
-            {% elif report.survey_method == 'manual' and not report.survey %}
+              {% if report.survey.scan_file %}
+                <a href="{{ report.survey.scan_file.url }}" target="_blank" rel="noopener" class="inline-block mt-3 text-sm font-semibold text-blue-600 hover:underline">View scanned Job Order</a>
+              {% endif %}
+            </section>
+          {% elif report.status == 'resolved' %}
+            {% if report.survey_method == 'manual' %}
               <form method="POST" enctype="multipart/form-data" action="{% url 'adm_manual_survey' report.id %}" class="space-y-6">
                 {% csrf_token %}
                 <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Record Manual Survey</h2>
@@ -397,7 +421,7 @@
                 </div>
                 <button type="submit" class="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Record Survey and Close Report</button>
               </form>
-            {% elif report.survey_method == 'system' and not report.survey %}
+            {% elif report.survey_method == 'system' %}
               <p class="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">Waiting for their submission</p>
             {% endif %}
           {% endif %}
@@ -739,97 +763,6 @@
   {% if can_edit_personnel %}
     {% include 'partials/_personnel_assignment_modal.html' %}
     <script src="{% static 'adm/js/personnel_assignment.js' %}" defer></script>
-  {% endif %}
-  {% if can_rate_med_personnel %}
-    <div id="head-rating-modal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto">
-      <form id="head-rating-form" method="POST" action="{% url 'adm_personnel_rating' report.id %}" aria-labelledby="head-rating-title" class="bg-white rounded-3xl shadow-xl w-full max-w-3xl max-h-[94vh] overflow-y-auto p-6 sm:p-8">
-        {% csrf_token %}
-        <h2 id="head-rating-title" class="text-xl font-bold text-gray-900 mb-1 text-center">Customer Satisfaction Survey</h2>
-        <p class="text-sm text-gray-400 text-center mb-6">Report {{ report.job_order_id }}</p>
-        <p class="text-sm text-gray-500 text-center mb-3">Please rate each part of the service from 1 to 5.</p>
-        <p class="text-xs text-gray-500 text-center mb-7">This group rating applies to: <span class="font-semibold text-gray-700">{{ report.assigned_personnel_summary }}</span></p>
-        <div class="space-y-6">
-          {% for field, question in qqt_questions %}
-            <section class="rounded-2xl border border-gray-100 bg-gray-50/70 px-3 py-4 sm:px-5">
-              <h3 class="text-base font-semibold text-gray-700 mb-4 text-center">{{ question }}</h3>
-              <div class="grid grid-cols-5 gap-1 sm:gap-3">
-                {% for emoji, label, val in qqt_emojis %}
-                  <button type="button" data-head-rating-field="{{ field }}" id="head-{{ field }}-emoji-{{ val }}" onclick="selectHeadRating('{{ field }}', {{ val }})" class="min-w-0 flex flex-col items-center justify-start px-1 py-3 rounded-xl transition-all">
-                    <span class="text-3xl sm:text-4xl leading-none mb-2">{{ emoji }}</span>
-                    <span class="text-xs font-semibold text-gray-600 text-center leading-none mb-1">{{ val }}</span>
-                    <span class="text-[9px] sm:text-xs text-gray-400 text-center leading-tight min-h-[30px] flex items-start justify-center">{{ label }}</span>
-                  </button>
-                {% endfor %}
-              </div>
-            </section>
-          {% endfor %}
-        </div>
-        <input type="hidden" name="quality" id="head-rating-quality">
-        <input type="hidden" name="quantity" id="head-rating-quantity">
-        <input type="hidden" name="timeliness" id="head-rating-timeliness">
-        <p id="head-rating-error" class="hidden text-xs text-red-500 text-center mt-3">Please complete all three ratings before submitting.</p>
-        <button id="head-rating-submit" type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3.5 rounded-xl transition-colors mt-7">Submit CSS</button>
-      </form>
-    </div>
-    <script>
-      (function () {
-        const modal = document.getElementById('head-rating-modal');
-        const form = document.getElementById('head-rating-form');
-        if (!modal || !form) return;
-
-        function lockScroll() {
-          document.documentElement.style.overflow = 'hidden';
-          document.body.style.overflow = 'hidden';
-        }
-        window.selectHeadRating = function (field, score) {
-          document.getElementById('head-rating-' + field).value = score;
-          document.querySelectorAll('[data-head-rating-field="' + field + '"]').forEach(function (button) {
-            button.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-400');
-          });
-          const selected = document.getElementById('head-' + field + '-emoji-' + score);
-          if (selected) selected.classList.add('bg-blue-50', 'ring-2', 'ring-blue-400');
-          document.getElementById('head-rating-error').classList.add('hidden');
-        };
-        form.addEventListener('submit', function (event) {
-          const complete = ['quality', 'quantity', 'timeliness'].every(function (field) {
-            return document.getElementById('head-rating-' + field).value;
-          });
-          if (!complete) {
-            event.preventDefault();
-            document.getElementById('head-rating-error').classList.remove('hidden');
-          } else {
-            const submit = document.getElementById('head-rating-submit');
-            submit.disabled = true;
-            submit.textContent = 'Submitting...';
-          }
-        });
-        lockScroll();
-      })();
-    </script>
-  {% endif %}
-  {% if rating_success_personnel %}
-    <div id="personnel-rating-success-modal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-4 pointer-events-auto overscroll-none">
-      <div role="dialog" aria-modal="true" aria-labelledby="personnel-rating-success-title" class="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6 sm:p-8 flex flex-col items-center text-center">
-        <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
-          <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-        </div>
-        <h2 id="personnel-rating-success-title" class="text-base font-bold text-gray-900 mb-2">Thank you for evaluating the MED personnel!</h2>
-        <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3 text-left mb-6">
-          <svg class="w-4 h-4 text-blue-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
-          <p class="text-xs text-blue-700 leading-relaxed text-justify">The group CSS rating was recorded for <span class="font-semibold">{{ rating_success_personnel }}</span>. Report {{ report.job_order_id }} is now Closed.</p>
-        </div>
-        <button type="button" id="personnel-rating-success-close" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 rounded-xl transition-colors">Got it</button>
-      </div>
-    </div>
-    <script>
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-      document.getElementById('personnel-rating-success-close').addEventListener('click', function () {
-        document.getElementById('personnel-rating-success-modal').remove();
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
-      });
-    </script>
   {% endif %}
   <style>
     .unit-dd { position: relative; }

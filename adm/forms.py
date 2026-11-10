@@ -22,9 +22,3 @@ class ManualSurveySubmissionForm(forms.Form):
         if image.size > 10 * 1024 * 1024:
             raise forms.ValidationError('The scanned Job Order must be 10 MB or smaller.')
         return image
-
-
-class HeadAdminPersonnelRatingForm(forms.Form):
-    quality = forms.IntegerField(min_value=1, max_value=5)
-    quantity = forms.IntegerField(min_value=1, max_value=5)
-    timeliness = forms.IntegerField(min_value=1, max_value=5)

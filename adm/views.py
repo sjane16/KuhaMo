@@ -11,7 +11,6 @@ from datetime import timedelta, datetime
 import calendar
 import json
 import re
-from django.conf import settings
 from collections import defaultdict
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
@@ -29,7 +28,7 @@ from user.realtime import schedule_notification_update
 from user.constants import PRIORITY_SLA_HOURS
 from user.decorators import is_head_admin
 from .models import Building 
-from .forms import HeadAdminPersonnelRatingForm, ManualSurveySubmissionForm
+from .forms import ManualSurveySubmissionForm
 
 
 REPORTS_PAGE_SIZE = 5
@@ -119,11 +118,6 @@ def save_report_personnel(request, report_id):
         'selected_slugs': [item['slug'] for group in context['selected_personnel_groups'] for item in group['personnel']],
         'other_names': [item['name'] for item in context['other_personnel']],
     })
-
-
-def is_med_personnel_report(report):
-    profile = getattr(report.user, 'profile', None) if report.user_id else None
-    return bool(profile and profile.role == 'med_personnel')
 
 
 def format_hours(hours):
@@ -425,9 +419,11 @@ def build_rating_analytics_context(response_page=1, include_responses=True):
 
 def dashboard(request):
     period = request.GET.get('period', '30')
+    report_month_availability = _report_month_availability()
 
     return render(request, 'dashboard.html', {
         'period': period,
+        **report_month_availability,
     })
 
 
@@ -727,8 +723,8 @@ def adm_dashboard_ajax(request):
     if report_month:
         try:
             start_dt, end_dt = _parse_report_month(report_month)
-        except ValueError:
-            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+        except ValueError as exc:
+            return JsonResponse({'error': str(exc)}, status=400)
         data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
     else:
         data = _cached_dashboard_data(period)
@@ -745,13 +741,15 @@ def adm_dashboard_ajax(request):
         request=request,
     )
 
-    today = timezone.localtime(timezone.now()).date()
+    today = timezone.localtime(timezone.now(), timezone.get_default_timezone()).date()
     last_day = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    report_month_availability = _report_month_availability()
 
     return JsonResponse({
         'html': html,
         'can_generate_report': is_head_admin(request.user),
         'report_available_on': last_day.strftime('%b %d, %Y'),
+        **report_month_availability,
         **data,
     })
 
@@ -768,6 +766,7 @@ def _filter_admin_reports(status_filter, search_query):
         q_filter = (
             Q(job_order_id__icontains=query)
             | Q(location__icontains=query)
+            | Q(building_name__icontains=query)
             | Q(category__icontains=query)
             | Q(custom_category__icontains=query)
             | Q(assigned_personnel_data__icontains=query)
@@ -853,9 +852,6 @@ def report_detail(request, report_id):
         id=report_id,
     )
     personnel_context = personnel_assignment_context(report)
-    med_report = is_med_personnel_report(report)
-    has_med_assignees = bool(_known_personnel_names(report.assigned_personnel_data or []))
-    rating_success_personnel = request.session.pop(f'med_personnel_rating_success_{report.id}', '')
     is_locked = report.status in ('resolved', 'closed')
 
     if report.status == 'closed':
@@ -870,22 +866,6 @@ def report_detail(request, report_id):
         **personnel_context,
         'can_edit_personnel': report.status == 'pending',
         'is_locked': is_locked,
-        'is_med_personnel_report': med_report,
-        'has_med_assignees': has_med_assignees,
-        'can_rate_med_personnel': med_report and has_med_assignees and report.status == 'resolved' and is_head_admin(request.user) and not hasattr(report, 'survey'),
-        'qqt_emojis': [
-            ('😤', 'Unsatisfactory', 1),
-            ('😞', 'Fair', 2),
-            ('😐', 'Satisfactory', 3),
-            ('😊', 'Very Satisfactory', 4),
-            ('😄', 'Outstanding', 5),
-        ],
-        'qqt_questions': (
-            ('quality', 'Quality of Work'),
-            ('quantity', 'Quantity of Work'),
-            ('timeliness', 'Timeliness of Service'),
-        ),
-        'rating_success_personnel': rating_success_personnel,
         'priority_sla_hours': PRIORITY_SLA_HOURS,
     })
 
@@ -899,9 +879,7 @@ def record_manual_survey(request, report_id):
         # (the loser used to hit an IntegrityError and a 500 page).
         with transaction.atomic():
             report = Report.objects.select_for_update().get(id=report_id)
-            if is_med_personnel_report(report):
-                messages.error(request, 'MED personnel reports must be rated by the Head Admin.')
-            elif report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
+            if report.status != 'resolved' or report.survey_method != 'manual' or SurveyResponse.objects.filter(report=report).exists():
                 messages.error(request, 'A manual survey can only be recorded once for a resolved report selected for manual submission.')
             elif form.is_valid():
                 SurveyResponse.objects.create(report=report, **form.cleaned_data)
@@ -912,38 +890,6 @@ def record_manual_survey(request, report_id):
                 messages.success(request, f'Report {report.job_order_id} survey recorded and report closed.')
             else:
                 messages.error(request, 'Please upload a valid JPG or PNG scan and select all three ratings.')
-    return redirect('adm_report_detail', report_id=report_id)
-
-
-def record_med_personnel_rating(request, report_id):
-    if request.method == 'POST':
-        form = HeadAdminPersonnelRatingForm(request.POST)
-        with transaction.atomic():
-            report = get_object_or_404(
-                Report.objects.select_for_update(of=('self',)).select_related('user__profile'),
-                id=report_id,
-            )
-            assigned_names = _known_personnel_names(report.assigned_personnel_data or [])
-            if not is_med_personnel_report(report):
-                messages.error(request, 'Only reports submitted by MED personnel use Head Admin ratings.')
-            elif report.status != 'resolved' or SurveyResponse.objects.filter(report=report).exists():
-                messages.error(request, 'A Head Admin rating can only be recorded once for a resolved MED personnel report.')
-            elif not assigned_names:
-                messages.error(request, 'Assign at least one MED personnel before recording the group rating.')
-            elif form.is_valid():
-                SurveyResponse.objects.create(
-                    report=report,
-                    rated_by=request.user,
-                    rating_source='head_admin',
-                    **form.cleaned_data,
-                )
-                report.status = 'closed'
-                report.save(update_fields=['status'])
-                request.session[f'closed_seen_{report.id}'] = True
-                request.session[f'med_personnel_rating_success_{report.id}'] = report.assigned_personnel_summary or ''
-                notify_status_change(report, 'closed', f'Report {report.job_order_id} is now Closed after Head Admin QQT evaluation.')
-            else:
-                messages.error(request, 'Please select a valid 1–5 score for all three QQT ratings.')
     return redirect('adm_report_detail', report_id=report_id)
 
 
@@ -972,7 +918,6 @@ def export_job_order_pdf_admin(request, report_id):
     html = render_to_string('user/job_order_pdf.html', {
         "report": report,
         "category_checks": category_checks,
-        "is_med_personnel_report": is_med_personnel_report(report),
     })
 
     response = HttpResponse(content_type='application/pdf')
@@ -1023,10 +968,6 @@ def export_personnel_performance_pdf(request):
 DASHBOARD_CHART_PATTERN = re.compile(r'^data:image/png;base64,[A-Za-z0-9+/=]+$')
 DASHBOARD_CHART_MAX_LEN = 1_500_000
 DASHBOARD_SUMMARY_MAX_LEN = 3000
-
-
-def _is_last_day_of_month(day):
-    return day.day == calendar.monthrange(day.year, day.month)[1]
 
 
 def _clean_chart_image(value):
@@ -1146,11 +1087,62 @@ def _build_report_summary(data, period_start, period_end, priority_tables=None):
 
 
 def _parse_report_month(report_month):
-    parsed = datetime.strptime(report_month, '%Y-%m')
+    try:
+        parsed = datetime.strptime(report_month, '%Y-%m')
+    except ValueError:
+        raise ValueError('Invalid report_month format. Expected YYYY-MM.') from None
+
+    if parsed.strftime('%Y-%m') != report_month:
+        raise ValueError('Invalid report_month format. Expected YYYY-MM.')
+
+    latest_month = _report_month_availability()['report_month_max']
+    if report_month > latest_month:
+        raise ValueError(
+            f'Reports are available through {latest_month}; the current month unlocks '
+            'at 10:00 PM Manila time on its last day.'
+        )
+
     first_day = datetime(parsed.year, parsed.month, 1)
     last_day = calendar.monthrange(parsed.year, parsed.month)[1]
     last_dt = datetime(parsed.year, parsed.month, last_day, 23, 59, 59)
-    return timezone.make_aware(first_day), timezone.make_aware(last_dt)
+    report_timezone = timezone.get_default_timezone()
+    return (
+        timezone.make_aware(first_day, report_timezone),
+        timezone.make_aware(last_dt, report_timezone),
+    )
+
+
+def _report_month_availability(now=None):
+    report_timezone = timezone.get_default_timezone()
+    now = timezone.localtime(now or timezone.now(), report_timezone)
+    current_last_day = calendar.monthrange(now.year, now.month)[1]
+    current_month_cutoff = timezone.make_aware(
+        datetime(now.year, now.month, current_last_day, 22),
+        report_timezone,
+    )
+
+    if now >= current_month_cutoff:
+        latest_year, latest_month = now.year, now.month
+        if now.month == 12:
+            unlock_year, unlock_month = now.year + 1, 1
+        else:
+            unlock_year, unlock_month = now.year, now.month + 1
+    else:
+        previous_month = now.date().replace(day=1) - timedelta(days=1)
+        latest_year, latest_month = previous_month.year, previous_month.month
+        unlock_year, unlock_month = now.year, now.month
+
+    unlock_last_day = calendar.monthrange(unlock_year, unlock_month)[1]
+    unlock_at = timezone.make_aware(
+        datetime(unlock_year, unlock_month, unlock_last_day, 22),
+        report_timezone,
+    )
+    return {
+        'report_month_max': f'{latest_year:04d}-{latest_month:02d}',
+        'report_month_unlock_after_ms': max(
+            0, int((unlock_at - now).total_seconds() * 1000)
+        ),
+    }
 
 
 def _fmt_period_label(start, end):
@@ -1261,35 +1253,18 @@ def export_dashboard_report_pdf(request):
     if request.method != 'POST':
         return HttpResponse("Invalid request.", status=405)
 
-    now = timezone.localtime(timezone.now())
-    today = now.date()
-
-    # Allow admins to explicitly request any month via the "report_month" POST field (format: YYYY-MM).
-    # If no month is specified, keep the original restriction: only allow generation on the last day
-    # of the current month (unless DEBUG).
+    now = timezone.localtime(timezone.now(), timezone.get_default_timezone())
     report_month = (request.POST.get('report_month') or '').strip()
-    start_dt = None
-    end_dt = None
-    if report_month:
-        try:
-            start_dt, end_dt = _parse_report_month(report_month)
-        except ValueError:
-            return HttpResponse("Invalid report_month format. Expected YYYY-MM.", status=400)
+    if not report_month:
+        report_month = _report_month_availability()['report_month_max']
+    try:
+        start_dt, end_dt = _parse_report_month(report_month)
+    except ValueError as exc:
+        return HttpResponse(str(exc), status=400)
 
-    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
-        return HttpResponse(
-            "The monthly report can only be generated on the last day of the month.",
-            status=403,
-        )
-
-    if report_month:
-        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
-        period_start = start_dt.date()
-        period_end = end_dt.date()
-    else:
-        data = _cached_dashboard_data('30')
-        period_end = today
-        period_start = today - timedelta(days=30)
+    data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+    period_start = start_dt.date()
+    period_end = end_dt.date()
 
     priority_tables = _cached_pdf_priority_tables(period_start, period_end)
 
@@ -1415,32 +1390,17 @@ def dashboard_report_summary(request):
     if request.method != 'GET':
         return JsonResponse({'error': 'Invalid request.'}, status=405)
 
-    now = timezone.localtime(timezone.now())
-    today = now.date()
-
     report_month = (request.GET.get('report_month') or '').strip()
-    start_dt = None
-    end_dt = None
-    if report_month:
-        try:
-            start_dt, end_dt = _parse_report_month(report_month)
-        except ValueError:
-            return JsonResponse({'error': 'Invalid report_month format. Expected YYYY-MM.'}, status=400)
+    if not report_month:
+        report_month = _report_month_availability()['report_month_max']
+    try:
+        start_dt, end_dt = _parse_report_month(report_month)
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
 
-    if not settings.DEBUG and not report_month and not _is_last_day_of_month(today):
-        return JsonResponse(
-            {'error': 'The monthly report can only be generated on the last day of the month.'},
-            status=403,
-        )
-
-    if report_month:
-        data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
-        period_start = start_dt.date()
-        period_end = end_dt.date()
-    else:
-        data = _cached_dashboard_data('30')
-        period_end = today
-        period_start = today - timedelta(days=30)
+    data = _cached_dashboard_data(None, start_date=start_dt, end_date=end_dt)
+    period_start = start_dt.date()
+    period_end = end_dt.date()
 
     return JsonResponse({'summary': _build_report_summary(data, period_start, period_end)})
 
