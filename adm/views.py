@@ -766,6 +766,7 @@ def _filter_admin_reports(status_filter, search_query):
         q_filter = (
             Q(job_order_id__icontains=query)
             | Q(location__icontains=query)
+            | Q(building_name__icontains=query)
             | Q(category__icontains=query)
             | Q(custom_category__icontains=query)
             | Q(assigned_personnel_data__icontains=query)

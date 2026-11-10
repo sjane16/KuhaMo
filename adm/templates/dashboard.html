@@ -1195,6 +1195,22 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        onHover: function(_event, activeElements, chart) {
+                            if (!reportMode) {
+                                chart.canvas.style.cursor = activeElements.length ? 'pointer' : 'default';
+                            }
+                        },
+                        onClick: function(_event, activeElements) {
+                            if (reportMode || !activeElements.length) return;
+                            const point = activeElements[0];
+                            const status = statusCodes[point.datasetIndex];
+                            const building = data.building_labels[point.index];
+                            if (!status || !building) return;
+                            const url = new URL("{% url 'reports' %}", window.location.origin);
+                            url.searchParams.set('status', status);
+                            url.searchParams.set('search', building);
+                            window.location.assign(url.toString());
+                        },
                         datasets: {
                             bar: {
                                 grouped: true,

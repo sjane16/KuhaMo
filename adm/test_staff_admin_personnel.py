@@ -50,6 +50,32 @@ class StaffAdminAndPersonnelTests(TestCase):
         details = self.client.get(reverse('adm_report_detail', args=[self.report.pk]))
         self.assertNotContains(details, 'onclick="exportJobOrder()"')
 
+    def test_reports_ajax_filters_by_building_name_and_status(self):
+        Report.objects.filter(pk=self.report.pk).update(
+            status='pending', building_name='Main Building',
+        )
+        Report.objects.create(
+            user=self.reporter, job_order_id='OTHER-BUILDING', category='electrical',
+            location='New Building, Room 2', building_name='New Building',
+            description='Different building', status='pending',
+        )
+        Report.objects.create(
+            user=self.reporter, job_order_id='OTHER-STATUS', category='electrical',
+            location='Main Building, Room 3', building_name='Main Building',
+            description='Different status', status='in_progress',
+        )
+        filters = {'status': 'pending', 'search': 'Main Building'}
+
+        page = self.client.get(reverse('reports'), filters)
+        self.assertEqual(page.context['status_filter'], 'pending')
+        self.assertEqual(page.context['search_query'], 'Main Building')
+
+        payload = self.client.get(reverse('adm_reports_ajax'), filters).json()
+        self.assertEqual(payload['total_count'], 1)
+        self.assertIn('PERSONNEL-TEST', payload['desktop_html'])
+        self.assertNotIn('OTHER-BUILDING', payload['desktop_html'])
+        self.assertNotIn('OTHER-STATUS', payload['desktop_html'])
+
     def test_staff_admin_cannot_bypass_restrictions_using_direct_urls(self):
         for route, args in (
             ('export_dashboard_report_pdf', []),
